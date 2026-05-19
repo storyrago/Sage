@@ -8,6 +8,25 @@ function isAlreadyJoinedError(error) {
   return error.response?.status === 409;
 }
 
+function formatMessageTime(createdAt) {
+  if (!createdAt) {
+    return "";
+  }
+
+  const date = new Date(createdAt);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toLocaleString("ko-KR", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
 export default function ChatRoomPage() {
   const navigate = useNavigate();
   const { chatroomId } = useParams();
@@ -160,8 +179,10 @@ export default function ChatRoomPage() {
           {messages.map((message) => (
             <li key={message.messageId} className="message-item">
               <div className="message-meta">
-                <span>User #{message.memberId}</span>
-                <span>Message #{message.messageId}</span>
+                <span>{message.nickname || `User #${message.memberId}`}</span>
+                <time dateTime={message.createdAt || undefined}>
+                  {formatMessageTime(message.createdAt)}
+                </time>
               </div>
               <p>{message.content}</p>
             </li>

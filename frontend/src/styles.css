@@ -244,6 +244,18 @@ a {
   justify-content: space-between;
   gap: 12px;
   color: #98a2c7;
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
+.message-meta span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.message-meta time {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .message-form {
