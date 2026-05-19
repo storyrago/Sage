@@ -141,6 +141,30 @@ a {
   font-weight: 600;
 }
 
+.auth-switch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: #98a2c7;
+  font-size: 0.92rem;
+  text-align: center;
+}
+
+.auth-link-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 9px 14px;
+}
+
+.success-text {
+  margin: 0;
+  color: #7ee0a1;
+}
+
 .primary-button:hover,
 .secondary-button:hover,
 .primary-link:hover {

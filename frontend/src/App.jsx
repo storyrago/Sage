@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import ChatRoomPage from "./pages/ChatRoomPage";
 import ChatRoomsPage from "./pages/ChatRoomsPage";
 import LoginPage from "./pages/LoginPage";
+import SignupPage from "./pages/SignupPage";
 import { getAccessToken } from "./lib/storage";
 
 function ProtectedRoute({ children }) {
@@ -12,6 +13,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignupPage />} />
       <Route
         path="/chatrooms"
         element={
