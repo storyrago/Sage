@@ -1,0 +1,142 @@
+{
+  "entities": {
+    "user": {
+      "title": "User",
+      "description": "Public user profile details.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "User's unique identification code from Auth."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Display name chosen by the user."
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "Avatar URI or gradient selection placeholder."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when this record was updated."
+        }
+      },
+      "required": ["uid", "displayName", "photoURL", "updatedAt"]
+    },
+    "channel": {
+      "title": "Channel",
+      "description": "A communication channel or chatroom detail.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the channel."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the channel."
+        },
+        "description": {
+          "type": "string",
+          "description": "Brief summary of the channel's topic or purpose."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The server timestamp when the channel was created."
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "The UID of the user who created it."
+        }
+      },
+      "required": ["id", "name", "description", "createdAt", "createdBy"]
+    },
+    "message": {
+      "title": "Message",
+      "description": "A message sent within a specific channel.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the message."
+        },
+        "text": {
+          "type": "string",
+          "description": "Text body of the message."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The author's user ID."
+        },
+        "userName": {
+          "type": "string",
+          "description": "The display name of the author when sending."
+        },
+        "userPhotoURL": {
+          "type": "string",
+          "description": "Avatar URL of the author when sending."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The server timestamp when the message was sent."
+        },
+        "replyToId": {
+          "type": "string",
+          "description": "The optional ID of the message this is reply to."
+        }
+      },
+      "required": ["id", "text", "userId", "userName", "userPhotoURL", "createdAt"]
+    },
+    "presence": {
+      "title": "Presence",
+      "description": "Real-time user status in a channel.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "User ID of the participant."
+        },
+        "userName": {
+          "type": "string",
+          "description": "Display name of the user."
+        },
+        "userPhotoURL": {
+          "type": "string",
+          "description": "Avatar URL of the user."
+        },
+        "isTyping": {
+          "type": "boolean",
+          "description": "Indicates if the user is currently typing a message."
+        },
+        "lastSeen": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The server timestamp representing activity."
+        }
+      },
+      "required": ["userId", "userName", "userPhotoURL", "isTyping", "lastSeen"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "user",
+      "description": "Global user profiles database mapping."
+    },
+    "/channels/{channelId}": {
+      "schema": "channel",
+      "description": "Chat channels/rooms."
+    },
+    "/channels/{channelId}/messages/{messageId}": {
+      "schema": "message",
+      "description": "Individual messages in a specific channel."
+    },
+    "/channels/{channelId}/presence/{userId}": {
+      "schema": "presence",
+      "description": "User presence and typing states inside a channel."
+    }
+  }
+}
