@@ -249,6 +249,8 @@ a {
   padding: 0;
   height: 100%;
   overflow: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .message-item {
@@ -395,3 +397,20 @@ a {
     padding: 18px;
   }
 }
+
+.message-item {
+  align-self: flex-start;
+  max-width: 72%;
+}
+
+.message-item-mine {
+  align-self: flex-end;
+  background: #2563eb;
+  color: white;
+}
+
+.message-item-mine .message-meta {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+

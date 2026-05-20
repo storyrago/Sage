@@ -40,6 +40,7 @@ export default function ChatRoomPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState("idle");
+  const [me, setMe] = useState(null);
 
   const statusLabel = useMemo(() => {
     if (connectionStatus === "connected") return "Connected";
@@ -67,9 +68,10 @@ export default function ChatRoomPage() {
         }
       }
 
-      const [roomResponse, messageResponse] = await Promise.all([
+      const [roomResponse, messageResponse, meResponse] = await Promise.all([
         api.get(`/chatrooms/${chatroomId}`),
-        api.get(`/chatrooms/${chatroomId}/messages`)
+        api.get(`/chatrooms/${chatroomId}/messages`),
+        api.get("/members/me")
       ]);
 
       if (cancelled) {
@@ -78,6 +80,7 @@ export default function ChatRoomPage() {
 
       setRoom(roomResponse.data);
       setMessages(messageResponse.data);
+      setMe(meResponse.data);
 
       const chatClient = createChatClient({
         token,
@@ -176,17 +179,24 @@ export default function ChatRoomPage() {
 
       <section className="message-panel">
         <ul className="message-list">
-          {messages.map((message) => (
-            <li key={message.messageId} className="message-item">
-              <div className="message-meta">
-                <span>{message.nickname || `User #${message.memberId}`}</span>
-                <time dateTime={message.createdAt || undefined}>
-                  {formatMessageTime(message.createdAt)}
-                </time>
-              </div>
-              <p>{message.content}</p>
-            </li>
-          ))}
+          {messages.map((message) => {
+            const isMine = me?.id === message.memberId;
+
+            return (
+              <li
+                key={message.messageId}
+                className={`message-item ${isMine ? "message-item-mine" : ""}`}
+              >
+                <div className="message-meta">
+                  <span>{message.nickname || `User #${message.memberId}`}</span>
+                  <time dateTime={message.createdAt || undefined}>
+                    {formatMessageTime(message.createdAt)}
+                  </time>
+                </div>
+                <p>{message.content}</p>
+              </li>
+            );
+          })}
           <li ref={messageEndRef} />
         </ul>
       </section>
