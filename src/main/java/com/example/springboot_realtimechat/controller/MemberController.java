@@ -3,9 +3,12 @@ package com.example.springboot_realtimechat.controller;
 import com.example.springboot_realtimechat.domain.Member;
 import com.example.springboot_realtimechat.dto.MemberRequest;
 import com.example.springboot_realtimechat.dto.MemberResponse;
+import com.example.springboot_realtimechat.security.CustomUserDetails;
 import com.example.springboot_realtimechat.service.MemberService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,6 +26,13 @@ public class MemberController {
                 .map(MemberResponse::from)
                 .toList();
     }
+
+    @GetMapping("/me")
+    public MemberResponse getMe(@AuthenticationPrincipal CustomUserDetails customUserDetails){
+        Member member = memberService.getMemberById(customUserDetails.getMemberId());
+        return MemberResponse.from(member);
+    }
+
     @GetMapping("/{id}")
     public MemberResponse getMemberById(@PathVariable Long id){
         Member member = memberService.getMemberById(id);
@@ -30,19 +40,14 @@ public class MemberController {
     }
 
     @PostMapping
-    public MemberResponse create(@RequestBody MemberRequest memberRequest){
+    public MemberResponse create(@Valid @RequestBody MemberRequest memberRequest){
        Member member = memberService.create(
                memberRequest.getEmail(),
                memberRequest.getPassword(),
                memberRequest.getNickname()
        );
 
-        return new MemberResponse(
-                member.getId(),
-                member.getEmail(),
-                member.getNickname(),
-                member.getCreatedAt()
-        );
+        return MemberResponse.from(member);
     }
 
     @DeleteMapping("/{id}")

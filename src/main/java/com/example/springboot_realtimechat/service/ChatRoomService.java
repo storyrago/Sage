@@ -1,6 +1,8 @@
 package com.example.springboot_realtimechat.service;
 
 import com.example.springboot_realtimechat.domain.ChatRoom;
+import com.example.springboot_realtimechat.global.exception.CustomException;
+import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.repository.ChatRoomRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,7 +24,7 @@ public class ChatRoomService {
 
     public ChatRoom getChatRoomById(Long chatRoomId){
         return chatRoomRepository.findById(chatRoomId)
-                .orElseThrow(()->new RuntimeException("채팅방 없음."));
+                .orElseThrow(()->new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
     }
 
     public List<ChatRoom> getAllChatRooms(){

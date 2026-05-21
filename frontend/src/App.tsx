@@ -1,0 +1,345 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Channel, Message, Presence, User } from './types';
+import UserSetup from './components/UserSetup';
+import Sidebar from './components/Sidebar';
+import ChatArea from './components/ChatArea';
+import { WifiOff, RefreshCw } from 'lucide-react';
+import {
+  createChatRoom,
+  getChatRooms,
+  getMe,
+  getMessages,
+  joinChatRoom,
+  login,
+  sendMessage,
+  signup,
+  toChannel,
+  toMessage,
+  toUser,
+} from './lib/api';
+import { SpringStompClient } from './lib/stomp';
+
+interface StoredSession {
+  token: string;
+  user: User;
+}
+
+const SESSION_KEY = 'chat_auth_session';
+
+export default function App() {
+  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [channels, setChannels] = useState<Channel[]>([]);
+  const [selectedChannelId, setSelectedChannelId] = useState<string>('');
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [presences, setPresences] = useState<Presence[]>([]);
+  const [connected, setConnected] = useState<boolean>(false);
+  const [isEditingProfile, setIsEditingProfile] = useState<boolean>(false);
+  const [reconnectCount, setReconnectCount] = useState<number>(0);
+  const [loadingMessage, setLoadingMessage] = useState<string>('채팅 정보를 불러오는 중입니다.');
+
+  const stompRef = useRef<SpringStompClient | null>(null);
+  const selectedChannelRef = useRef<string>('');
+
+  useEffect(() => {
+    selectedChannelRef.current = selectedChannelId;
+  }, [selectedChannelId]);
+
+  const persistSession = useCallback((nextToken: string, nextUser: User) => {
+    const session: StoredSession = { token: nextToken, user: nextUser };
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    setToken(nextToken);
+    setUser(nextUser);
+  }, []);
+
+  const clearSession = useCallback(() => {
+    localStorage.removeItem(SESSION_KEY);
+    stompRef.current?.disconnect();
+    stompRef.current = null;
+    setToken(null);
+    setUser(null);
+    setChannels([]);
+    setMessages([]);
+    setPresences([]);
+    setSelectedChannelId('');
+    setConnected(false);
+  }, []);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(SESSION_KEY);
+    if (!saved) return;
+
+    try {
+      const parsed = JSON.parse(saved) as StoredSession;
+      if (parsed?.token && parsed?.user) {
+        setToken(parsed.token);
+        setUser(parsed.user);
+      }
+    } catch {
+      localStorage.removeItem(SESSION_KEY);
+    }
+  }, []);
+
+  const refreshRooms = useCallback(async (authToken: string) => {
+    const rooms = await getChatRooms(authToken);
+    const mappedRooms = rooms.map(toChannel);
+    setChannels(mappedRooms);
+
+    if (mappedRooms.length > 0) {
+      setSelectedChannelId((current) => current || mappedRooms[0].id);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!token || !user) return;
+
+    let cancelled = false;
+
+    async function bootstrap() {
+      try {
+        setLoadingMessage('계정과 채팅방 정보를 확인하는 중입니다.');
+        const currentMember = await getMe(token);
+        if (cancelled) return;
+
+        const currentUser = toUser(currentMember);
+        persistSession(token, currentUser);
+        await refreshRooms(token);
+      } catch (error) {
+        console.error('[Auth] Saved token is invalid:', error);
+        if (!cancelled) clearSession();
+      }
+    }
+
+    bootstrap();
+    return () => {
+      cancelled = true;
+    };
+  }, [token, user?.id, persistSession, refreshRooms, clearSession]);
+
+  useEffect(() => {
+    if (!token || !selectedChannelId) return;
+
+    let cancelled = false;
+
+    async function loadMessages() {
+      try {
+        setLoadingMessage('메시지를 불러오는 중입니다.');
+        await joinChatRoom(token, selectedChannelId);
+        const nextMessages = await getMessages(token, selectedChannelId);
+        if (!cancelled) {
+          setMessages((prev) => {
+            const otherRooms = prev.filter((message) => message.channelId !== selectedChannelId);
+            return [...otherRooms, ...nextMessages.map(toMessage)];
+          });
+        }
+      } catch (error) {
+        console.error('[ChatRoom] Failed to load messages:', error);
+      }
+    }
+
+    loadMessages();
+    stompRef.current?.subscribe(selectedChannelId);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, selectedChannelId]);
+
+  useEffect(() => {
+    if (!token || !user) return;
+
+    let disposed = false;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const scheduleReconnect = () => {
+      if (disposed || reconnectTimer) return;
+      setConnected(false);
+      setReconnectCount((count) => count + 1);
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        connect();
+      }, 3000);
+    };
+
+    const connect = () => {
+      const client = new SpringStompClient({
+        token,
+        onConnect: () => {
+          setConnected(true);
+          setReconnectCount(0);
+          if (selectedChannelRef.current) {
+            client.subscribe(selectedChannelRef.current);
+          }
+        },
+        onMessage: (backendMessage) => {
+          const nextMessage = toMessage(backendMessage);
+          setMessages((prev) => {
+            if (prev.some((message) => message.id === nextMessage.id)) return prev;
+            return [...prev, nextMessage];
+          });
+        },
+        onDisconnect: scheduleReconnect,
+        onError: scheduleReconnect,
+      });
+
+      stompRef.current = client;
+      client.connect();
+    };
+
+    connect();
+
+    return () => {
+      disposed = true;
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+      }
+      stompRef.current?.disconnect();
+      stompRef.current = null;
+    };
+  }, [token, user?.id]);
+
+  useEffect(() => {
+    if (!user || !selectedChannelId) {
+      setPresences([]);
+      return;
+    }
+
+    setPresences([{
+      userId: user.id,
+      userName: user.displayName,
+      userAvatar: user.avatar,
+      isTyping: false,
+      channelId: selectedChannelId,
+      lastSeen: Date.now(),
+    }]);
+  }, [user, selectedChannelId]);
+
+  const handleSelectChannel = (channelId: string) => {
+    setSelectedChannelId(channelId);
+  };
+
+  const handleCreateChannel = async (_id: string, name: string) => {
+    if (!token) return;
+    const createdRoom = await createChatRoom(token, name);
+    const nextChannel = toChannel(createdRoom);
+    setChannels((prev) => [...prev, nextChannel]);
+    setSelectedChannelId(nextChannel.id);
+  };
+
+  const handleSendMessage = async (text: string) => {
+    if (!token || !selectedChannelId) return;
+
+    const sentOverStomp = stompRef.current?.send(selectedChannelId, text) ?? false;
+    if (!sentOverStomp) {
+      const saved = await sendMessage(token, selectedChannelId, text);
+      const nextMessage = toMessage(saved);
+      setMessages((prev) => [...prev, nextMessage]);
+    }
+  };
+
+  const handleSendReaction = () => {
+    // The Spring Boot API currently has no reaction endpoint.
+  };
+
+  const handleDeleteMessage = () => {
+    // The Spring Boot API currently has no message deletion endpoint.
+  };
+
+  const handleTypeStateChange = (isTyping: boolean) => {
+    if (!user || !selectedChannelId) return;
+    setPresences([{
+      userId: user.id,
+      userName: user.displayName,
+      userAvatar: user.avatar,
+      isTyping,
+      channelId: selectedChannelId,
+      lastSeen: Date.now(),
+    }]);
+  };
+
+  const handleLogout = () => {
+    clearSession();
+  };
+
+  const handleSetupComplete = async (
+    credentials: { email: string; password: string; nickname?: string },
+    mode: 'login' | 'signup',
+  ) => {
+    if (mode === 'signup') {
+      await signup({
+        email: credentials.email,
+        password: credentials.password,
+        nickname: credentials.nickname ?? '',
+      });
+    }
+
+    const nextToken = await login({
+      email: credentials.email,
+      password: credentials.password,
+    });
+    const currentMember = await getMe(nextToken);
+    persistSession(nextToken, toUser(currentMember));
+    setIsEditingProfile(false);
+  };
+
+  const activeChannel = channels.find((channel) => channel.id === selectedChannelId) || {
+    id: selectedChannelId || 'empty',
+    name: selectedChannelId ? '채팅방' : '채팅방 없음',
+    description: selectedChannelId ? loadingMessage : '왼쪽에서 채팅방을 만들거나 백엔드에 채팅방을 생성해 주세요.',
+    createdBy: 'system',
+    createdAt: Date.now(),
+  };
+
+  if (!user || isEditingProfile) {
+    return (
+      <UserSetup
+        onComplete={handleSetupComplete}
+        initialUser={user}
+      />
+    );
+  }
+
+  return (
+    <div className="flex h-screen w-screen bg-slate-950 text-slate-100 font-sans select-none overflow-hidden relative">
+      <AnimatePresence>
+        {!connected && (
+          <motion.div
+            initial={{ y: -50 }}
+            animate={{ y: 0 }}
+            exit={{ y: -50 }}
+            className="absolute top-0 inset-x-0 bg-rose-600 border-b border-rose-500 text-white z-50 text-center py-2 px-4 shadow-xl flex items-center justify-center gap-2 text-xs font-bold leading-none"
+          >
+            <WifiOff className="w-4 h-4 animate-pulse flex-shrink-0" />
+            <span>실시간 채팅 연결 대기 중입니다. REST API는 계속 사용할 수 있습니다. ({reconnectCount}회)</span>
+            <RefreshCw className="w-3.5 h-3.5 animate-spin ml-2 flex-shrink-0" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className={`flex w-full h-full transition-all duration-350 ${!connected ? 'pt-8' : ''}`}>
+        <Sidebar
+          channels={channels}
+          selectedChannelId={selectedChannelId}
+          onSelectChannel={handleSelectChannel}
+          onCreateChannel={handleCreateChannel}
+          presences={presences}
+          currentUser={user}
+          onLogout={handleLogout}
+          onEditProfile={() => setIsEditingProfile(true)}
+        />
+
+        <ChatArea
+          channel={activeChannel}
+          messages={messages}
+          presences={presences}
+          currentUser={user}
+          onSendMessage={handleSendMessage}
+          onSendReaction={handleSendReaction}
+          onDeleteMessage={handleDeleteMessage}
+          onTypeStateChange={handleTypeStateChange}
+        />
+      </div>
+    </div>
+  );
+}

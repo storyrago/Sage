@@ -27,7 +27,7 @@ public class Member {
     @Column(length=10)
     private String nickname;
 
-    @Column(updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     @CreationTimestamp
     private LocalDateTime createdAt;
 

@@ -4,6 +4,7 @@ import com.example.springboot_realtimechat.domain.ChatRoom;
 import com.example.springboot_realtimechat.dto.ChatRoomRequest;
 import com.example.springboot_realtimechat.dto.ChatRoomResponse;
 import com.example.springboot_realtimechat.service.ChatRoomService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,18 +12,14 @@ import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("api/chatrooms")
+@RequestMapping("/api/chatrooms")
 public class ChatRoomController {
     private final ChatRoomService chatRoomService;
 
     @PostMapping
-    public ChatRoomResponse create(@RequestBody ChatRoomRequest chatRoomRequest){
+    public ChatRoomResponse create(@Valid @RequestBody ChatRoomRequest chatRoomRequest){
         ChatRoom chatRoom = chatRoomService.create(chatRoomRequest.getName());
-        return new ChatRoomResponse(
-                chatRoom.getId(),
-                chatRoom.getName(),
-                chatRoom.getCreatedAt()
-        );
+        return ChatRoomResponse.from(chatRoom);
     }
 
     @GetMapping("/{id}")
