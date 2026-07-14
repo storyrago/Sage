@@ -8,7 +8,7 @@ import com.example.springboot_realtimechat.service.MessageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
-import org.springframework.messaging.handler.annotation.SendTo;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 
@@ -18,10 +18,10 @@ import java.security.Principal;
 @RequiredArgsConstructor
 public class ChatMessageController {
     private final MessageService messageService;
+    private final SimpMessagingTemplate simpMessagingTemplate;
 
     @MessageMapping("/chatrooms/{chatroomId}/messages")
-    @SendTo("/sub/chatrooms/{chatroomId}")
-    public MessageResponse sendMessage(
+    public void sendMessage(
             @DestinationVariable Long chatroomId,
             MessageRequest messageRequest,
             Principal principal) {
@@ -31,7 +31,7 @@ public class ChatMessageController {
                 messageRequest.getContent(),
                 customUserDetails.getMemberId(),
                 chatroomId);
-
-        return MessageResponse.from(message);
+        MessageResponse messageResponse = MessageResponse.from(message);
+        simpMessagingTemplate.convertAndSend("/sub/chatrooms/" + chatroomId, messageResponse);
     }
 }
