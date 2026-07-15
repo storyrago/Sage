@@ -19,6 +19,7 @@ public class RedisSubscriber implements MessageListener {
     public void onMessage(Message message, byte[] pattern){
         try{
             MessageResponse messageResponse = objectMapper.readValue(message.getBody(), MessageResponse.class);
+            messagingTemplate.convertAndSend("/sub/chatrooms/" + messageResponse.getChatroomId(), messageResponse);
         }catch(Exception e){
             log.error("Redis 메시지 역직렬화 실패", e);
         }

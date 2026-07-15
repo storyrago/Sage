@@ -3,6 +3,7 @@ package com.example.springboot_realtimechat.controller;
 import com.example.springboot_realtimechat.domain.Message;
 import com.example.springboot_realtimechat.dto.MessageRequest;
 import com.example.springboot_realtimechat.dto.MessageResponse;
+import com.example.springboot_realtimechat.redis.RedisPublisher;
 import com.example.springboot_realtimechat.security.CustomUserDetails;
 import com.example.springboot_realtimechat.service.MessageService;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +19,7 @@ import java.security.Principal;
 @RequiredArgsConstructor
 public class ChatMessageController {
     private final MessageService messageService;
-    private final SimpMessagingTemplate simpMessagingTemplate;
+    private final RedisPublisher redisPublisher;
 
     @MessageMapping("/chatrooms/{chatroomId}/messages")
     public void sendMessage(
@@ -32,6 +33,6 @@ public class ChatMessageController {
                 customUserDetails.getMemberId(),
                 chatroomId);
         MessageResponse messageResponse = MessageResponse.from(message);
-        simpMessagingTemplate.convertAndSend("/sub/chatrooms/" + chatroomId, messageResponse);
+        redisPublisher.publish(messageResponse);
     }
 }
