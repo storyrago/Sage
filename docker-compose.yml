@@ -4,27 +4,12 @@ services:
     ports:
       - "8080:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/spring_realtimechat_service
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: 1111
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
       SPRING_DATA_REDIS_HOST: redis
     depends_on:
-      mysql:
-        condition: service_healthy     # ← mysql이 'healthy' 될 때까지 app 대기
-      redis:
-        condition: service_started
-
-  mysql:
-    image: mysql:8.0
-    environment:
-      MYSQL_ROOT_PASSWORD: 1111
-      MYSQL_DATABASE: spring_realtimechat_service
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p1111"]
-      interval: 5s        # 5초마다 확인
-      timeout: 3s
-      retries: 10         # 10번 실패하면 포기
-      start_period: 10s   # 첫 10초는 실패해도 봐줌 (초기화 시간)
+      - redis
 
   redis:
     image: redis:7
