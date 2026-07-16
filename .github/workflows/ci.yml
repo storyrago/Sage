@@ -1,0 +1,41 @@
+name: CI
+
+on:                          # 트리거: push / PR 마다
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    services:                # ← compose의 services 와 똑같은 개념
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379        # 러너의 localhost:6379 로 연결
+
+      mysql:
+        image: mysql:8.0
+        env:                 # compose의 environment 와 동일
+          MYSQL_ROOT_PASSWORD: 1111
+          MYSQL_DATABASE: spring_realtimechat_service
+        ports:
+          - 3306:3306
+        options: >-          # compose의 healthcheck 와 동일 (준비될 때까지 대기)
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -p1111"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4          # ① 코드 받기 (git clone)
+
+      - uses: actions/setup-java@v4        # ② 자바 준비 (JDK 17)
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Build & Test                 # ③ 빌드 + 테스트 (이제 -x test 없이!)
+        run: |
+          chmod +x gradlew
+          ./gradlew build
