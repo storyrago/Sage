@@ -1,0 +1,25 @@
+name: CD
+
+on:
+  push:
+    branches: [ develop ]      # develop에 머지되면 자동 배포
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}       # ← 시크릿 참조
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}      # ← .pem 내용 시크릿
+          command_timeout: 20m
+          script: |
+            cd ~/realtimechat-backend
+            git fetch origin
+            git checkout develop
+            git reset --hard origin/develop     # 서버를 origin/develop에 강제 맞춤
+            chmod +x gradlew
+            ./gradlew build -x test             # jar 빌드 (테스트는 CI가 이미 했으니 스킵)
+            docker compose up -d --build        # 새로 빌드해서 재시작
