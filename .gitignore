@@ -38,6 +38,7 @@ out/
 
 ### Local Config ###
 src/main/resources/application-local.yaml
+.env
 
 ### Frontend ###
 frontend/node_modules/
