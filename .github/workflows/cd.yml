@@ -21,5 +21,6 @@ jobs:
             git checkout develop
             git reset --hard origin/develop     # 서버를 origin/develop에 강제 맞춤
             chmod +x gradlew
-            ./gradlew build -x test             # jar 빌드 (테스트는 CI가 이미 했으니 스킵)
-            docker compose up -d --build        # 새로 빌드해서 재시작
+            ./gradlew --stop                              # 기존 gradle 데몬 종료 (메모리 확보)
+            ./gradlew build -x test --no-daemon           # 데몬 없이 빌드 (끝나면 메모리 즉시 해제)
+            docker compose up -d --build --remove-orphans # 재빌드·재시작 + 옛 컨테이너 정리

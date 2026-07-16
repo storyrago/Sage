@@ -1,0 +1,8 @@
+# 빌드 컨텍스트에서 제외 (도커 빌드 메모리/속도 개선)
+.git
+.github
+.idea
+frontend
+build/*
+!build/libs
+*.md
