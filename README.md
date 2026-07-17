@@ -7,7 +7,7 @@
 JWT 인증부터 **Redis Pub/Sub 다중 서버 확장**, **AWS 배포와 CI/CD 자동화**까지
 하나의 실시간 채팅 서비스를 처음부터 끝까지 완성한 프로젝트
 
-[Swagger API 문서](http://localhost:8080/swagger-ui/index.html) · [개발 블로그](https://velog.io/@storyrago/posts)
+[Swagger API 문서](http://localhost:8080/swagger-ui/index.html)
 
 </div>
 
@@ -22,7 +22,6 @@ JWT 인증부터 **Redis Pub/Sub 다중 서버 확장**, **AWS 배포와 CI/CD �
 - [기술 스택](#️-기술-스택)
 - [API 문서](#-api-문서)
 - [실행 방법](#-실행-방법)
-- [CI/CD](#️-cicd)
 - [트러블슈팅](#-트러블슈팅)
 - [만든 사람](#-만든-사람)
 
@@ -255,23 +254,6 @@ export JWT_SECRET=$(openssl rand -base64 32)
 ./gradlew test
 ```
 **H2 인메모리 DB**와 더미 설정을 사용합니다.
-
----
-
-## ⚙️ CI/CD
-
-```mermaid
-flowchart LR
-    P["push / PR"] --> CI["CI · GitHub Actions"]
-    CI -->|"redis + mysql 서비스 컨테이너"| T["./gradlew build (테스트 포함)"]
-    M["develop 머지"] --> CD["CD · GitHub Actions"]
-    CD -->|"SSH"| E["EC2: 코드 정렬 → 빌드 → docker compose up"]
-```
-
-| 파이프라인 | 트리거 | 하는 일 |
-|---|---|---|
-| **CI** | 모든 push · PR | Redis·MySQL을 **service container**로 띄워 **통합 테스트까지 실제 검증** |
-| **CD** | `develop` 머지 | EC2에 SSH → `git reset --hard` → 빌드 → 컨테이너 재기동 |
 
 ---
 
