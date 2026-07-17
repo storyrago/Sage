@@ -21,7 +21,6 @@ JWT 인증부터 **Redis Pub/Sub 다중 서버 확장**, **AWS 배포와 CI/CD �
 - [API 문서](#-api-문서)
 - [실행 방법](#-실행-방법)
 - [트러블슈팅](#-트러블슈팅)
-- [만든 사람](#-만든-사람)
 
 ---
 
@@ -269,14 +268,6 @@ export JWT_SECRET=$(openssl rand -base64 32)
 | **JWT 시크릿이 레포에 노출** | 설정 파일에 하드코딩 | **`${JWT_SECRET}` 외부화** + 시크릿 로테이션 |
 
 ---
-
-## 👤 만든 사람
-
-| | |
-|---|---|
-| **Name** | Jamin Cheon |
-| **GitHub** | [@storyrago](https://github.com/storyrago) |
-| **Blog** | [velog.io/@storyrago](https://velog.io/@storyrago/posts) |
 
 <div align="center">
 
