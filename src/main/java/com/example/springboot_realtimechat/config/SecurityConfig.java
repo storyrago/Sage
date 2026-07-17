@@ -33,11 +33,10 @@ public class SecurityConfig {
                             session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.POST, "/api/members").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/members").permitAll() // 회원가입만 공개
                         .requestMatchers(
                                 "/api/auth/**",      // 로그인
-                                "/api/members/**",   // 회원가입
-                                "/ws/**",
+                                "/ws/**",            // WebSocket 핸드셰이크 (인증은 STOMP CONNECT에서)
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**"
                         ).permitAll()
