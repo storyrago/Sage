@@ -2,11 +2,6 @@
 
 # 💬 Realtime Chat
 
-**Chat + Scale**
-
-JWT 인증부터 **Redis Pub/Sub 다중 서버 확장**, **AWS 배포와 CI/CD 자동화**까지
-하나의 실시간 채팅 서비스를 처음부터 끝까지 완성한 프로젝트
-
 </div>
 
 ---
@@ -14,7 +9,6 @@ JWT 인증부터 **Redis Pub/Sub 다중 서버 확장**, **AWS 배포와 CI/CD �
 ## Table of Contents
 
 - [서비스 소개](#-서비스-소개)
-- [이 프로젝트의 포인트](#-이-프로젝트의-포인트)
 - [시스템 아키텍처](#️-시스템-아키텍처)
 - [ERD](#️-erd)
 - [기술 스택](#️-기술-스택)
@@ -39,95 +33,15 @@ JWT 인증부터 **Redis Pub/Sub 다중 서버 확장**, **AWS 배포와 CI/CD �
 
 ---
 
-## ✨ 이 프로젝트의 포인트
-
-| 포인트 | 흔한 구현 | 이 프로젝트 |
-|---|---|---|
-| **실시간 전송** | `SimpMessagingTemplate`로 직접 브로드캐스트 → **서버 1대에서만 동작** | **Redis Pub/Sub 경유** → 서버가 늘어나도 전 구독자에게 전달 |
-| **데이터베이스** | 서버에 DB 컨테이너를 같이 띄움 | **RDS로 분리** → 서버 메모리 확보 + 데이터 영속 |
-| **배포** | 서버에 SSH로 직접 접속해 수동 배포 | **develop 머지 → 자동 빌드·테스트·배포** |
-| **테스트** | 로컬에서만 수동 실행 | CI에서 **Redis·MySQL을 띄워** 통합 테스트 자동 검증 |
-| **비밀 관리** | 설정 파일에 비밀번호·시크릿 커밋 | **`.env` / GitHub Secrets**로 분리, 레포엔 값 없음 |
-
----
-
 ## 🏗️ 시스템 아키텍처
 
-```mermaid
-flowchart TB
-    Client["클라이언트 (브라우저)"]
-
-    subgraph EC2["AWS EC2 · Docker"]
-        App["Spring Boot (:8080)"]
-        Redis["Redis 7 (Pub/Sub)"]
-        App <--> Redis
-    end
-
-    RDS["AWS RDS · MySQL"]
-    S3["AWS S3 (이미지)"]
-
-    Client -->|"REST / WebSocket"| App
-    App -->|"JDBC"| RDS
-    App -->|"이미지 업로드"| S3
-    Client -->|"이미지 조회 (공개 URL)"| S3
-
-    Dev["개발자 (push → develop)"] --> GA["GitHub Actions"]
-    GA -->|"CI 빌드·테스트 / CD SSH 배포"| EC2
-```
-
-### 🔄 실시간 메시지 흐름 (Redis Pub/Sub)
-
-```mermaid
-flowchart LR
-    A["브라우저 A"] -->|"STOMP SEND"| C["ChatMessageController"]
-    C -->|"저장"| DB["RDS"]
-    C -->|"publish"| R["Redis 채널 chatroom"]
-    R --> S["RedisSubscriber (모든 서버)"]
-    S -->|"convertAndSend /sub/chatrooms/{id}"| B["구독자 전원"]
-```
-
-> **왜 Redis인가?**
-> `convertAndSend`는 **자기 서버에 붙은 세션에만** 메시지를 보냅니다. 서버가 2대가 되는 순간 다른 서버의 사용자에게는 닿지 않습니다.
-> 그래서 **컨트롤러가 직접 브로드캐스트하지 않고 Redis에 발행**하고, **모든 서버가 구독**해서 각자 자기 클라이언트에게 전달하도록 바꿨습니다.
+추가예정
 
 ---
 
 ## 🗂️ ERD
 
-```mermaid
-erDiagram
-    members ||--o{ chatroom_members : "참여"
-    chatrooms ||--o{ chatroom_members : "구성"
-    members ||--o{ messages : "작성"
-    chatrooms ||--o{ messages : "포함"
-
-    members {
-        bigint id PK
-        varchar email UK "not null"
-        varchar password "not null"
-        varchar nickname "length 10"
-        varchar profile_image_url "length 500, nullable"
-        datetime created_at "not null"
-    }
-    chatrooms {
-        bigint id PK
-        varchar name "not null, length 100"
-        datetime created_at "not null"
-    }
-    chatroom_members {
-        bigint id PK
-        bigint member_id FK
-        bigint chatroom_id FK
-    }
-    messages {
-        bigint id PK
-        varchar content "not null, length 500"
-        varchar image_url "length 500, nullable"
-        bigint member_id FK
-        bigint chatroom_id FK
-        datetime created_at "not null"
-    }
-```
+<img width="1430" height="392" alt="realtimechatERD" src="https://github.com/user-attachments/assets/25cf8a59-a502-4af0-99a1-8006b25b66ed" />
 
 - `chatroom_members`는 **Member ↔ ChatRoom의 M:N을 풀어낸 조인 테이블**이며, `UNIQUE(member_id, chatroom_id)`로 **중복 참여를 방지**합니다.
 - 연관관계 주인은 FK를 가진 `Message` / `ChatRoomMember` 쪽이고, 모든 `@ManyToOne`은 `LAZY`입니다.
