@@ -30,6 +30,7 @@ public class ChatMessageController {
 
         Message message = messageService.create(
                 messageRequest.getContent(),
+                messageRequest.getImageUrl(),
                 customUserDetails.getMemberId(),
                 chatroomId);
         MessageResponse messageResponse = MessageResponse.from(message);

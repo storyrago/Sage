@@ -3,6 +3,7 @@ package com.example.springboot_realtimechat.controller;
 import com.example.springboot_realtimechat.domain.Member;
 import com.example.springboot_realtimechat.dto.MemberRequest;
 import com.example.springboot_realtimechat.dto.MemberResponse;
+import com.example.springboot_realtimechat.dto.ProfileImageRequest;
 import com.example.springboot_realtimechat.security.CustomUserDetails;
 import com.example.springboot_realtimechat.service.MemberService;
 import jakarta.validation.Valid;
@@ -46,6 +47,18 @@ public class MemberController {
                memberRequest.getPassword(),
                memberRequest.getNickname()
        );
+
+        return MemberResponse.from(member);
+    }
+
+    @PatchMapping("/me/profile-image")
+    public MemberResponse updateProfileImage(
+            @AuthenticationPrincipal CustomUserDetails customUserDetails,
+            @Valid @RequestBody ProfileImageRequest request) {
+
+        Member member = memberService.updateProfileImage(
+                customUserDetails.getMemberId(),
+                request.getImageUrl());
 
         return MemberResponse.from(member);
     }
