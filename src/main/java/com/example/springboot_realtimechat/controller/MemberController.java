@@ -63,9 +63,9 @@ public class MemberController {
         return MemberResponse.from(member);
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteMember(@PathVariable Long id){
-        memberService.delete(id);
+    @DeleteMapping("/me")
+    public ResponseEntity<Void> deleteMe(@AuthenticationPrincipal CustomUserDetails customUserDetails){
+        memberService.delete(customUserDetails.getMemberId());
         return ResponseEntity.noContent().build();
     }
 }
