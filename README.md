@@ -7,8 +7,6 @@
 JWT 인증부터 **Redis Pub/Sub 다중 서버 확장**, **AWS 배포와 CI/CD 자동화**까지
 하나의 실시간 채팅 서비스를 처음부터 끝까지 완성한 프로젝트
 
-[Swagger API 문서](http://localhost:8080/swagger-ui/index.html)
-
 </div>
 
 ---
