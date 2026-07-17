@@ -27,6 +27,9 @@ public class Member {
     @Column(length=10)
     private String nickname;
 
+    @Column(name = "profile_image_url", length = 500)
+    private String profileImageUrl;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     @CreationTimestamp
     private LocalDateTime createdAt;
@@ -41,6 +44,10 @@ public class Member {
         this.email = email;
         this.password = password;
         this.nickname = nickname;
+    }
+
+    public void updateProfileImageUrl(String profileImageUrl){
+        this.profileImageUrl = profileImageUrl;
     }
 }
 
