@@ -304,7 +304,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen w-screen bg-slate-950 text-slate-100 font-sans select-none overflow-hidden relative">
+    <div className="flex h-screen w-screen bg-bg text-text font-sans select-none overflow-hidden relative">
       <AnimatePresence>
         {!connected && (
           <motion.div
