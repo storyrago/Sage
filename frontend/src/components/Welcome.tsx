@@ -26,6 +26,7 @@ export default function Welcome({ onComplete, initialUser }: WelcomeProps) {
   const heroRef = useRef<HTMLDivElement>(null);
   const cueRef = useRef<HTMLDivElement>(null);
   const loginRef = useRef<HTMLDivElement>(null);
+  const loginWrapRef = useRef<HTMLDivElement>(null);
 
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState(initialUser?.email || '');
@@ -50,7 +51,7 @@ export default function Welcome({ onComplete, initialUser }: WelcomeProps) {
     const mouse = { x: -9999, y: -9999 };
 
     const init = () => {
-      const n = Math.max(34, Math.min(72, Math.round((W * H) / 20000)));
+      const n = Math.max(38, Math.min(110, Math.round((W * H) / 15000)));
       parts = [];
       for (let i = 0; i < n; i++) {
         parts.push({
@@ -138,6 +139,7 @@ export default function Welcome({ onComplete, initialUser }: WelcomeProps) {
           heroRef.current.style.transform = `translateY(${(-hp * 70).toFixed(1)}px)`;
         }
         if (cueRef.current) cueRef.current.style.opacity = (1 - Math.min(scrollY / 220, 1)).toFixed(3);
+        if (loginWrapRef.current && scrollY > vh * 0.5) loginWrapRef.current.classList.add('sage-reveal');
         ticking = false;
       });
     };
@@ -208,7 +210,7 @@ export default function Welcome({ onComplete, initialUser }: WelcomeProps) {
         style={{ zIndex: 1, width: 560, height: 560, marginLeft: -280, marginTop: -280, borderRadius: '50%', background: 'radial-gradient(circle, rgba(122,174,146,.13), transparent 60%)', filter: 'blur(24px)' }}
       />
 
-      <nav className="fixed top-0 left-0 flex items-center gap-2.5" style={{ zIndex: 20, padding: '22px 40px' }}>
+      <nav className="fixed top-0 left-0 flex items-center gap-2.5 sage-anim" style={{ zIndex: 20, padding: '22px 40px', animationDelay: '0.05s' }}>
         <span className="flex items-center justify-center" style={{ width: 34, height: 34, borderRadius: 11, background: '#29392F', color: '#9CCBB2' }}>
           <MessagesSquare className="w-4 h-4" />
         </span>
@@ -218,7 +220,7 @@ export default function Welcome({ onComplete, initialUser }: WelcomeProps) {
       {/* Intro / Hero */}
       <section className="min-h-screen flex flex-col items-center justify-center px-6 text-center relative" style={{ zIndex: 2 }}>
         <div ref={heroRef} style={{ maxWidth: 820 }}>
-          <h1 style={{ fontWeight: 700, fontSize: 'clamp(26px, 4vw, 50px)', letterSpacing: '-.02em', lineHeight: 1.15, color: '#E6ECE8', margin: 0 }}>
+          <h1 className="sage-anim" style={{ fontWeight: 700, fontSize: 'clamp(26px, 4vw, 50px)', letterSpacing: '-.02em', lineHeight: 1.15, color: '#E6ECE8', margin: 0, animationDelay: '0.28s' }}>
             메시지가 도착하는<br />그 순간을 함께
           </h1>
         </div>
@@ -232,45 +234,47 @@ export default function Welcome({ onComplete, initialUser }: WelcomeProps) {
 
       {/* Login */}
       <section id="login" ref={loginRef} className="min-h-screen flex flex-col items-center justify-center px-6" style={{ zIndex: 2, position: 'relative' }}>
-        <div className="w-full sage-login-reveal" style={{ maxWidth: 400 }}>
-          <div className="text-center mb-4">
+        <div ref={loginWrapRef} className="w-full" style={{ maxWidth: 400 }}>
+          <div className="text-center mb-4 sage-stg" style={{ transitionDelay: '0.02s' }}>
             <div style={{ fontSize: 11, letterSpacing: '.16em', color: '#6B7972', fontWeight: 600 }}>WELCOME BACK</div>
             <div style={{ fontSize: 14, color: '#9AA8A0', marginTop: 4 }}>채팅방으로 입장</div>
           </div>
 
-          <div style={{ background: '#1C241F', border: '1px solid #2D362F', borderRadius: 22, padding: '30px 28px', boxShadow: '0 40px 80px -40px rgba(0,0,0,.7)' }}>
-            <div className="flex items-center justify-center" style={{ width: 52, height: 52, borderRadius: 16, background: '#29392F', color: '#9CCBB2', margin: '0 auto 12px' }}>
+          <div className="sage-card-reveal" style={{ background: '#1C241F', border: '1px solid #2D362F', borderRadius: 22, padding: '30px 28px', boxShadow: '0 40px 80px -40px rgba(0,0,0,.7)' }}>
+            <div className="flex items-center justify-center sage-stg" style={{ width: 52, height: 52, borderRadius: 16, background: '#29392F', color: '#9CCBB2', margin: '0 auto 12px', transitionDelay: '0.14s' }}>
               <MessagesSquare className="w-6 h-6" />
             </div>
-            <h2 className="text-center" style={{ fontWeight: 800, fontSize: 23, color: '#E6ECE8', margin: '0 0 18px' }}>Sage</h2>
+            <h2 className="text-center sage-stg" style={{ fontWeight: 800, fontSize: 23, color: '#E6ECE8', margin: '0 0 18px', transitionDelay: '0.19s' }}>Sage</h2>
 
-            <div className="grid grid-cols-2 gap-1.5 mb-4" style={{ background: '#252E28', border: '1px solid #2D362F', borderRadius: 13, padding: 4 }}>
+            <div className="grid grid-cols-2 gap-1.5 mb-4 sage-stg" style={{ background: '#252E28', border: '1px solid #2D362F', borderRadius: 13, padding: 4, transitionDelay: '0.3s' }}>
               <button type="button" onClick={() => { setMode('login'); setErrorCode(''); }} style={tab(mode === 'login')}>로그인</button>
               <button type="button" onClick={() => { setMode('signup'); setErrorCode(''); }} style={tab(mode === 'signup')}>회원가입</button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-3">
-              <div>
+              <div className="sage-stg" style={{ transitionDelay: '0.36s' }}>
                 <label htmlFor="w-email" style={labelStyle}>이메일</label>
                 <input id="w-email" className="sage-input" type="email" autoFocus placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
               </div>
-              <div>
+              <div className="sage-stg" style={{ transitionDelay: '0.42s' }}>
                 <label htmlFor="w-password" style={labelStyle}>비밀번호</label>
                 <input id="w-password" className="sage-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} />
               </div>
               {mode === 'signup' && (
-                <div>
+                <div className="sage-stg" style={{ transitionDelay: '0.44s' }}>
                   <label htmlFor="w-nickname" style={labelStyle}>닉네임 (최대 10자)</label>
                   <input id="w-nickname" className="sage-input" type="text" placeholder="예: 민준" value={nickname} onChange={(e) => setNickname(e.target.value)} style={inputStyle} />
                 </div>
               )}
               {errorCode && <p style={{ fontSize: 12, color: '#f0a5a5', textAlign: 'center', fontWeight: 500, margin: 0 }}>{errorCode}</p>}
-              <button type="submit" disabled={isSubmitting} className="sage-cta" style={{ width: '100%', background: '#7AAE92', color: '#12241B', borderRadius: 13, padding: 14, fontWeight: 600, fontSize: 14, border: 'none', cursor: 'pointer', opacity: isSubmitting ? 0.6 : 1 }} id="join-chat-btn">
-                {isSubmitting ? '처리 중...' : mode === 'login' ? '로그인' : '회원가입 후 입장'}
-              </button>
+              <div className="sage-stg" style={{ transitionDelay: '0.48s' }}>
+                <button type="submit" disabled={isSubmitting} className="sage-cta" style={{ width: '100%', background: '#7AAE92', color: '#12241B', borderRadius: 13, padding: 14, fontWeight: 600, fontSize: 14, border: 'none', cursor: 'pointer', opacity: isSubmitting ? 0.6 : 1 }} id="join-chat-btn">
+                  {isSubmitting ? '처리 중...' : mode === 'login' ? '로그인' : '회원가입 후 입장'}
+                </button>
+              </div>
             </form>
 
-            <div className="text-center" style={{ fontSize: 12, color: '#6B7972', marginTop: 14 }}>
+            <div className="text-center sage-stg" style={{ fontSize: 12, color: '#6B7972', marginTop: 14, transitionDelay: '0.54s' }}>
               {mode === 'login' ? (
                 <>계정이 없으신가요?{' '}
                   <button type="button" onClick={() => { setMode('signup'); setErrorCode(''); }} style={{ color: '#9CCBB2', background: 'none', border: 'none', cursor: 'pointer', padding: 0, font: 'inherit' }}>회원가입</button>
