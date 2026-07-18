@@ -13,14 +13,14 @@ public class MemberResponse {
     String email;
     String nickname;
     String profileImageUrl;
-    LocalDateTime createAt;
+    LocalDateTime createdAt;
 
-    public MemberResponse(Long id, String email, String nickname, String profileImageUrl, LocalDateTime createAt) {
+    public MemberResponse(Long id, String email, String nickname, String profileImageUrl, LocalDateTime createdAt) {
         this.id = id;
         this.email = email;
         this.nickname = nickname;
         this.profileImageUrl = profileImageUrl;
-        this.createAt = createAt;
+        this.createdAt = createdAt;
     }
 
     public static MemberResponse from(Member member){
