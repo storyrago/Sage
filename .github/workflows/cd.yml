@@ -69,10 +69,11 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           command_timeout: 10m
           script: |
+            set -e                                  # 한 명령이라도 실패하면 즉시 중단 → 잡 실패로 표면화
             cd ~/realtimechat-backend
             git fetch origin
             git checkout develop
             git reset --hard origin/develop         # compose 파일 최신화용 (빌드는 안 함)
-            docker compose pull                     # GHCR에서 새 이미지 받기
+            docker compose pull                     # GHCR에서 새 이미지 받기 (실패 시 여기서 중단, 기존 컨테이너 유지)
             docker compose up -d --remove-orphans   # 빌드 없이 새 이미지로 교체
             docker image prune -f                   # 안 쓰는 옛 이미지 정리 (디스크 확보)
