@@ -6,6 +6,44 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
+/* Semantic sage tokens — light default, dark override */
+:root {
+  --bg: #F5F7F5; --surface: #FFFFFF; --surface-2: #EDF1EE; --border: #E2E8E3;
+  --text: #212A25; --text-muted: #647469; --text-faint: #97A49B;
+  --accent: #5E9079; --accent-hover: #517E69; --accent-fg: #FFFFFF;
+  --accent-subtle: #E5EDE8; --accent-text: #3F6B54;
+  --bubble-other: #EDEFEC; --online: #3FA779;
+}
+:root[data-theme="dark"] {
+  --bg: #141917; --surface: #1C241F; --surface-2: #252E28; --border: #2D362F;
+  --text: #E6ECE8; --text-muted: #9AA8A0; --text-faint: #6B7972;
+  --accent: #7AAE92; --accent-hover: #8BBBA1; --accent-fg: #12241B;
+  --accent-subtle: #29392F; --accent-text: #9CCBB2;
+  --bubble-other: #262E29; --online: #57C596;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-faint: var(--text-faint);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-accent-text: var(--accent-text);
+  --color-bubble-other: var(--bubble-other);
+  --color-online: var(--online);
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+}
+
 /* Custom gorgeous scrollbar styles for clean visual density */
 ::-webkit-scrollbar {
   width: 6px;
