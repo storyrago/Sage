@@ -2,6 +2,8 @@
 
 # 💬 Realtime Chat
 
+**🔗 라이브 데모 — [sagertc.duckdns.org](https://sagertc.duckdns.org)**
+
 </div>
 
 ---
@@ -55,16 +57,18 @@
 | **Language / Build** | ![Java](https://img.shields.io/badge/Java%2017-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white) ![Gradle](https://img.shields.io/badge/Gradle%209.4-02303A?style=for-the-badge&logo=gradle&logoColor=white) |
 | **Backend** | ![Spring Boot](https://img.shields.io/badge/Spring%20Boot%204.0.5-6DB33F?style=for-the-badge&logo=springboot&logoColor=white) ![Spring Security](https://img.shields.io/badge/Spring%20Security-6DB33F?style=for-the-badge&logo=springsecurity&logoColor=white) ![Hibernate](https://img.shields.io/badge/JPA%20%2F%20Hibernate-59666C?style=for-the-badge&logo=hibernate&logoColor=white) |
 | **Realtime / Auth** | ![STOMP](https://img.shields.io/badge/WebSocket%20STOMP-010101?style=for-the-badge&logo=socketdotio&logoColor=white) ![JWT](https://img.shields.io/badge/JWT-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white) |
+| **Frontend** | ![React](https://img.shields.io/badge/React%2019-61DAFB?style=for-the-badge&logo=react&logoColor=black) ![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white) ![Tailwind](https://img.shields.io/badge/Tailwind%20CSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white) |
 | **Database** | ![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white) ![Redis](https://img.shields.io/badge/Redis%207-DC382D?style=for-the-badge&logo=redis&logoColor=white) ![H2](https://img.shields.io/badge/H2%20test-004488?style=for-the-badge&logo=databricks&logoColor=white) |
-| **Infrastructure** | ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white) ![EC2](https://img.shields.io/badge/AWS%20EC2-FF9900?style=for-the-badge&logo=amazonec2&logoColor=white) ![RDS](https://img.shields.io/badge/AWS%20RDS-527FFF?style=for-the-badge&logo=amazonrds&logoColor=white) ![S3](https://img.shields.io/badge/AWS%20S3-569A31?style=for-the-badge&logo=amazons3&logoColor=white) |
-| **CI / CD** | ![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white) |
+| **Infrastructure** | ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white) ![Nginx](https://img.shields.io/badge/Nginx-009639?style=for-the-badge&logo=nginx&logoColor=white) ![EC2](https://img.shields.io/badge/AWS%20EC2-FF9900?style=for-the-badge&logo=amazonec2&logoColor=white) ![RDS](https://img.shields.io/badge/AWS%20RDS-527FFF?style=for-the-badge&logo=amazonrds&logoColor=white) ![S3](https://img.shields.io/badge/AWS%20S3-569A31?style=for-the-badge&logo=amazons3&logoColor=white) ![Let's Encrypt](https://img.shields.io/badge/Let's%20Encrypt-003A70?style=for-the-badge&logo=letsencrypt&logoColor=white) |
+| **CI / CD** | ![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white) ![GHCR](https://img.shields.io/badge/GHCR-222222?style=for-the-badge&logo=github&logoColor=white) |
 | **Docs** | ![Swagger](https://img.shields.io/badge/Swagger-85EA2D?style=for-the-badge&logo=swagger&logoColor=black) |
 
 ---
 
 ## 📡 API 문서
 
-> Swagger UI: `http://{host}:8080/swagger-ui/index.html`
+> Swagger UI (로컬/개발): `http://localhost:8080/swagger-ui/index.html`
+> — 운영에선 app(8080)이 **nginx 뒤 내부 전용**이라 외부로 노출하지 않습니다.
 > 인증이 필요한 API는 헤더에 **`Authorization: Bearer {accessToken}`**
 
 ### 인증 / 회원
@@ -102,7 +106,7 @@
 
 | 항목 | 값 |
 |---|---|
-| **핸드셰이크** | `ws://{host}:8080/ws` |
+| **핸드셰이크** | 운영 `wss://sagertc.duckdns.org/ws` (nginx 프록시) · 로컬 `ws://localhost:8080/ws` |
 | **인증** | `CONNECT` 프레임 헤더 `Authorization: Bearer {token}` |
 | **전송(SEND)** | `/pub/chatrooms/{chatroomId}/messages` → `{ "content": "...", "imageUrl": "..." }` |
 | **구독(SUBSCRIBE)** | `/sub/chatrooms/{chatroomId}` |
@@ -140,15 +144,16 @@ JWT_SECRET={32바이트 이상 랜덤 문자열}
 > ⚠️ `JWT_SECRET`은 **기본값이 없습니다.** 설정하지 않으면 앱이 기동되지 않습니다 (취약한 상태로 조용히 뜨는 것을 막기 위한 의도).
 > 생성: `openssl rand -base64 32`
 
-### 3. Docker Compose (권장)
+### 3. Docker Compose (운영 토폴로지)
+
+운영은 **GitHub Actions가 이미지를 GHCR에 빌드·push → EC2가 pull**합니다. compose는 **app · redis · web(nginx)** 을 띄우고, nginx가 `80/443`에서 정적 프론트 서빙 + `/api`·`/ws` 프록시(TLS 종단), app은 내부 전용(`expose 8080`)입니다.
 
 ```bash
-./gradlew build            # Dockerfile이 build/libs의 jar를 사용하므로 먼저 빌드
-docker compose up -d --build
+docker compose up -d        # GHCR 이미지 pull → 기동
 ```
-- 컴포즈가 띄우는 것: **app + redis**
 - 외부 의존: **MySQL(RDS)**, **S3**
-- 접속: `http://localhost:8080`
+- 접속: **https://sagertc.duckdns.org**
+- ⚠️ `web`(nginx)은 TLS 인증서(`/etc/letsencrypt`)가 필요합니다. 인증서 없는 **로컬에선 아래 4번(`bootRun`) + 프론트 `npm --prefix frontend run dev`** 로 개발하세요.
 
 ### 4. 로컬 실행 (Docker 없이)
 
@@ -180,6 +185,8 @@ export JWT_SECRET=$(openssl rand -base64 32)
 | **배포 후 앱이 계속 죽음 (OOM)** | 1GB 서버에서 MySQL까지 함께 구동 | **DB를 RDS로 분리** (+ swap, `.dockerignore`, `--no-daemon`) |
 | **CI에서 테스트 전부 실패** | 러너엔 Redis/MySQL이 없음 | **service containers**로 의존 서비스 기동 |
 | **JWT 시크릿이 레포에 노출** | 설정 파일에 하드코딩 | **`${JWT_SECRET}` 외부화** + 시크릿 로테이션 |
+| **배포가 20분 만에 타임아웃** | 1GB EC2에서 gradle+vite 빌드가 메모리 부족 (swap으로도 느림) | **빌드를 GitHub Actions로 이전** → GHCR 이미지 push → EC2는 `pull`만 (서버 빌드 제거, 20분→30초) |
+| **프론트 배포 시 CORS·mixed-content 우려** | 프론트/백 분리 배포면 origin 상이 + HTTPS↔HTTP 혼용 | **nginx 리버스 프록시로 same-origin 통합** + Let's Encrypt로 HTTPS/WSS |
 
 ---
 
