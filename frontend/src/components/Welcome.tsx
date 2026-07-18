@@ -221,7 +221,8 @@ export default function Welcome({ onComplete, initialUser }: WelcomeProps) {
       <section className="min-h-screen flex flex-col items-center justify-center px-6 text-center relative" style={{ zIndex: 2 }}>
         <div ref={heroRef} style={{ maxWidth: 820 }}>
           <h1 className="sage-anim" style={{ fontWeight: 700, fontSize: 'clamp(26px, 4vw, 50px)', letterSpacing: '-.02em', lineHeight: 1.15, color: '#E6ECE8', margin: 0, animationDelay: '0.28s' }}>
-            메시지가 도착하는<br />그 순간을 함께
+            메시지가 도착하는<br />
+            <span style={{ color: '#9CCBB2', fontWeight: 800 }}>그 순간</span>을 함께
           </h1>
         </div>
         <button ref={cueRef} onClick={scrollToLogin} className="absolute flex flex-col items-center gap-2 cursor-pointer" style={{ bottom: 40, background: 'transparent', border: 0, color: '#6B7972' }} aria-label="로그인으로 스크롤">

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Channel, Message, Presence, User } from './types';
 import Welcome from './components/Welcome';
+import SettingsModal from './components/SettingsModal';
 import Sidebar from './components/Sidebar';
 import ChatArea from './components/ChatArea';
 import { WifiOff, RefreshCw } from 'lucide-react';
@@ -36,14 +37,14 @@ export default function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [presences, setPresences] = useState<Presence[]>([]);
   const [connected, setConnected] = useState<boolean>(false);
-  const [isEditingProfile, setIsEditingProfile] = useState<boolean>(false);
+  const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
   const [reconnectCount, setReconnectCount] = useState<number>(0);
   const [loadingMessage, setLoadingMessage] = useState<string>('채팅 정보를 불러오는 중입니다.');
 
   const stompRef = useRef<SpringStompClient | null>(null);
   const selectedChannelRef = useRef<string>('');
 
-  const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme, setThemeMode } = useTheme();
 
   useEffect(() => {
     selectedChannelRef.current = selectedChannelId;
@@ -283,7 +284,6 @@ export default function App() {
     });
     const currentMember = await getMe(nextToken);
     persistSession(nextToken, toUser(currentMember));
-    setIsEditingProfile(false);
   };
 
   const activeChannel = channels.find((channel) => channel.id === selectedChannelId) || {
@@ -294,7 +294,7 @@ export default function App() {
     createdAt: Date.now(),
   };
 
-  if (!user || isEditingProfile) {
+  if (!user) {
     return (
       <Welcome
         onComplete={handleSetupComplete}
@@ -329,7 +329,7 @@ export default function App() {
           presences={presences}
           currentUser={user}
           onLogout={handleLogout}
-          onEditProfile={() => setIsEditingProfile(true)}
+          onOpenSettings={() => setSettingsOpen(true)}
           theme={theme}
           onToggleTheme={toggleTheme}
         />
@@ -345,6 +345,15 @@ export default function App() {
           onTypeStateChange={handleTypeStateChange}
         />
       </div>
+
+      <SettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        currentUser={user}
+        theme={theme}
+        onSelectTheme={setThemeMode}
+        onUpdateName={(displayName) => setUser((u) => (u ? { ...u, displayName } : u))}
+      />
     </div>
   );
 }

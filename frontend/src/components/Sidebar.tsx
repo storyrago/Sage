@@ -14,7 +14,7 @@ interface SidebarProps {
   presences: Presence[];
   currentUser: User;
   onLogout: () => void;
-  onEditProfile: () => void;
+  onOpenSettings: () => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
 }
@@ -27,7 +27,7 @@ export default function Sidebar({
   presences,
   currentUser,
   onLogout,
-  onEditProfile,
+  onOpenSettings,
   theme,
   onToggleTheme
 }: SidebarProps) {
@@ -191,47 +191,48 @@ export default function Sidebar({
       </div>
 
       {/* USER SETTINGS AT BOTTOM */}
-      <div className="p-3 border-t border-border bg-surface">
-        <div className="flex items-center justify-between gap-2.5 px-2 py-1.5 rounded-2xl bg-surface-2 border border-border">
-          <div className="flex items-center gap-2 max-w-[65%]">
-            <div className={`w-9 h-9 rounded-xl bg-gradient-to-tr ${currentUser.avatar} flex items-center justify-center text-sm font-bold shadow-md`}>
-              {currentUser.displayName.charAt(0).toUpperCase()}
-            </div>
-            <div className="min-w-0">
-              <span className="text-xs font-bold text-text block truncate">{currentUser.displayName}</span>
-              <span className="text-[10px] text-accent-text font-semibold select-none flex items-center gap-0.5">
-                <Sparkles className="w-2.5 h-2.5" /> 프로필 활성
-              </span>
-            </div>
+      <div className="p-3 border-t border-border">
+        <div className="flex items-center gap-2.5 px-1 mb-2.5">
+          <div className={`w-9 h-9 rounded-full bg-gradient-to-tr ${currentUser.avatar} flex items-center justify-center text-sm font-bold shadow-md flex-shrink-0`}>
+            {currentUser.displayName.charAt(0).toUpperCase()}
           </div>
+          <div className="min-w-0">
+            <span className="text-[13px] font-bold text-text block truncate">{currentUser.displayName}</span>
+            <span className="text-[11px] text-online font-medium select-none flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-online inline-block" /> 온라인
+            </span>
+          </div>
+        </div>
 
-          <div className="flex items-center gap-1">
-            <button
-              onClick={onToggleTheme}
-              className="p-1.5 text-muted hover:text-accent-text hover:bg-surface-2 rounded-lg cursor-pointer transition-all"
-              title={theme === 'dark' ? '라이트 모드' : '다크 모드'}
-              aria-label={theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'}
-              id="sidebar-theme-toggle-btn"
-            >
-              {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-            </button>
-            <button
-              onClick={onEditProfile}
-              className="p-1.5 text-muted hover:text-accent-text hover:bg-surface-2 rounded-lg cursor-pointer transition-all"
-              title="프로필 수정"
-              id="sidebar-edit-profile-btn"
-            >
-              <Settings2 className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={onLogout}
-              className="p-1.5 text-muted hover:text-rose-400 hover:bg-rose-500/10 rounded-lg cursor-pointer transition-all border border-transparent hover:border-rose-500/15"
-              title="퇴장하기"
-              id="sidebar-logout-btn"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-            </button>
-          </div>
+        <div className="flex gap-2">
+          <button
+            onClick={onToggleTheme}
+            className="flex-1 flex items-center justify-center gap-1.5 h-9 text-xs font-semibold text-muted bg-transparent border border-border rounded-lg hover:text-text hover:border-accent hover:bg-surface-2 transition-all cursor-pointer"
+            title={theme === 'dark' ? '라이트 모드' : '다크 모드'}
+            aria-label={theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'}
+            id="sidebar-theme-toggle-btn"
+          >
+            {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+            {theme === 'dark' ? '다크' : '라이트'}
+          </button>
+          <button
+            onClick={onOpenSettings}
+            className="flex-1 flex items-center justify-center gap-1.5 h-9 text-xs font-semibold text-muted bg-transparent border border-border rounded-lg hover:text-text hover:border-accent hover:bg-surface-2 transition-all cursor-pointer"
+            title="설정"
+            id="sidebar-settings-btn"
+          >
+            <Settings2 className="w-3.5 h-3.5" />
+            설정
+          </button>
+          <button
+            onClick={onLogout}
+            className="flex items-center justify-center w-9 h-9 text-muted bg-transparent border border-border rounded-lg hover:text-rose-400 hover:border-rose-500/40 transition-all cursor-pointer"
+            title="로그아웃"
+            aria-label="로그아웃"
+            id="sidebar-logout-btn"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
 
