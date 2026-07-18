@@ -38,6 +38,7 @@ export default function App() {
   const [presences, setPresences] = useState<Presence[]>([]);
   const [connected, setConnected] = useState<boolean>(false);
   const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
+  const [warping, setWarping] = useState<boolean>(false);
   const [reconnectCount, setReconnectCount] = useState<number>(0);
   const [loadingMessage, setLoadingMessage] = useState<string>('채팅 정보를 불러오는 중입니다.');
 
@@ -283,7 +284,11 @@ export default function App() {
       password: credentials.password,
     });
     const currentMember = await getMe(nextToken);
+    // 로그인 성공 → warp 전환 재생 후 채팅으로 진입
+    setWarping(true);
+    await new Promise((resolve) => setTimeout(resolve, 1200));
     persistSession(nextToken, toUser(currentMember));
+    setWarping(false);
   };
 
   const activeChannel = channels.find((channel) => channel.id === selectedChannelId) || {
@@ -299,12 +304,13 @@ export default function App() {
       <Welcome
         onComplete={handleSetupComplete}
         initialUser={user}
+        warping={warping}
       />
     );
   }
 
   return (
-    <div className="flex h-screen w-screen bg-bg text-text font-sans select-none overflow-hidden relative">
+    <div className="flex h-screen w-screen bg-bg text-text font-sans select-none overflow-hidden relative sage-chat-enter">
       <AnimatePresence>
         {!connected && (
           <motion.div

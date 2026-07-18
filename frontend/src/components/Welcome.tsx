@@ -11,6 +11,7 @@ interface Credentials {
 interface WelcomeProps {
   onComplete: (credentials: Credentials, mode: 'login' | 'signup') => Promise<void>;
   initialUser?: User | null;
+  warping?: boolean;
 }
 
 interface Particle {
@@ -20,13 +21,16 @@ interface Particle {
 const PARTICLE_COLORS = ['#5E9079', '#7AAE92', '#9CCBB2'];
 const LINK = 140;
 
-export default function Welcome({ onComplete, initialUser }: WelcomeProps) {
+export default function Welcome({ onComplete, initialUser, warping }: WelcomeProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const spotRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
   const cueRef = useRef<HTMLDivElement>(null);
   const loginRef = useRef<HTMLDivElement>(null);
   const loginWrapRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const auraRef = useRef<HTMLDivElement>(null);
+  const warpRef = useRef(false);
 
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState(initialUser?.email || '');
@@ -46,7 +50,7 @@ export default function Welcome({ onComplete, initialUser }: WelcomeProps) {
     window.scrollTo(0, 0);
 
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    let W = 0, H = 0, DPR = 1, raf = 0, ticking = false, scrollY = 0;
+    let W = 0, H = 0, DPR = 1, raf = 0, ticking = false, scrollY = 0, boost = 0;
     let parts: Particle[] = [];
     const mouse = { x: -9999, y: -9999 };
 
@@ -78,6 +82,7 @@ export default function Welcome({ onComplete, initialUser }: WelcomeProps) {
 
     const frame = () => {
       ctx.clearRect(0, 0, W, H);
+      boost += ((warpRef.current ? 1 : 0) - boost) * 0.09;
       for (let i = 0; i < parts.length; i++) {
         const p = parts[i];
         p.x += p.vx;
@@ -99,9 +104,9 @@ export default function Welcome({ onComplete, initialUser }: WelcomeProps) {
           const b = parts[j], ex = a.x - b.x, ey = a.y - b.y, dd2 = ex * ex + ey * ey;
           if (dd2 < LINK * LINK) {
             const dd = Math.sqrt(dd2);
-            const o = (1 - dd / LINK) * 0.24;
-            ctx.strokeStyle = `rgba(122,174,146,${o.toFixed(3)})`;
-            ctx.lineWidth = 1;
+            const o = (1 - dd / LINK) * (0.24 + boost * 0.55);
+            ctx.strokeStyle = `rgba(140,196,164,${o.toFixed(3)})`;
+            ctx.lineWidth = 1 + boost * 0.5;
             ctx.beginPath();
             ctx.moveTo(a.x, a.y - scrollY * a.z * 0.12);
             ctx.lineTo(b.x, b.y - scrollY * b.z * 0.12);
@@ -109,14 +114,17 @@ export default function Welcome({ onComplete, initialUser }: WelcomeProps) {
           }
         }
       }
+      ctx.shadowColor = 'rgba(150,205,175,0.9)';
       for (let i = 0; i < parts.length; i++) {
         const p = parts[i];
-        ctx.globalAlpha = 0.45 + p.z * 0.55;
+        ctx.globalAlpha = Math.min(1, (0.45 + p.z * 0.55) * (1 + boost * 0.6));
+        ctx.shadowBlur = boost * 9;
         ctx.fillStyle = p.c;
         ctx.beginPath();
-        ctx.arc(p.x, p.y - scrollY * p.z * 0.12, p.r, 0, 6.2832);
+        ctx.arc(p.x, p.y - scrollY * p.z * 0.12, p.r * (1 + boost * 0.55), 0, 6.2832);
         ctx.fill();
       }
+      ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
       raf = requestAnimationFrame(frame);
     };
@@ -160,6 +168,12 @@ export default function Welcome({ onComplete, initialUser }: WelcomeProps) {
       window.removeEventListener('scroll', onScroll);
     };
   }, []);
+
+  useEffect(() => {
+    warpRef.current = !!warping;
+    if (auraRef.current) auraRef.current.classList.toggle('on', !!warping);
+    if (contentRef.current) contentRef.current.style.opacity = warping ? '0' : '1';
+  }, [warping]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -209,7 +223,9 @@ export default function Welcome({ onComplete, initialUser }: WelcomeProps) {
         className="fixed top-0 left-0 pointer-events-none"
         style={{ zIndex: 1, width: 560, height: 560, marginLeft: -280, marginTop: -280, borderRadius: '50%', background: 'radial-gradient(circle, rgba(122,174,146,.13), transparent 60%)', filter: 'blur(24px)' }}
       />
+      <div ref={auraRef} className="sage-warp-aura" />
 
+      <div ref={contentRef} style={{ position: 'relative', zIndex: 2, transition: 'opacity 0.5s ease' }}>
       <nav className="fixed top-0 left-0 flex items-center gap-2.5 sage-anim" style={{ zIndex: 20, padding: '22px 40px', animationDelay: '0.05s' }}>
         <span className="flex items-center justify-center" style={{ width: 34, height: 34, borderRadius: 11, background: '#29392F', color: '#9CCBB2' }}>
           <MessagesSquare className="w-4 h-4" />
@@ -289,6 +305,7 @@ export default function Welcome({ onComplete, initialUser }: WelcomeProps) {
           </div>
         </div>
       </section>
+      </div>
     </div>
   );
 }
