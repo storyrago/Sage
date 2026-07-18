@@ -22,6 +22,9 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro   # 인증서를 컨테이너에 읽기전용 마운트
     depends_on:
       - app
 
