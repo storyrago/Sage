@@ -19,6 +19,7 @@ import {
   toUser,
 } from './lib/api';
 import { SpringStompClient } from './lib/stomp';
+import { useTheme } from './lib/useTheme';
 
 interface StoredSession {
   token: string;
@@ -41,6 +42,8 @@ export default function App() {
 
   const stompRef = useRef<SpringStompClient | null>(null);
   const selectedChannelRef = useRef<string>('');
+
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     selectedChannelRef.current = selectedChannelId;
@@ -327,6 +330,8 @@ export default function App() {
           currentUser={user}
           onLogout={handleLogout}
           onEditProfile={() => setIsEditingProfile(true)}
+          theme={theme}
+          onToggleTheme={toggleTheme}
         />
 
         <ChatArea
