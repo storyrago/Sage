@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Channel, Message, Presence, User } from './types';
-import UserSetup from './components/UserSetup';
+import Welcome from './components/Welcome';
+import SettingsModal from './components/SettingsModal';
 import Sidebar from './components/Sidebar';
 import ChatArea from './components/ChatArea';
 import { WifiOff, RefreshCw } from 'lucide-react';
@@ -19,6 +20,7 @@ import {
   toUser,
 } from './lib/api';
 import { SpringStompClient } from './lib/stomp';
+import { useTheme } from './lib/useTheme';
 
 interface StoredSession {
   token: string;
@@ -35,12 +37,15 @@ export default function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [presences, setPresences] = useState<Presence[]>([]);
   const [connected, setConnected] = useState<boolean>(false);
-  const [isEditingProfile, setIsEditingProfile] = useState<boolean>(false);
+  const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
+  const [warping, setWarping] = useState<boolean>(false);
   const [reconnectCount, setReconnectCount] = useState<number>(0);
   const [loadingMessage, setLoadingMessage] = useState<string>('채팅 정보를 불러오는 중입니다.');
 
   const stompRef = useRef<SpringStompClient | null>(null);
   const selectedChannelRef = useRef<string>('');
+
+  const { theme, toggleTheme, setThemeMode } = useTheme();
 
   useEffect(() => {
     selectedChannelRef.current = selectedChannelId;
@@ -279,8 +284,11 @@ export default function App() {
       password: credentials.password,
     });
     const currentMember = await getMe(nextToken);
+    // 로그인 성공 → warp 전환 재생 후 채팅으로 진입
+    setWarping(true);
+    await new Promise((resolve) => setTimeout(resolve, 1200));
     persistSession(nextToken, toUser(currentMember));
-    setIsEditingProfile(false);
+    setWarping(false);
   };
 
   const activeChannel = channels.find((channel) => channel.id === selectedChannelId) || {
@@ -291,17 +299,18 @@ export default function App() {
     createdAt: Date.now(),
   };
 
-  if (!user || isEditingProfile) {
+  if (!user) {
     return (
-      <UserSetup
+      <Welcome
         onComplete={handleSetupComplete}
         initialUser={user}
+        warping={warping}
       />
     );
   }
 
   return (
-    <div className="flex h-screen w-screen bg-slate-950 text-slate-100 font-sans select-none overflow-hidden relative">
+    <div className="flex h-screen w-screen bg-bg text-text font-sans select-none overflow-hidden relative sage-chat-enter">
       <AnimatePresence>
         {!connected && (
           <motion.div
@@ -326,7 +335,9 @@ export default function App() {
           presences={presences}
           currentUser={user}
           onLogout={handleLogout}
-          onEditProfile={() => setIsEditingProfile(true)}
+          onOpenSettings={() => setSettingsOpen(true)}
+          theme={theme}
+          onToggleTheme={toggleTheme}
         />
 
         <ChatArea
@@ -340,6 +351,15 @@ export default function App() {
           onTypeStateChange={handleTypeStateChange}
         />
       </div>
+
+      <SettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        currentUser={user}
+        theme={theme}
+        onSelectTheme={setThemeMode}
+        onUpdateName={(displayName) => setUser((u) => (u ? { ...u, displayName } : u))}
+      />
     </div>
   );
 }
