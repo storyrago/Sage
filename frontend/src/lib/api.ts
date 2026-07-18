@@ -16,7 +16,7 @@ export interface BackendMember {
   id: number;
   email: string;
   nickname: string;
-  createAt?: string;
+  createdAt?: string;
 }
 
 export interface BackendChatRoom {
