@@ -59,34 +59,38 @@ export default function UserSetup({ onComplete, initialUser }: UserSetupProps) {
     }
   };
 
+  const inputClass =
+    'w-full bg-surface-2 border border-border focus:border-accent focus:ring-2 focus:ring-accent/20 outline-none text-text rounded-xl py-3 px-4 text-sm transition-all';
+  const labelClass = 'block text-sm font-medium text-text mb-2';
+
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4 relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-bg flex flex-col justify-center items-center p-4 relative overflow-hidden font-sans">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="w-full max-w-md bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl relative z-10"
+        className="w-full max-w-md bg-surface backdrop-blur-xl border border-border rounded-2xl p-8 shadow-2xl relative z-10"
       >
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center p-3 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-2xl mb-4">
+          <div className="inline-flex items-center justify-center p-3 bg-accent-subtle border border-transparent text-accent-text rounded-2xl mb-4">
             <MessagesSquare className="w-8 h-8" />
           </div>
-          <h1 className="text-3xl font-extrabold text-slate-100 tracking-tight leading-none mb-2">
+          <h1 className="text-3xl font-extrabold text-text tracking-tight leading-none mb-2">
             Real-Time Chat
           </h1>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-muted">
             Spring Boot 계정으로 로그인해 채팅방에 입장하세요.
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 bg-slate-950 border border-slate-800 rounded-xl p-1 mb-6">
+        <div className="grid grid-cols-2 gap-2 bg-surface-2 border border-border rounded-xl p-1 mb-6">
           <button
             type="button"
             onClick={() => {
               setMode('login');
               setErrorCode('');
             }}
-            className={`py-2 rounded-lg text-sm font-bold transition-colors ${mode === 'login' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-100'}`}
+            className={`py-2 rounded-lg text-sm font-bold transition-colors ${mode === 'login' ? 'bg-accent text-accent-fg' : 'text-muted hover:text-text'}`}
           >
             로그인
           </button>
@@ -96,7 +100,7 @@ export default function UserSetup({ onComplete, initialUser }: UserSetupProps) {
               setMode('signup');
               setErrorCode('');
             }}
-            className={`py-2 rounded-lg text-sm font-bold transition-colors ${mode === 'signup' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-100'}`}
+            className={`py-2 rounded-lg text-sm font-bold transition-colors ${mode === 'signup' ? 'bg-accent text-accent-fg' : 'text-muted hover:text-text'}`}
           >
             회원가입
           </button>
@@ -105,15 +109,15 @@ export default function UserSetup({ onComplete, initialUser }: UserSetupProps) {
         <form onSubmit={handleSubmit} className="space-y-5">
           {mode === 'signup' && (
             <div className="flex flex-col items-center gap-2">
-              <span className="text-xs font-semibold text-slate-400 tracking-wider uppercase">아바타 미리보기</span>
-              <div className={`w-16 h-16 rounded-2xl bg-gradient-to-tr ${selectedGradient} flex items-center justify-center text-2xl font-bold shadow-lg shadow-indigo-500/10`}>
+              <span className="text-xs font-semibold text-muted tracking-wider uppercase">아바타 미리보기</span>
+              <div className={`w-16 h-16 rounded-2xl bg-gradient-to-tr ${selectedGradient} flex items-center justify-center text-2xl font-bold shadow-lg`}>
                 {nickname ? nickname.charAt(0).toUpperCase() : '?'}
               </div>
             </div>
           )}
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
+            <label htmlFor="email" className={labelClass}>
               이메일
             </label>
             <input
@@ -123,12 +127,12 @@ export default function UserSetup({ onComplete, initialUser }: UserSetupProps) {
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-slate-800/50 border border-slate-700 focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/10 outline-none text-slate-100 rounded-xl py-3 px-4 text-sm transition-all"
+              className={inputClass}
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-2">
+            <label htmlFor="password" className={labelClass}>
               비밀번호
             </label>
             <input
@@ -136,13 +140,13 @@ export default function UserSetup({ onComplete, initialUser }: UserSetupProps) {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-slate-800/50 border border-slate-700 focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/10 outline-none text-slate-100 rounded-xl py-3 px-4 text-sm transition-all"
+              className={inputClass}
             />
           </div>
 
           {mode === 'signup' && (
             <div>
-              <label htmlFor="nickname" className="block text-sm font-medium text-slate-300 mb-2">
+              <label htmlFor="nickname" className={labelClass}>
                 닉네임 (최대 10자)
               </label>
               <input
@@ -151,7 +155,7 @@ export default function UserSetup({ onComplete, initialUser }: UserSetupProps) {
                 placeholder="예: 민준"
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
-                className="w-full bg-slate-800/50 border border-slate-700 focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/10 outline-none text-slate-100 rounded-xl py-3 px-4 text-sm transition-all"
+                className={inputClass}
               />
             </div>
           )}
@@ -165,7 +169,7 @@ export default function UserSetup({ onComplete, initialUser }: UserSetupProps) {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold py-4 rounded-xl transition-all shadow-lg hover:shadow-indigo-600/30 flex items-center justify-center gap-2 cursor-pointer group"
+            className="w-full bg-accent hover:bg-accent-hover disabled:opacity-50 text-accent-fg font-semibold py-4 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer group"
             id="join-chat-btn"
           >
             {mode === 'login' ? <LogIn className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
