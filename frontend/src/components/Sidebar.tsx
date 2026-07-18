@@ -72,7 +72,7 @@ export default function Sidebar({
   };
 
   return (
-    <div className="w-80 h-full bg-surface border-r border-border flex flex-col relative font-sans">
+    <div className="w-[264px] h-full bg-surface border-r border-border flex flex-col relative font-sans">
 
       {/* Brand Top Header */}
       <div className="p-4 border-b border-border flex items-center justify-between">
@@ -82,7 +82,7 @@ export default function Sidebar({
           </div>
           <div>
             <h1 className="text-md font-bold text-text flex items-center gap-1.5 leading-none">
-              Real-Time Chat
+              Sage
               <span className="flex h-2 w-2 relative">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-online opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-online"></span>
