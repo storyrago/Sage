@@ -1,5 +1,6 @@
 services:
   app:
+    image: ghcr.io/storyrago/realtimechat-backend-app:latest
     build: .
     restart: unless-stopped
     expose:
@@ -16,6 +17,7 @@ services:
       - redis
 
   web:
+    image: ghcr.io/storyrago/realtimechat-backend-web:latest
     build: ./frontend
     restart: unless-stopped
     ports:

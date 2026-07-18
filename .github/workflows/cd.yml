@@ -4,23 +4,75 @@ on:
   push:
     branches: [ develop ]      # develop에 머지되면 자동 배포
 
+env:
+  IMAGE_APP: ghcr.io/storyrago/realtimechat-backend-app
+  IMAGE_WEB: ghcr.io/storyrago/realtimechat-backend-web
+
 jobs:
+  # 1) GitHub Actions(메모리 넉넉)에서 이미지 빌드 → GHCR push. EC2에서 빌드 안 함.
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write            # GHCR push 권한 (GITHUB_TOKEN 사용, 별도 시크릿 불필요)
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Build jar
+        run: |
+          chmod +x gradlew
+          ./gradlew build -x test        # 테스트는 CI(ci.yml)에서 이미 검증됨
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & push app image        # 컨텍스트 . (Dockerfile이 build/libs/*.jar 복사)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE_APP }}:latest
+            ${{ env.IMAGE_APP }}:${{ github.sha }}
+
+      - name: Build & push web image        # 컨텍스트 ./frontend (node 빌드 → nginx)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ env.IMAGE_WEB }}:latest
+            ${{ env.IMAGE_WEB }}:${{ github.sha }}
+
+  # 2) EC2는 빌드 없이 pull만 → 순식간. 1GB 서버 OOM/타임아웃 원천 제거.
   deploy:
+    needs: build-and-push
     runs-on: ubuntu-latest
     steps:
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.EC2_HOST }}       # ← 시크릿 참조
+          host: ${{ secrets.EC2_HOST }}
           username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}      # ← .pem 내용 시크릿
-          command_timeout: 20m
+          key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 10m
           script: |
             cd ~/realtimechat-backend
             git fetch origin
             git checkout develop
-            git reset --hard origin/develop     # 서버를 origin/develop에 강제 맞춤
-            chmod +x gradlew
-            ./gradlew --stop                              # 기존 gradle 데몬 종료 (메모리 확보)
-            ./gradlew build -x test --no-daemon           # 데몬 없이 빌드 (끝나면 메모리 즉시 해제)
-            docker compose up -d --build --remove-orphans # 재빌드·재시작 + 옛 컨테이너 정리
+            git reset --hard origin/develop         # compose 파일 최신화용 (빌드는 안 함)
+            docker compose pull                     # GHCR에서 새 이미지 받기
+            docker compose up -d --remove-orphans   # 빌드 없이 새 이미지로 교체
+            docker image prune -f                   # 안 쓰는 옛 이미지 정리 (디스크 확보)
