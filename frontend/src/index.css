@@ -44,6 +44,33 @@ body {
   color: var(--text);
 }
 
+/* Intro(Welcome) 전용 애니메이션 */
+@keyframes sageWheel {
+  0% { transform: translateY(0); opacity: 1; }
+  70% { transform: translateY(12px); opacity: 0; }
+  100% { transform: translateY(12px); opacity: 0; }
+}
+.sage-wheel { animation: sageWheel 1.8s ease-in-out infinite; }
+@keyframes sageRise {
+  from { opacity: 0; transform: translateY(24px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.sage-login-reveal { animation: sageRise 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both; }
+.sage-input:focus {
+  border-color: #7AAE92 !important;
+  box-shadow: 0 0 0 3px rgba(122, 174, 146, 0.15);
+}
+.sage-cta { transition: transform .18s ease, box-shadow .18s ease, background-color .18s ease; }
+.sage-cta:hover:not(:disabled) {
+  background-color: #8BBBA1;
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px -12px rgba(122, 174, 146, 0.55);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sage-wheel { animation: none; }
+  .sage-login-reveal { animation: none; }
+}
+
 /* Custom gorgeous scrollbar styles for clean visual density */
 ::-webkit-scrollbar {
   width: 6px;

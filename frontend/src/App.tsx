@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Channel, Message, Presence, User } from './types';
-import UserSetup from './components/UserSetup';
+import Welcome from './components/Welcome';
 import Sidebar from './components/Sidebar';
 import ChatArea from './components/ChatArea';
 import { WifiOff, RefreshCw } from 'lucide-react';
@@ -296,7 +296,7 @@ export default function App() {
 
   if (!user || isEditingProfile) {
     return (
-      <UserSetup
+      <Welcome
         onComplete={handleSetupComplete}
         initialUser={user}
       />
