@@ -329,7 +329,6 @@ export default function App() {
               theme={theme}
               onToggleTheme={toggleTheme}
               onOpenSettings={() => setSettingsOpen(true)}
-              onLogout={handleLogout}
               onGoHome={() => setSelectedChannelId('')}
             />
           </div>
@@ -343,6 +342,7 @@ export default function App() {
               await refreshRooms(token);
               setSelectedChannelId(String(room.id));
             }}
+            onLogout={handleLogout}
           />
         )}
       </div>

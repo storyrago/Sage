@@ -8,7 +8,7 @@ import { avatarForId } from '../lib/avatar';
 import {
   Send, Smile, CornerUpLeft, Trash2, ArrowDown,
   MessageCircle, Hash, Info, Users, X,
-  ArrowLeft, Sun, Moon, Settings2, LogOut
+  ArrowLeft, Sun, Moon, Settings2
 } from 'lucide-react';
 
 interface ChatAreaProps {
@@ -25,7 +25,6 @@ interface ChatAreaProps {
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
   onOpenSettings: () => void;
-  onLogout: () => void;
   onGoHome: () => void;
 }
 
@@ -43,7 +42,6 @@ export default function ChatArea({
   theme,
   onToggleTheme,
   onOpenSettings,
-  onLogout,
   onGoHome
 }: ChatAreaProps) {
   const [inputText, setInputText] = useState('');
@@ -220,15 +218,6 @@ export default function ChatArea({
             <Settings2 className="w-4 h-4" />
           </button>
 
-          <button
-            onClick={onLogout}
-            className="w-8 h-8 rounded-lg border border-border text-muted hover:text-rose-400 hover:border-rose-500/40 transition-all cursor-pointer flex items-center justify-center"
-            title="로그아웃"
-            aria-label="로그아웃"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-
           <Avatar
             photoUrl={currentUser.photoUrl}
             gradient={currentUser.avatar}
@@ -324,8 +313,11 @@ export default function ChatArea({
           const parentMsg = msg.replyToId ? messages.find(m => m.id === msg.replyToId) : null;
 
           return (
-            <div
+            <motion.div
               key={msg.id}
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
               onMouseEnter={() => setHoveredMessageId(msg.id)}
               onMouseLeave={() => {
                 setHoveredMessageId(null);
@@ -465,7 +457,7 @@ export default function ChatArea({
                   </motion.div>
                 )}
               </AnimatePresence>
-            </div>
+            </motion.div>
           );
         })}
 
