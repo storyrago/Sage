@@ -15,8 +15,12 @@ const POS = [
   { left: '70%', top: '50%', rot: -10 }, { left: '55%', top: '6%', rot: 3 },
 ];
 
-const BIG_W = 300;
-const BIG_H = 400;
+// 확대 우표 크기 (반응형 — 좁은 폭에서 넘치지 않게)
+function calcBig() {
+  const w = typeof window !== 'undefined' ? window.innerWidth : 1200;
+  const bw = Math.min(300, Math.round(w * 0.84));
+  return { w: bw, h: Math.round((bw * 4) / 3) };
+}
 
 function fmtDate(ms: number) {
   const d = new Date(ms);
@@ -68,9 +72,16 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
   const [origin, setOrigin] = useState<Origin | null>(null);
   const [open, setOpen] = useState(false);
   const [tilt, setTilt] = useState({ rx: 0, ry: 0 });
+  const [big, setBig] = useState(calcBig);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const focused = channels.find((c) => c.id === focusedId) || null;
+
+  useEffect(() => {
+    const onResize = () => setBig(calcBig());
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && focusedId) closeFocus(); };
@@ -96,7 +107,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
     setOrigin({
       cx: r.left + r.width / 2,
       cy: r.top + r.height / 2,
-      scale: r.width / BIG_W,
+      scale: r.width / big.w,
       rot: Number(el.dataset.rot || 0),
     });
     setTilt({ rx: 0, ry: 0 });
@@ -125,9 +136,9 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
     const h = typeof window !== 'undefined' ? window.innerHeight : 700;
     if (open) {
       const cx = w / 2, cy = h / 2 - 26;
-      return `translate(${cx - BIG_W / 2}px, ${cy - BIG_H / 2}px) scale(1) rotate(0deg)`;
+      return `translate(${cx - big.w / 2}px, ${cy - big.h / 2}px) scale(1) rotate(0deg)`;
     }
-    return `translate(${origin.cx - BIG_W / 2}px, ${origin.cy - BIG_H / 2}px) scale(${origin.scale}) rotate(${origin.rot}deg)`;
+    return `translate(${origin.cx - big.w / 2}px, ${origin.cy - big.h / 2}px) scale(${origin.scale}) rotate(${origin.rot}deg)`;
   };
 
   return (
@@ -151,7 +162,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
           <button onClick={() => setCreating(true)} className="inline-flex items-center gap-1.5 bg-accent text-accent-fg rounded-lg px-4 py-2.5 text-[14px] font-bold cursor-pointer"><Plus className="w-4 h-4" /> 첫 채널 만들기</button>
         </div>
       ) : (
-        <div className="relative" style={{ height: 560 }}>
+        <div className="relative h-[680px] md:h-[560px]">
           {channels.map((ch, i) => {
             const p = POS[i % POS.length];
             const dim = (hoveredId !== null && hoveredId !== ch.id) || (focusedId !== null && focusedId !== ch.id);
@@ -160,7 +171,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
               <div
                 key={ch.id}
                 data-rot={p.rot}
-                className="stamp-in absolute w-[132px] h-[176px] hover:z-20"
+                className="stamp-in absolute w-[96px] h-[128px] md:w-[132px] md:h-[176px] hover:z-20"
                 style={{
                   left: p.left,
                   top: p.top,
@@ -206,7 +217,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
           <div
             className="fixed z-50"
             style={{
-              left: 0, top: 0, width: BIG_W, height: BIG_H,
+              left: 0, top: 0, width: big.w, height: big.h,
               transformOrigin: 'center',
               transform: flyTransform(),
               transition: 'transform .46s cubic-bezier(0.22, 1, 0.36, 1)',
@@ -230,7 +241,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
           <div
             className="fixed z-50 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3"
             style={{
-              top: (typeof window !== 'undefined' ? window.innerHeight : 700) / 2 + 190,
+              top: (typeof window !== 'undefined' ? window.innerHeight : 700) / 2 - 26 + big.h / 2 + 18,
               opacity: open ? 1 : 0,
               transition: 'opacity .28s ease .12s',
               pointerEvents: open ? 'auto' : 'none',
