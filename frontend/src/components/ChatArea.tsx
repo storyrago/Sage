@@ -163,14 +163,14 @@ export default function ChatArea({
     <div className="flex-1 h-full flex flex-col bg-bg font-sans relative">
 
       {/* CHANNEL CHAT HEADER */}
-      <div className="h-16 border-b border-border bg-surface backdrop-blur-md px-6 flex items-center justify-between z-10 relative">
-        <div className="flex items-center gap-3 min-w-0">
+      <div className="h-16 border-b border-border bg-surface backdrop-blur-md px-3 md:px-6 flex items-center justify-between z-10 relative">
+        <div className="flex items-center gap-2 md:gap-3 min-w-0">
           <button
             onClick={onGoHome}
-            className="flex items-center gap-1 h-8 px-2.5 rounded-lg border border-border text-muted hover:text-accent-text hover:border-accent transition-all cursor-pointer text-xs font-semibold flex-shrink-0"
+            className="flex items-center gap-1 h-8 px-2 sm:px-2.5 rounded-lg border border-border text-muted hover:text-accent-text hover:border-accent transition-all cursor-pointer text-xs font-semibold flex-shrink-0"
             title="채널 목록으로 나가기"
           >
-            <ArrowLeft className="w-4 h-4" /> 나가기
+            <ArrowLeft className="w-4 h-4" /> <span className="hidden sm:inline">나가기</span>
           </button>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
@@ -289,7 +289,7 @@ export default function ChatArea({
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-6 py-4 space-y-4 relative"
+        className="flex-1 overflow-y-auto px-3 md:px-6 py-4 space-y-4 relative"
       >
 
         {/* Topic Welcome Banner */}
