@@ -7,7 +7,8 @@ import { getRoomMemberProfiles, BackendMember } from '../lib/api';
 import { avatarForId } from '../lib/avatar';
 import {
   Send, Smile, CornerUpLeft, Trash2, ArrowDown,
-  MessageCircle, Hash, Info, Users, X
+  MessageCircle, Hash, Info, Users, X,
+  ArrowLeft, Sun, Moon, Settings2, LogOut
 } from 'lucide-react';
 
 interface ChatAreaProps {
@@ -21,6 +22,11 @@ interface ChatAreaProps {
   onDeleteMessage: (messageId: string) => void;
   onTypeStateChange: (isTyping: boolean) => void;
   onOpenProfile: (userId: string) => void;
+  theme: 'light' | 'dark';
+  onToggleTheme: () => void;
+  onOpenSettings: () => void;
+  onLogout: () => void;
+  onGoHome: () => void;
 }
 
 export default function ChatArea({
@@ -33,7 +39,12 @@ export default function ChatArea({
   onSendReaction,
   onDeleteMessage,
   onTypeStateChange,
-  onOpenProfile
+  onOpenProfile,
+  theme,
+  onToggleTheme,
+  onOpenSettings,
+  onLogout,
+  onGoHome
 }: ChatAreaProps) {
   const [inputText, setInputText] = useState('');
   const [replyMessage, setReplyMessage] = useState<Message | null>(null);
@@ -155,22 +166,31 @@ export default function ChatArea({
 
       {/* CHANNEL CHAT HEADER */}
       <div className="h-16 border-b border-border bg-surface backdrop-blur-md px-6 flex items-center justify-between z-10 relative">
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5">
-            <Hash className="w-4 h-4 text-accent-text mt-0.5" />
-            <h2 className="text-md font-bold text-text select-none truncate">
-              {channel.name}
-            </h2>
+        <div className="flex items-center gap-3 min-w-0">
+          <button
+            onClick={onGoHome}
+            className="flex items-center gap-1 h-8 px-2.5 rounded-lg border border-border text-muted hover:text-accent-text hover:border-accent transition-all cursor-pointer text-xs font-semibold flex-shrink-0"
+            title="채널 목록으로 나가기"
+          >
+            <ArrowLeft className="w-4 h-4" /> 나가기
+          </button>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <Hash className="w-4 h-4 text-accent-text mt-0.5" />
+              <h2 className="text-md font-bold text-text select-none truncate">
+                {channel.name}
+              </h2>
+            </div>
+            <p className="text-[11px] text-muted mt-0.5 truncate select-none leading-none">
+              {channel.description}
+            </p>
           </div>
-          <p className="text-[11px] text-muted mt-0.5 truncate select-none leading-none">
-            {channel.description}
-          </p>
         </div>
 
-        <div className="text-right text-xs text-muted font-medium select-none flex items-center gap-3">
-          <div className="flex items-center gap-2">
+        <div className="text-right text-xs text-muted font-medium select-none flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-2 mr-1">
             <Info className="w-3.5 h-3.5 text-muted" />
-            <span>메시지 {channelMessages.length}개 누적</span>
+            <span>메시지 {channelMessages.length}개</span>
           </div>
 
           <button
@@ -181,6 +201,40 @@ export default function ChatArea({
           >
             <Users className="w-4 h-4" />
           </button>
+
+          <button
+            onClick={onToggleTheme}
+            className="w-8 h-8 rounded-lg border border-border text-muted hover:text-accent-text hover:border-accent transition-all cursor-pointer flex items-center justify-center"
+            title={theme === 'dark' ? '라이트 모드' : '다크 모드'}
+            aria-label="테마 전환"
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+
+          <button
+            onClick={onOpenSettings}
+            className="w-8 h-8 rounded-lg border border-border text-muted hover:text-accent-text hover:border-accent transition-all cursor-pointer flex items-center justify-center"
+            title="설정"
+            aria-label="설정"
+          >
+            <Settings2 className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={onLogout}
+            className="w-8 h-8 rounded-lg border border-border text-muted hover:text-rose-400 hover:border-rose-500/40 transition-all cursor-pointer flex items-center justify-center"
+            title="로그아웃"
+            aria-label="로그아웃"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+
+          <Avatar
+            photoUrl={currentUser.photoUrl}
+            gradient={currentUser.avatar}
+            name={currentUser.displayName}
+            className="w-8 h-8 rounded-lg text-xs ml-0.5 flex-shrink-0"
+          />
         </div>
 
         {/* PARTICIPANTS PANEL */}

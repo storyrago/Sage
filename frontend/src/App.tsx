@@ -4,7 +4,6 @@ import { Channel, Message, Presence, User } from './types';
 import Welcome from './components/Welcome';
 import SettingsModal from './components/SettingsModal';
 import ProfileModal from './components/ProfileModal';
-import Sidebar from './components/Sidebar';
 import ChatArea from './components/ChatArea';
 import ChannelLanding from './components/ChannelLanding';
 import { WifiOff, RefreshCw } from 'lucide-react';
@@ -328,20 +327,6 @@ export default function App() {
       <div className={`flex w-full h-full transition-all duration-350 ${!connected ? 'pt-8' : ''}`}>
         {selectedChannelId ? (
           <div className="flex w-full h-full sage-chat-enter">
-            <Sidebar
-              channels={channels}
-              selectedChannelId={selectedChannelId}
-              onSelectChannel={handleSelectChannel}
-              onCreateChannel={handleCreateChannel}
-              presences={presences}
-              currentUser={user}
-              onLogout={handleLogout}
-              onOpenSettings={() => setSettingsOpen(true)}
-              theme={theme}
-              onToggleTheme={toggleTheme}
-              onGoHome={() => setSelectedChannelId('')}
-            />
-
             <ChatArea
               channel={activeChannel}
               messages={messages}
@@ -353,6 +338,11 @@ export default function App() {
               onDeleteMessage={handleDeleteMessage}
               onTypeStateChange={handleTypeStateChange}
               onOpenProfile={(id) => setProfileMemberId(id)}
+              theme={theme}
+              onToggleTheme={toggleTheme}
+              onOpenSettings={() => setSettingsOpen(true)}
+              onLogout={handleLogout}
+              onGoHome={() => setSelectedChannelId('')}
             />
           </div>
         ) : (

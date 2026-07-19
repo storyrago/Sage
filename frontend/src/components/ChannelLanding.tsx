@@ -69,25 +69,32 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
             const Icon = ICONS[hash(ch.id) % ICONS.length];
             const tint = hash(ch.id) % 3 === 0;
             return (
-              <button
+              <div
                 key={ch.id}
-                onClick={() => enter(ch.id)}
-                className="absolute w-[118px] hover:!rotate-0 hover:scale-110 hover:z-30 cursor-pointer"
+                className="stamp-in absolute w-[118px] hover:z-30"
                 style={{
                   left: p.left,
                   top: p.top,
-                  transform: zoomingId === ch.id ? 'scale(2.4)' : `rotate(${p.rot}deg)`,
-                  opacity: zoomingId && zoomingId !== ch.id ? 0 : 1,
-                  zIndex: zoomingId === ch.id ? 30 : undefined,
-                  transition: 'transform .26s ease, rotate .2s ease, scale .2s ease, opacity .26s ease',
-                  filter: 'drop-shadow(0 6px 10px rgba(0,0,0,0.45))',
+                  animationDelay: `${i * 0.06}s`,
+                  zIndex: zoomingId === ch.id ? 40 : undefined,
                 }}
               >
-                <div className={`stamp-paper flex flex-col items-center justify-center gap-1.5 min-h-[104px] px-2.5 py-4 ${tint ? 'bg-[#e7efe6]' : 'bg-[#fdfcf8]'}`}>
-                  <Icon className="w-6 h-6" style={{ color: 'var(--accent)' }} />
-                  <div className="text-[15px] font-semibold text-[#26251f]">{ch.name}</div>
-                </div>
-              </button>
+                <button
+                  onClick={() => enter(ch.id)}
+                  className="w-full hover:!rotate-0 hover:scale-110 cursor-pointer"
+                  style={{
+                    transform: zoomingId === ch.id ? 'scale(2.4)' : `rotate(${p.rot}deg)`,
+                    opacity: zoomingId && zoomingId !== ch.id ? 0 : 1,
+                    transition: 'transform .26s ease, rotate .2s ease, scale .2s ease, opacity .26s ease',
+                    filter: 'drop-shadow(0 6px 10px rgba(0,0,0,0.45))',
+                  }}
+                >
+                  <div className={`stamp-paper flex flex-col items-center justify-center gap-1.5 min-h-[104px] px-2.5 py-4 ${tint ? 'bg-[#e7efe6]' : 'bg-[#fdfcf8]'}`}>
+                    <Icon className="w-6 h-6" style={{ color: 'var(--accent)' }} />
+                    <div className="text-[15px] font-semibold text-[#26251f]">{ch.name}</div>
+                  </div>
+                </button>
+              </div>
             );
           })}
         </div>
