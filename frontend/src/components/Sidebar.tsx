@@ -18,6 +18,7 @@ interface SidebarProps {
   onOpenSettings: () => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
+  onGoHome?: () => void;
 }
 
 export default function Sidebar({
@@ -30,7 +31,8 @@ export default function Sidebar({
   onLogout,
   onOpenSettings,
   theme,
-  onToggleTheme
+  onToggleTheme,
+  onGoHome
 }: SidebarProps) {
   const [isCreatingChannel, setIsCreatingChannel] = useState(false);
   const [newChanName, setNewChanName] = useState('');
@@ -77,7 +79,12 @@ export default function Sidebar({
 
       {/* Brand Top Header */}
       <div className="p-4 border-b border-border flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
+        <button
+          type="button"
+          onClick={onGoHome}
+          aria-label="채널 목록으로"
+          className="flex items-center gap-2.5 text-left cursor-pointer"
+        >
           <div className="w-8 h-8 rounded-xl bg-accent flex items-center justify-center text-accent-fg shadow-md">
             <MessageSquareCode className="w-4 h-4" />
           </div>
@@ -93,7 +100,7 @@ export default function Sidebar({
               CONNECTED • {presences.filter(p => p.lastSeen > 0).length}명 접속 중
             </p>
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Main lists */}

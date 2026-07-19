@@ -111,3 +111,14 @@ body {
   background: rgba(148, 163, 184, 0.4);
 }
 
+.stamp-paper {
+  -webkit-mask:
+    linear-gradient(#000 0 0) 50%/calc(100% - 11px) calc(100% - 11px) no-repeat,
+    radial-gradient(circle 5px, #000 96%, #0000) 0 0/12px 12px round;
+  -webkit-mask-composite: source-over;
+  mask:
+    linear-gradient(#000 0 0) 50%/calc(100% - 11px) calc(100% - 11px) no-repeat,
+    radial-gradient(circle 5px, #000 96%, #0000) 0 0/12px 12px round;
+  mask-composite: add;
+}
+

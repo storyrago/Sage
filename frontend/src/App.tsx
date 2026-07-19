@@ -6,6 +6,7 @@ import SettingsModal from './components/SettingsModal';
 import ProfileModal from './components/ProfileModal';
 import Sidebar from './components/Sidebar';
 import ChatArea from './components/ChatArea';
+import ChannelLanding from './components/ChannelLanding';
 import { WifiOff, RefreshCw } from 'lucide-react';
 import {
   createChatRoom,
@@ -325,31 +326,48 @@ export default function App() {
       </AnimatePresence>
 
       <div className={`flex w-full h-full transition-all duration-350 ${!connected ? 'pt-8' : ''}`}>
-        <Sidebar
-          channels={channels}
-          selectedChannelId={selectedChannelId}
-          onSelectChannel={handleSelectChannel}
-          onCreateChannel={handleCreateChannel}
-          presences={presences}
-          currentUser={user}
-          onLogout={handleLogout}
-          onOpenSettings={() => setSettingsOpen(true)}
-          theme={theme}
-          onToggleTheme={toggleTheme}
-        />
+        {selectedChannelId ? (
+          <>
+            <Sidebar
+              channels={channels}
+              selectedChannelId={selectedChannelId}
+              onSelectChannel={handleSelectChannel}
+              onCreateChannel={handleCreateChannel}
+              presences={presences}
+              currentUser={user}
+              onLogout={handleLogout}
+              onOpenSettings={() => setSettingsOpen(true)}
+              theme={theme}
+              onToggleTheme={toggleTheme}
+              onGoHome={() => setSelectedChannelId('')}
+            />
 
-        <ChatArea
-          channel={activeChannel}
-          messages={messages}
-          presences={presences}
-          currentUser={user}
-          token={token ?? ''}
-          onSendMessage={handleSendMessage}
-          onSendReaction={handleSendReaction}
-          onDeleteMessage={handleDeleteMessage}
-          onTypeStateChange={handleTypeStateChange}
-          onOpenProfile={(id) => setProfileMemberId(id)}
-        />
+            <ChatArea
+              channel={activeChannel}
+              messages={messages}
+              presences={presences}
+              currentUser={user}
+              token={token ?? ''}
+              onSendMessage={handleSendMessage}
+              onSendReaction={handleSendReaction}
+              onDeleteMessage={handleDeleteMessage}
+              onTypeStateChange={handleTypeStateChange}
+              onOpenProfile={(id) => setProfileMemberId(id)}
+            />
+          </>
+        ) : (
+          <ChannelLanding
+            channels={channels}
+            currentUser={user}
+            onSelectChannel={(id) => setSelectedChannelId(id)}
+            onCreateChannel={async (name) => {
+              if (!token) return;
+              const room = await createChatRoom(token, name);
+              await refreshRooms(token);
+              setSelectedChannelId(String(room.id));
+            }}
+          />
+        )}
       </div>
 
       <SettingsModal
