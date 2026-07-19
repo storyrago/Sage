@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Channel, Message, Presence, User } from './types';
 import Welcome from './components/Welcome';
 import SettingsModal from './components/SettingsModal';
+import ProfileModal from './components/ProfileModal';
 import Sidebar from './components/Sidebar';
 import ChatArea from './components/ChatArea';
 import { WifiOff, RefreshCw } from 'lucide-react';
@@ -38,6 +39,7 @@ export default function App() {
   const [presences, setPresences] = useState<Presence[]>([]);
   const [connected, setConnected] = useState<boolean>(false);
   const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
+  const [profileMemberId, setProfileMemberId] = useState<string | null>(null);
   const [warping, setWarping] = useState<boolean>(false);
   const [reconnectCount, setReconnectCount] = useState<number>(0);
   const [loadingMessage, setLoadingMessage] = useState<string>('채팅 정보를 불러오는 중입니다.');
@@ -349,6 +351,7 @@ export default function App() {
           onSendReaction={handleSendReaction}
           onDeleteMessage={handleDeleteMessage}
           onTypeStateChange={handleTypeStateChange}
+          onOpenProfile={(id) => setProfileMemberId(id)}
         />
       </div>
 
@@ -366,6 +369,13 @@ export default function App() {
             return next;
           });
         }}
+      />
+
+      <ProfileModal
+        open={profileMemberId !== null}
+        memberId={profileMemberId}
+        token={token ?? ''}
+        onClose={() => setProfileMemberId(null)}
       />
     </div>
   );

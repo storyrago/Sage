@@ -17,6 +17,7 @@ interface ChatAreaProps {
   onSendReaction: (messageId: string, emoji: string) => void;
   onDeleteMessage: (messageId: string) => void;
   onTypeStateChange: (isTyping: boolean) => void;
+  onOpenProfile: (userId: string) => void;
 }
 
 export default function ChatArea({
@@ -27,7 +28,8 @@ export default function ChatArea({
   onSendMessage,
   onSendReaction,
   onDeleteMessage,
-  onTypeStateChange
+  onTypeStateChange,
+  onOpenProfile
 }: ChatAreaProps) {
   const [inputText, setInputText] = useState('');
   const [replyMessage, setReplyMessage] = useState<Message | null>(null);
@@ -192,14 +194,18 @@ export default function ChatArea({
             >
 
               {/* User Avatar Badge */}
-              <Avatar gradient={msg.userAvatar} name={msg.userName} className="w-9 h-9 rounded-xl text-xs font-sans self-start shadow-md flex-shrink-0" />
+              <button onClick={() => onOpenProfile(msg.userId)} className="cursor-pointer self-start flex-shrink-0" aria-label={`${msg.userName} 프로필`}>
+                <Avatar gradient={msg.userAvatar} name={msg.userName} className="w-9 h-9 rounded-xl text-xs font-sans shadow-md" />
+              </button>
 
               {/* Chat Bubble Body Container */}
               <div className="space-y-1 max-w-[85%]">
 
                 {/* Header Profile Title */}
                 <div className={`flex items-center gap-2 text-[11px] ${isSelf ? 'justify-end' : 'justify-start'}`}>
-                  <span className="font-bold text-text">{msg.userName}</span>
+                  <button onClick={() => onOpenProfile(msg.userId)} className="font-bold text-text cursor-pointer hover:text-accent-text transition-colors" aria-label={`${msg.userName} 프로필`}>
+                    {msg.userName}
+                  </button>
                   <span className="text-faint font-medium select-none">{formatTime(msg.createdAt)}</span>
                 </div>
 
