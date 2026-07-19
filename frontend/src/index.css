@@ -129,14 +129,7 @@ body {
   100% { transform: scale(1); }
 }
 .stamp-in { animation: stampIn 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) backwards; }
-
-/* 우표 클릭 확대 등장 */
-@keyframes stampFocusIn {
-  from { opacity: 0; transform: scale(0.86); }
-  to   { opacity: 1; transform: scale(1); }
-}
-.stamp-focus-in { animation: stampFocusIn 0.26s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
 @media (prefers-reduced-motion: reduce) {
-  .stamp-in, .stamp-focus-in { animation: none; }
+  .stamp-in { animation: none; }
 }
 
