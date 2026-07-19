@@ -1,10 +1,13 @@
 import { useState, useRef, useEffect, FormEvent, ChangeEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Channel, Message, Presence, User } from '../types';
+import Avatar from './Avatar';
 import EmojiPicker from './EmojiPicker';
+import { getRoomMemberProfiles, BackendMember } from '../lib/api';
+import { avatarForId } from '../lib/avatar';
 import {
   Send, Smile, CornerUpLeft, Trash2, ArrowDown,
-  MessageCircle, Hash, Info
+  MessageCircle, Hash, Info, Users, X
 } from 'lucide-react';
 
 interface ChatAreaProps {
@@ -12,10 +15,12 @@ interface ChatAreaProps {
   messages: Message[];
   presences: Presence[];
   currentUser: User;
+  token: string;
   onSendMessage: (text: string, replyToId?: string) => void;
   onSendReaction: (messageId: string, emoji: string) => void;
   onDeleteMessage: (messageId: string) => void;
   onTypeStateChange: (isTyping: boolean) => void;
+  onOpenProfile: (userId: string) => void;
 }
 
 export default function ChatArea({
@@ -23,16 +28,20 @@ export default function ChatArea({
   messages,
   presences,
   currentUser,
+  token,
   onSendMessage,
   onSendReaction,
   onDeleteMessage,
-  onTypeStateChange
+  onTypeStateChange,
+  onOpenProfile
 }: ChatAreaProps) {
   const [inputText, setInputText] = useState('');
   const [replyMessage, setReplyMessage] = useState<Message | null>(null);
   const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
   const [activeReactionPickerId, setActiveReactionPickerId] = useState<string | null>(null);
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
+  const [participants, setParticipants] = useState<BackendMember[] | null>(null);
+  const [showMembers, setShowMembers] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -66,6 +75,8 @@ export default function ChatArea({
     scrollToBottom('auto');
     setInputText('');
     setReplyMessage(null);
+    setShowMembers(false);
+    setParticipants(null);
   }, [channel.id]);
 
   // Scroll on new messages if close to bottom
@@ -78,6 +89,17 @@ export default function ChatArea({
       setTimeout(() => scrollToBottom('smooth'), 50);
     }
   }, [channelMessages.length]);
+
+  const openMembers = async () => {
+    setShowMembers(true);
+    setParticipants(null);
+    try {
+      const list = await getRoomMemberProfiles(token, channel.id);
+      setParticipants(list);
+    } catch {
+      setParticipants([]);
+    }
+  };
 
   const handleSend = (e: FormEvent) => {
     e.preventDefault();
@@ -132,7 +154,7 @@ export default function ChatArea({
     <div className="flex-1 h-full flex flex-col bg-bg font-sans relative">
 
       {/* CHANNEL CHAT HEADER */}
-      <div className="h-16 border-b border-border bg-surface backdrop-blur-md px-6 flex items-center justify-between z-10">
+      <div className="h-16 border-b border-border bg-surface backdrop-blur-md px-6 flex items-center justify-between z-10 relative">
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
             <Hash className="w-4 h-4 text-accent-text mt-0.5" />
@@ -145,10 +167,79 @@ export default function ChatArea({
           </p>
         </div>
 
-        <div className="text-right text-xs text-muted font-medium select-none flex items-center gap-2">
-          <Info className="w-3.5 h-3.5 text-muted" />
-          <span>메시지 {channelMessages.length}개 누적</span>
+        <div className="text-right text-xs text-muted font-medium select-none flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Info className="w-3.5 h-3.5 text-muted" />
+            <span>메시지 {channelMessages.length}개 누적</span>
+          </div>
+
+          <button
+            onClick={() => (showMembers ? setShowMembers(false) : openMembers())}
+            className="w-8 h-8 rounded-lg border border-border text-muted hover:text-accent-text hover:border-accent transition-all cursor-pointer flex items-center justify-center"
+            title="참가자 목록"
+            aria-label="참가자 목록"
+          >
+            <Users className="w-4 h-4" />
+          </button>
         </div>
+
+        {/* PARTICIPANTS PANEL */}
+        <AnimatePresence>
+          {showMembers && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.15 }}
+              className="absolute top-[calc(100%+8px)] right-6 w-72 max-h-96 overflow-y-auto bg-surface border border-border rounded-2xl shadow-xl z-30 p-2"
+            >
+              <div className="flex items-center justify-between px-2 py-1.5 mb-1">
+                <span className="text-xs font-bold text-text select-none">
+                  참가자{participants ? ` ${participants.length}명` : ''}
+                </span>
+                <button
+                  onClick={() => setShowMembers(false)}
+                  className="w-6 h-6 rounded-lg text-muted hover:text-text transition-all cursor-pointer flex items-center justify-center"
+                  aria-label="닫기"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {participants === null && (
+                <div className="py-6 text-center text-xs text-muted select-none">불러오는 중…</div>
+              )}
+
+              {participants !== null && participants.length === 0 && (
+                <div className="py-6 text-center text-xs text-muted select-none">참가자가 없습니다.</div>
+              )}
+
+              {participants !== null && participants.length > 0 && (
+                <ul className="space-y-1">
+                  {participants.map((member) => (
+                    <li key={member.id}>
+                      <button
+                        onClick={() => {
+                          onOpenProfile(String(member.id));
+                          setShowMembers(false);
+                        }}
+                        className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-surface-2 transition-colors cursor-pointer text-left"
+                      >
+                        <Avatar
+                          photoUrl={member.profileImageUrl ?? undefined}
+                          gradient={avatarForId(member.id)}
+                          name={member.nickname}
+                          className="w-8 h-8 rounded-lg text-xs flex-shrink-0"
+                        />
+                        <span className="text-sm font-medium text-text truncate">{member.nickname}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* MESSAGES VIEWFEED SCROLL AREA */}
@@ -191,16 +282,18 @@ export default function ChatArea({
             >
 
               {/* User Avatar Badge */}
-              <div className={`w-9 h-9 rounded-xl flex-shrink-0 bg-gradient-to-tr ${msg.userAvatar} shadow-md flex items-center justify-center text-xs font-bold font-sans self-start select-none`}>
-                {msg.userName ? msg.userName.charAt(0).toUpperCase() : '?'}
-              </div>
+              <button onClick={() => onOpenProfile(msg.userId)} className="cursor-pointer self-start flex-shrink-0" aria-label={`${msg.userName} 프로필`}>
+                <Avatar gradient={msg.userAvatar} name={msg.userName} className="w-9 h-9 rounded-xl text-xs font-sans shadow-md" />
+              </button>
 
               {/* Chat Bubble Body Container */}
               <div className="space-y-1 max-w-[85%]">
 
                 {/* Header Profile Title */}
                 <div className={`flex items-center gap-2 text-[11px] ${isSelf ? 'justify-end' : 'justify-start'}`}>
-                  <span className="font-bold text-text">{msg.userName}</span>
+                  <button onClick={() => onOpenProfile(msg.userId)} className="font-bold text-text cursor-pointer hover:text-accent-text transition-colors" aria-label={`${msg.userName} 프로필`}>
+                    {msg.userName}
+                  </button>
                   <span className="text-faint font-medium select-none">{formatTime(msg.createdAt)}</span>
                 </div>
 

@@ -1,6 +1,7 @@
 import { useState, FormEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Channel, Presence, User } from '../types';
+import Avatar from './Avatar';
 import {
   Hash, Plus, LogOut, Users, MessageSquareCode,
   Sparkles, Settings2, X, Sun, Moon
@@ -17,6 +18,7 @@ interface SidebarProps {
   onOpenSettings: () => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
+  onGoHome?: () => void;
 }
 
 export default function Sidebar({
@@ -29,7 +31,8 @@ export default function Sidebar({
   onLogout,
   onOpenSettings,
   theme,
-  onToggleTheme
+  onToggleTheme,
+  onGoHome
 }: SidebarProps) {
   const [isCreatingChannel, setIsCreatingChannel] = useState(false);
   const [newChanName, setNewChanName] = useState('');
@@ -76,7 +79,12 @@ export default function Sidebar({
 
       {/* Brand Top Header */}
       <div className="p-4 border-b border-border flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
+        <button
+          type="button"
+          onClick={onGoHome}
+          aria-label="채널 목록으로"
+          className="flex items-center gap-2.5 text-left cursor-pointer"
+        >
           <div className="w-8 h-8 rounded-xl bg-accent flex items-center justify-center text-accent-fg shadow-md">
             <MessageSquareCode className="w-4 h-4" />
           </div>
@@ -92,7 +100,7 @@ export default function Sidebar({
               CONNECTED • {presences.filter(p => p.lastSeen > 0).length}명 접속 중
             </p>
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Main lists */}
@@ -164,9 +172,7 @@ export default function Sidebar({
                 >
                   {/* Status avatar with indicator overlay */}
                   <div className="relative">
-                    <div className={`w-8 h-8 rounded-lg bg-gradient-to-tr ${user.userAvatar} flex items-center justify-center text-xs font-bold`}>
-                      {user.userName ? user.userName.charAt(0).toUpperCase() : '?'}
-                    </div>
+                    <Avatar gradient={user.userAvatar} name={user.userName} className="w-8 h-8 rounded-lg text-xs" />
                     <span className="absolute bottom-[-2px] right-[-2px] h-2.5 w-2.5 rounded-full bg-online border-2 border-surface"></span>
                   </div>
 
@@ -193,9 +199,12 @@ export default function Sidebar({
       {/* USER SETTINGS AT BOTTOM */}
       <div className="p-3 border-t border-border">
         <div className="flex items-center gap-2.5 px-1 mb-2.5">
-          <div className={`w-9 h-9 rounded-full bg-gradient-to-tr ${currentUser.avatar} flex items-center justify-center text-sm font-bold shadow-md flex-shrink-0`}>
-            {currentUser.displayName.charAt(0).toUpperCase()}
-          </div>
+          <Avatar
+            photoUrl={currentUser.photoUrl}
+            gradient={currentUser.avatar}
+            name={currentUser.displayName}
+            className="w-9 h-9 rounded-full text-sm shadow-md flex-shrink-0"
+          />
           <div className="min-w-0">
             <span className="text-[13px] font-bold text-text block truncate">{currentUser.displayName}</span>
             <span className="text-[11px] text-online font-medium select-none flex items-center gap-1">

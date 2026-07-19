@@ -3,8 +3,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Channel, Message, Presence, User } from './types';
 import Welcome from './components/Welcome';
 import SettingsModal from './components/SettingsModal';
+import ProfileModal from './components/ProfileModal';
 import Sidebar from './components/Sidebar';
 import ChatArea from './components/ChatArea';
+import ChannelLanding from './components/ChannelLanding';
 import { WifiOff, RefreshCw } from 'lucide-react';
 import {
   createChatRoom,
@@ -38,6 +40,7 @@ export default function App() {
   const [presences, setPresences] = useState<Presence[]>([]);
   const [connected, setConnected] = useState<boolean>(false);
   const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
+  const [profileMemberId, setProfileMemberId] = useState<string | null>(null);
   const [warping, setWarping] = useState<boolean>(false);
   const [reconnectCount, setReconnectCount] = useState<number>(0);
   const [loadingMessage, setLoadingMessage] = useState<string>('채팅 정보를 불러오는 중입니다.');
@@ -45,7 +48,7 @@ export default function App() {
   const stompRef = useRef<SpringStompClient | null>(null);
   const selectedChannelRef = useRef<string>('');
 
-  const { theme, toggleTheme, setThemeMode } = useTheme();
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     selectedChannelRef.current = selectedChannelId;
@@ -90,10 +93,6 @@ export default function App() {
     const rooms = await getChatRooms(authToken);
     const mappedRooms = rooms.map(toChannel);
     setChannels(mappedRooms);
-
-    if (mappedRooms.length > 0) {
-      setSelectedChannelId((current) => current || mappedRooms[0].id);
-    }
   }, []);
 
   useEffect(() => {
@@ -327,38 +326,70 @@ export default function App() {
       </AnimatePresence>
 
       <div className={`flex w-full h-full transition-all duration-350 ${!connected ? 'pt-8' : ''}`}>
-        <Sidebar
-          channels={channels}
-          selectedChannelId={selectedChannelId}
-          onSelectChannel={handleSelectChannel}
-          onCreateChannel={handleCreateChannel}
-          presences={presences}
-          currentUser={user}
-          onLogout={handleLogout}
-          onOpenSettings={() => setSettingsOpen(true)}
-          theme={theme}
-          onToggleTheme={toggleTheme}
-        />
+        {selectedChannelId ? (
+          <div className="flex w-full h-full sage-chat-enter">
+            <Sidebar
+              channels={channels}
+              selectedChannelId={selectedChannelId}
+              onSelectChannel={handleSelectChannel}
+              onCreateChannel={handleCreateChannel}
+              presences={presences}
+              currentUser={user}
+              onLogout={handleLogout}
+              onOpenSettings={() => setSettingsOpen(true)}
+              theme={theme}
+              onToggleTheme={toggleTheme}
+              onGoHome={() => setSelectedChannelId('')}
+            />
 
-        <ChatArea
-          channel={activeChannel}
-          messages={messages}
-          presences={presences}
-          currentUser={user}
-          onSendMessage={handleSendMessage}
-          onSendReaction={handleSendReaction}
-          onDeleteMessage={handleDeleteMessage}
-          onTypeStateChange={handleTypeStateChange}
-        />
+            <ChatArea
+              channel={activeChannel}
+              messages={messages}
+              presences={presences}
+              currentUser={user}
+              token={token ?? ''}
+              onSendMessage={handleSendMessage}
+              onSendReaction={handleSendReaction}
+              onDeleteMessage={handleDeleteMessage}
+              onTypeStateChange={handleTypeStateChange}
+              onOpenProfile={(id) => setProfileMemberId(id)}
+            />
+          </div>
+        ) : (
+          <ChannelLanding
+            channels={channels}
+            onSelectChannel={(id) => setSelectedChannelId(id)}
+            onCreateChannel={async (name) => {
+              if (!token) return;
+              const room = await createChatRoom(token, name);
+              await refreshRooms(token);
+              setSelectedChannelId(String(room.id));
+            }}
+          />
+        )}
       </div>
 
       <SettingsModal
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         currentUser={user}
-        theme={theme}
-        onSelectTheme={setThemeMode}
+        token={token ?? ''}
         onUpdateName={(displayName) => setUser((u) => (u ? { ...u, displayName } : u))}
+        onUpdatePhoto={(url) => {
+          setUser((prev) => {
+            if (!prev) return prev;
+            const next = { ...prev, photoUrl: url };
+            if (token) persistSession(token, next);
+            return next;
+          });
+        }}
+      />
+
+      <ProfileModal
+        open={profileMemberId !== null}
+        memberId={profileMemberId}
+        token={token ?? ''}
+        onClose={() => setProfileMemberId(null)}
       />
     </div>
   );
