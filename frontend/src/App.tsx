@@ -327,7 +327,7 @@ export default function App() {
 
       <div className={`flex w-full h-full transition-all duration-350 ${!connected ? 'pt-8' : ''}`}>
         {selectedChannelId ? (
-          <>
+          <div className="flex w-full h-full sage-chat-enter">
             <Sidebar
               channels={channels}
               selectedChannelId={selectedChannelId}
@@ -354,7 +354,7 @@ export default function App() {
               onTypeStateChange={handleTypeStateChange}
               onOpenProfile={(id) => setProfileMemberId(id)}
             />
-          </>
+          </div>
         ) : (
           <ChannelLanding
             channels={channels}

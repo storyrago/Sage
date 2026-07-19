@@ -26,6 +26,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
+  const [zoomingId, setZoomingId] = useState<string | null>(null);
 
   const submit = async () => {
     const n = name.trim();
@@ -33,6 +34,11 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
     setBusy(true);
     try { await onCreateChannel(n); setName(''); setCreating(false); }
     finally { setBusy(false); }
+  };
+
+  const enter = (id: string) => {
+    setZoomingId(id);
+    setTimeout(() => onSelectChannel(id), 260);
   };
 
   return (
@@ -58,9 +64,17 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
             return (
               <button
                 key={ch.id}
-                onClick={() => onSelectChannel(ch.id)}
-                className="absolute w-[118px] transition-transform duration-200 hover:!rotate-0 hover:scale-110 hover:z-30 cursor-pointer"
-                style={{ left: p.left, top: p.top, transform: `rotate(${p.rot}deg)`, filter: 'drop-shadow(0 6px 10px rgba(0,0,0,0.45))' }}
+                onClick={() => enter(ch.id)}
+                className="absolute w-[118px] hover:!rotate-0 hover:scale-110 hover:z-30 cursor-pointer"
+                style={{
+                  left: p.left,
+                  top: p.top,
+                  transform: zoomingId === ch.id ? 'scale(2.4)' : `rotate(${p.rot}deg)`,
+                  opacity: zoomingId && zoomingId !== ch.id ? 0 : 1,
+                  zIndex: zoomingId === ch.id ? 30 : undefined,
+                  transition: 'transform .26s ease, opacity .26s ease',
+                  filter: 'drop-shadow(0 6px 10px rgba(0,0,0,0.45))',
+                }}
               >
                 <div className={`stamp-paper flex flex-col items-center justify-center gap-1.5 min-h-[104px] px-2.5 py-4 ${tint ? 'bg-[#e7efe6]' : 'bg-[#fdfcf8]'}`}>
                   <Icon className="w-6 h-6" style={{ color: 'var(--accent)' }} />
