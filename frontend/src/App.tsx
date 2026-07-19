@@ -229,14 +229,6 @@ export default function App() {
     }
   };
 
-  const handleSendReaction = () => {
-    // The Spring Boot API currently has no reaction endpoint.
-  };
-
-  const handleDeleteMessage = () => {
-    // The Spring Boot API currently has no message deletion endpoint.
-  };
-
   const handleTypeStateChange = (isTyping: boolean) => {
     if (!user || !selectedChannelId) return;
     setPresences([{
@@ -322,8 +314,6 @@ export default function App() {
               currentUser={user}
               token={token ?? ''}
               onSendMessage={handleSendMessage}
-              onSendReaction={handleSendReaction}
-              onDeleteMessage={handleDeleteMessage}
               onTypeStateChange={handleTypeStateChange}
               onOpenProfile={(id) => setProfileMemberId(id)}
               theme={theme}

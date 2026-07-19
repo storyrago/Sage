@@ -2,11 +2,10 @@ import { useState, useRef, useEffect, FormEvent, ChangeEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Channel, Message, Presence, User } from '../types';
 import Avatar from './Avatar';
-import EmojiPicker from './EmojiPicker';
 import { getRoomMemberProfiles, BackendMember } from '../lib/api';
 import { avatarForId } from '../lib/avatar';
 import {
-  Send, Smile, CornerUpLeft, Trash2, ArrowDown,
+  Send, ArrowDown,
   MessageCircle, Hash, Info, Users, X,
   ArrowLeft, Sun, Moon, Settings2
 } from 'lucide-react';
@@ -17,9 +16,7 @@ interface ChatAreaProps {
   presences: Presence[];
   currentUser: User;
   token: string;
-  onSendMessage: (text: string, replyToId?: string) => void;
-  onSendReaction: (messageId: string, emoji: string) => void;
-  onDeleteMessage: (messageId: string) => void;
+  onSendMessage: (text: string) => void;
   onTypeStateChange: (isTyping: boolean) => void;
   onOpenProfile: (userId: string) => void;
   theme: 'light' | 'dark';
@@ -35,8 +32,6 @@ export default function ChatArea({
   currentUser,
   token,
   onSendMessage,
-  onSendReaction,
-  onDeleteMessage,
   onTypeStateChange,
   onOpenProfile,
   theme,
@@ -45,9 +40,6 @@ export default function ChatArea({
   onGoHome
 }: ChatAreaProps) {
   const [inputText, setInputText] = useState('');
-  const [replyMessage, setReplyMessage] = useState<Message | null>(null);
-  const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
-  const [activeReactionPickerId, setActiveReactionPickerId] = useState<string | null>(null);
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
   const [participants, setParticipants] = useState<BackendMember[] | null>(null);
   const [showMembers, setShowMembers] = useState(false);
@@ -83,7 +75,6 @@ export default function ChatArea({
   useEffect(() => {
     scrollToBottom('auto');
     setInputText('');
-    setReplyMessage(null);
     setShowMembers(false);
     setParticipants(null);
   }, [channel.id]);
@@ -115,9 +106,8 @@ export default function ChatArea({
     const cleanText = inputText.trim();
     if (!cleanText) return;
 
-    onSendMessage(cleanText, replyMessage?.id);
+    onSendMessage(cleanText);
     setInputText('');
-    setReplyMessage(null);
 
     // Stop typing state instantly on submit
     if (typingTimeoutRef.current) {
@@ -306,11 +296,6 @@ export default function ChatArea({
         {channelMessages.map((msg) => {
           const isSelf = msg.userId === currentUser.id;
           const imageUrl = getEmbeddedImageUrl(msg.text);
-          const isMsgHovered = hoveredMessageId === msg.id;
-          const isPickerOpen = activeReactionPickerId === msg.id;
-
-          // Find replicated parent text if reply exists
-          const parentMsg = msg.replyToId ? messages.find(m => m.id === msg.replyToId) : null;
 
           return (
             <motion.div
@@ -318,11 +303,6 @@ export default function ChatArea({
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-              onMouseEnter={() => setHoveredMessageId(msg.id)}
-              onMouseLeave={() => {
-                setHoveredMessageId(null);
-                setActiveReactionPickerId(null);
-              }}
               className={`flex items-start gap-3 group relative max-w-3xl ${isSelf ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}
               id={`message-bubble-${msg.id}`}
             >
@@ -342,15 +322,6 @@ export default function ChatArea({
                   </button>
                   <span className="text-faint font-medium select-none">{formatTime(msg.createdAt)}</span>
                 </div>
-
-                {/* Reply display box inside bubble if replies to parent */}
-                {parentMsg && (
-                  <div className={`text-xs px-3 py-1.5 rounded-lg text-muted bg-surface-2 border border-border mb-1 flex items-center gap-1.5 ${isSelf ? 'border-r-2 border-r-accent' : 'border-l-2 border-l-border'}`}>
-                    <CornerUpLeft className="w-3 h-3 text-faint" />
-                    <span className="font-bold text-text truncate max-w-[80px]">{parentMsg.userName}:</span>
-                    <span className="truncate">{parentMsg.text}</span>
-                  </div>
-                )}
 
                 {/* Actual Message Text Block */}
                 <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words whitespace-pre-wrap ${
@@ -373,90 +344,7 @@ export default function ChatArea({
                     </div>
                   )}
                 </div>
-
-                {/* RENDER REACTIONS BADGES */}
-                {msg.reactions && Object.keys(msg.reactions).length > 0 && (
-                  <div className={`flex flex-wrap items-center gap-1.5 mt-1.5 ${isSelf ? 'justify-end' : 'justify-start'}`}>
-                    {Object.entries(msg.reactions).map(([emoji, rUsers]) => {
-                      if (!rUsers || rUsers.length === 0) return null;
-                      const hasUserReacted = rUsers.includes(currentUser.id);
-                      return (
-                        <button
-                          key={emoji}
-                          onClick={() => onSendReaction(msg.id, emoji)}
-                          className={`inline-flex items-center gap-1 py-1 px-2 rounded-lg text-xs font-bold border cursor-pointer select-none transition-all active:scale-90 ${
-                            hasUserReacted
-                              ? 'bg-accent-subtle border-transparent text-accent-text'
-                              : 'bg-surface-2 border-border text-muted hover:text-text hover:border-border'
-                          }`}
-                          title={`${rUsers.length}명이 공감했습니다`}
-                        >
-                          <span>{emoji}</span>
-                          <span className="text-[10px] font-medium">{rUsers.length}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
               </div>
-
-              {/* ACTION BUTTON RAILS ON HOVER */}
-              <AnimatePresence>
-                {(isMsgHovered || isPickerOpen) && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ duration: 0.15 }}
-                    className={`absolute bottom-[-14px] z-20 flex items-center gap-1 bg-surface border border-border rounded-xl p-0.5 shadow-lg ${
-                      isSelf ? 'left-[-40px]' : 'right-[-40px]'
-                    }`}
-                  >
-                    {/* Emoji Reaction Action */}
-                    <div className="relative">
-                      <button
-                        onClick={() => setActiveReactionPickerId(isPickerOpen ? null : msg.id)}
-                        className="p-1.5 text-muted hover:text-accent-text rounded-lg cursor-pointer hover:bg-surface-2"
-                        title="반응 보내기"
-                      >
-                        <Smile className="w-3.5 h-3.5" />
-                      </button>
-
-                      {isPickerOpen && (
-                        <div className="absolute top-[28px] left-[-32px] z-50">
-                          <EmojiPicker
-                            onSelectEmoji={(emoji) => {
-                              onSendReaction(msg.id, emoji);
-                              setActiveReactionPickerId(null);
-                            }}
-                            onClose={() => setActiveReactionPickerId(null)}
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Reply Action */}
-                    <button
-                      onClick={() => setReplyMessage(msg)}
-                      className="p-1.5 text-muted hover:text-accent-text rounded-lg cursor-pointer hover:bg-surface-2"
-                      title="답장 단기"
-                    >
-                      <CornerUpLeft className="w-3.5 h-3.5" />
-                    </button>
-
-                    {/* Delete Action (Self Only) */}
-                    {isSelf && (
-                      <button
-                        onClick={() => onDeleteMessage(msg.id)}
-                        className="p-1.5 text-muted hover:text-rose-500 rounded-lg cursor-pointer hover:bg-surface-2"
-                        title="메시지 삭제"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </motion.div>
           );
         })}
@@ -504,29 +392,6 @@ export default function ChatArea({
 
       {/* CHAT INPUT AREA PANEL */}
       <div className="border-t border-border p-4 bg-surface relative z-10">
-
-        {/* Active Reply Banner panel inside panel */}
-        <AnimatePresence>
-          {replyMessage && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 38, opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="bg-accent-subtle border border-transparent rounded-xl px-3 flex items-center justify-between text-xs text-accent-text font-bold mb-3 overflow-hidden select-none"
-            >
-              <span className="truncate flex items-center gap-1.5">
-                <CornerUpLeft className="w-3.5 h-3.5" />
-                {replyMessage.userName}의 메시지: &quot;{replyMessage.text}&quot; 에 답장하는 중
-              </span>
-              <button
-                onClick={() => setReplyMessage(null)}
-                className="text-[10px] uppercase text-accent-text hover:text-text bg-surface-2 border border-border rounded px-1.5 py-0.5 cursor-pointer font-bold"
-              >
-                취소
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         <form onSubmit={handleSend} className="flex gap-2">
 
