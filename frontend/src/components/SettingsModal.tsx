@@ -1,14 +1,16 @@
-import { useState, useEffect } from 'react';
-import { X, Sun, Moon } from 'lucide-react';
+import { useState, useEffect, useRef, ChangeEvent } from 'react';
+import { X } from 'lucide-react';
 import { User } from '../types';
+import Avatar from './Avatar';
+import { uploadImage, updateProfileImage } from '../lib/api';
 
 interface SettingsModalProps {
   open: boolean;
   onClose: () => void;
   currentUser: User;
-  theme: 'light' | 'dark';
-  onSelectTheme: (mode: 'light' | 'dark') => void;
+  token: string;
   onUpdateName: (name: string) => void;
+  onUpdatePhoto: (url: string) => void;
 }
 
 interface Notif {
@@ -33,7 +35,7 @@ const NOTIF_ROWS: { k: keyof Notif; t: string; d: string }[] = [
   { k: 'mentionOnly', t: '멘션만 알림', d: '@내가 언급된 메시지만' },
 ];
 
-export default function SettingsModal({ open, onClose, currentUser, theme, onSelectTheme, onUpdateName }: SettingsModalProps) {
+export default function SettingsModal({ open, onClose, currentUser, token, onUpdateName, onUpdatePhoto }: SettingsModalProps) {
   const [name, setName] = useState(currentUser.displayName);
   const [status, setStatus] = useState(() => {
     try {
@@ -44,6 +46,24 @@ export default function SettingsModal({ open, onClose, currentUser, theme, onSel
   });
   const [notif, setNotif] = useState<Notif>(loadNotif);
   const [saved, setSaved] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handlePhoto = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const url = await uploadImage(token, file);
+      await updateProfileImage(token, url);
+      onUpdatePhoto(url);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '사진 변경에 실패했습니다.');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
 
   useEffect(() => {
     if (open) {
@@ -96,6 +116,19 @@ export default function SettingsModal({ open, onClose, currentUser, theme, onSel
 
         <div className="px-5 py-4 border-b border-border">
           <div className="text-[11px] font-bold tracking-wider uppercase text-muted mb-3">프로필</div>
+          <div className="mb-4 flex items-center gap-3">
+            <Avatar photoUrl={currentUser.photoUrl} gradient={currentUser.avatar} name={currentUser.displayName} className="w-14 h-14 rounded-2xl text-lg" />
+            <div>
+              <button
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading}
+                className="rounded-lg border border-border px-3 py-2 text-[13px] font-semibold text-text hover:border-accent transition-all cursor-pointer disabled:opacity-60"
+              >
+                {uploading ? '업로드 중…' : '사진 변경'}
+              </button>
+              <input ref={fileRef} type="file" accept="image/*" hidden onChange={handlePhoto} />
+            </div>
+          </div>
           <div className="mb-3">
             <div className="text-[13px] font-semibold text-text mb-1.5">표시 이름</div>
             <input className={inputCls} value={name} maxLength={10} onChange={(e) => setName(e.target.value)} />
@@ -103,22 +136,6 @@ export default function SettingsModal({ open, onClose, currentUser, theme, onSel
           <div>
             <div className="text-[13px] font-semibold text-text mb-1.5">상태 메시지</div>
             <input className={inputCls} value={status} maxLength={40} placeholder="예: 집중 모드" onChange={(e) => setStatus(e.target.value)} />
-          </div>
-        </div>
-
-        <div className="px-5 py-4 border-b border-border">
-          <div className="text-[11px] font-bold tracking-wider uppercase text-muted mb-3">테마</div>
-          <div className="flex gap-1 bg-surface-2 border border-border rounded-xl p-1">
-            {(['light', 'dark'] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => onSelectTheme(m)}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[13px] font-semibold transition-all cursor-pointer ${theme === m ? 'bg-accent text-accent-fg' : 'text-muted hover:text-text'}`}
-              >
-                {m === 'light' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                {m === 'light' ? '라이트' : '다크'}
-              </button>
-            ))}
           </div>
         </div>
 

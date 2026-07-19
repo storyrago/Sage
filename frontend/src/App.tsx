@@ -356,9 +356,16 @@ export default function App() {
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         currentUser={user}
-        theme={theme}
-        onSelectTheme={setThemeMode}
+        token={token ?? ''}
         onUpdateName={(displayName) => setUser((u) => (u ? { ...u, displayName } : u))}
+        onUpdatePhoto={(url) => {
+          setUser((prev) => {
+            if (!prev) return prev;
+            const next = { ...prev, photoUrl: url };
+            if (token) persistSession(token, next);
+            return next;
+          });
+        }}
       />
     </div>
   );
