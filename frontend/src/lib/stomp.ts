@@ -10,15 +10,21 @@ interface StompClientOptions {
   token: string;
   onConnect: () => void;
   onMessage: (message: BackendMessage) => void;
+  onPresence?: (onlineMemberIds: string[]) => void;
   onDisconnect: () => void;
   onError: () => void;
 }
+
+const PRESENCE_DESTINATION = '/sub/presence';
 
 export class SpringStompClient {
   private socket: WebSocket | null = null;
   private connected = false;
   private subscriptionId = 0;
-  private currentSubscription?: string;
+  private currentChatSubscription?: string;
+  private presenceSubscription?: string;
+  // subscription id -> 종류: 들어온 MESSAGE 프레임을 알맞은 핸들러로 라우팅
+  private subscriptionKinds = new Map<string, 'chat' | 'presence'>();
   private options: StompClientOptions;
 
   constructor(options: StompClientOptions) {
@@ -54,18 +60,34 @@ export class SpringStompClient {
     this.socket?.close();
     this.socket = null;
     this.connected = false;
+    this.currentChatSubscription = undefined;
+    this.presenceSubscription = undefined;
+    this.subscriptionKinds.clear();
   }
 
   subscribe(chatroomId: string) {
     if (!this.connected) return;
-    if (this.currentSubscription) {
-      this.write('UNSUBSCRIBE', { id: this.currentSubscription });
+    if (this.currentChatSubscription) {
+      this.write('UNSUBSCRIBE', { id: this.currentChatSubscription });
+      this.subscriptionKinds.delete(this.currentChatSubscription);
     }
 
-    this.currentSubscription = `sub-${++this.subscriptionId}`;
+    this.currentChatSubscription = `sub-${++this.subscriptionId}`;
+    this.subscriptionKinds.set(this.currentChatSubscription, 'chat');
     this.write('SUBSCRIBE', {
-      id: this.currentSubscription,
+      id: this.currentChatSubscription,
       destination: `/sub/chatrooms/${chatroomId}`,
+      ack: 'auto',
+    });
+  }
+
+  private subscribePresence() {
+    if (!this.connected || this.presenceSubscription) return;
+    this.presenceSubscription = `sub-${++this.subscriptionId}`;
+    this.subscriptionKinds.set(this.presenceSubscription, 'presence');
+    this.write('SUBSCRIBE', {
+      id: this.presenceSubscription,
+      destination: PRESENCE_DESTINATION,
       ack: 'auto',
     });
   }
@@ -83,12 +105,19 @@ export class SpringStompClient {
     parseFrames(raw).forEach((frame) => {
       if (frame.command === 'CONNECTED') {
         this.connected = true;
+        this.subscribePresence();
         this.options.onConnect();
         return;
       }
 
       if (frame.command === 'MESSAGE' && frame.body) {
-        this.options.onMessage(JSON.parse(frame.body) as BackendMessage);
+        const kind = this.subscriptionKinds.get(frame.headers.subscription);
+        if (kind === 'presence') {
+          const payload = JSON.parse(frame.body) as { onlineMemberIds: Array<number | string> };
+          this.options.onPresence?.(payload.onlineMemberIds.map(String));
+        } else {
+          this.options.onMessage(JSON.parse(frame.body) as BackendMessage);
+        }
         return;
       }
 

@@ -19,6 +19,7 @@ interface ChatAreaProps {
   onSendMessage: (text: string) => void;
   onTypeStateChange: (isTyping: boolean) => void;
   onOpenProfile: (userId: string) => void;
+  onlineMemberIds: Set<string>;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
   onOpenSettings: () => void;
@@ -34,6 +35,7 @@ export default function ChatArea({
   onSendMessage,
   onTypeStateChange,
   onOpenProfile,
+  onlineMemberIds,
   theme,
   onToggleTheme,
   onOpenSettings,
@@ -229,6 +231,9 @@ export default function ChatArea({
               <div className="flex items-center justify-between px-2 py-1.5 mb-1">
                 <span className="text-xs font-bold text-text select-none">
                   참가자{participants ? ` ${participants.length}명` : ''}
+                  {participants
+                    ? ` · 온라인 ${participants.filter((m) => onlineMemberIds.has(String(m.id))).length}명`
+                    : ''}
                 </span>
                 <button
                   onClick={() => setShowMembers(false)}
@@ -258,12 +263,20 @@ export default function ChatArea({
                         }}
                         className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-surface-2 transition-colors cursor-pointer text-left"
                       >
-                        <Avatar
-                          photoUrl={member.profileImageUrl ?? undefined}
-                          gradient={avatarForId(member.id)}
-                          name={member.nickname}
-                          className="w-8 h-8 rounded-lg text-xs flex-shrink-0"
-                        />
+                        <div className="relative flex-shrink-0">
+                          <Avatar
+                            photoUrl={member.profileImageUrl ?? undefined}
+                            gradient={avatarForId(member.id)}
+                            name={member.nickname}
+                            className="w-8 h-8 rounded-lg text-xs"
+                          />
+                          {onlineMemberIds.has(String(member.id)) && (
+                            <span
+                              className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-surface"
+                              title="온라인"
+                            />
+                          )}
+                        </div>
                         <span className="text-sm font-medium text-text truncate">{member.nickname}</span>
                       </button>
                     </li>
