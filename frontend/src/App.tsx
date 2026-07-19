@@ -37,6 +37,7 @@ export default function App() {
   const [selectedChannelId, setSelectedChannelId] = useState<string>('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [presences, setPresences] = useState<Presence[]>([]);
+  const [onlineMemberIds, setOnlineMemberIds] = useState<Set<string>>(new Set());
   const [connected, setConnected] = useState<boolean>(false);
   const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
   const [profileMemberId, setProfileMemberId] = useState<string | null>(null);
@@ -69,6 +70,7 @@ export default function App() {
     setChannels([]);
     setMessages([]);
     setPresences([]);
+    setOnlineMemberIds(new Set());
     setSelectedChannelId('');
     setConnected(false);
   }, []);
@@ -181,6 +183,9 @@ export default function App() {
             if (prev.some((message) => message.id === nextMessage.id)) return prev;
             return [...prev, nextMessage];
           });
+        },
+        onPresence: (ids) => {
+          setOnlineMemberIds(new Set(ids));
         },
         onDisconnect: scheduleReconnect,
         onError: scheduleReconnect,
@@ -316,6 +321,7 @@ export default function App() {
               onSendMessage={handleSendMessage}
               onTypeStateChange={handleTypeStateChange}
               onOpenProfile={(id) => setProfileMemberId(id)}
+              onlineMemberIds={onlineMemberIds}
               theme={theme}
               onToggleTheme={toggleTheme}
               onOpenSettings={() => setSettingsOpen(true)}
