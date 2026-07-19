@@ -128,6 +128,22 @@ export async function getMemberById(token: string, id: string) {
   return request<BackendMember>(`/api/members/${id}`, {}, token);
 }
 
+export interface BackendChatRoomMember {
+  id: number;
+  memberId: number;
+  chatRoomId: number;
+}
+
+export async function getChatRoomMembers(token: string, chatroomId: string) {
+  return request<BackendChatRoomMember[]>(`/api/chatrooms/${chatroomId}/members`, {}, token);
+}
+
+// DTO엔 이름이 없어 memberId로 각 회원을 조회(N+1). 방이 작아 허용. 향후 백엔드 DTO에 nickname 추가 시 단순화 가능.
+export async function getRoomMemberProfiles(token: string, chatroomId: string): Promise<BackendMember[]> {
+  const members = await getChatRoomMembers(token, chatroomId);
+  return Promise.all(members.map((m) => getMemberById(token, String(m.memberId))));
+}
+
 export async function uploadImage(token: string, file: File): Promise<string> {
   const form = new FormData();
   form.append('file', file);

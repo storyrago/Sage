@@ -347,6 +347,7 @@ export default function App() {
           messages={messages}
           presences={presences}
           currentUser={user}
+          token={token ?? ''}
           onSendMessage={handleSendMessage}
           onSendReaction={handleSendReaction}
           onDeleteMessage={handleDeleteMessage}
