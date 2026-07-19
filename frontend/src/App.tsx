@@ -92,10 +92,6 @@ export default function App() {
     const rooms = await getChatRooms(authToken);
     const mappedRooms = rooms.map(toChannel);
     setChannels(mappedRooms);
-
-    if (mappedRooms.length > 0) {
-      setSelectedChannelId((current) => current || mappedRooms[0].id);
-    }
   }, []);
 
   useEffect(() => {
