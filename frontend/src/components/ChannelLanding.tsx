@@ -1,4 +1,4 @@
-import { useEffect, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { Plus, Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell, X, LogOut, ArrowRight } from 'lucide-react';
 import { Channel } from '../types';
 
@@ -14,6 +14,9 @@ const POS = [
   { left: '42%', top: '58%', rot: -7 }, { left: '66%', top: '14%', rot: 5 },
   { left: '70%', top: '50%', rot: -10 }, { left: '55%', top: '6%', rot: 3 },
 ];
+
+const BIG_W = 300;
+const BIG_H = 400;
 
 function fmtDate(ms: number) {
   const d = new Date(ms);
@@ -45,6 +48,8 @@ function StampFace({ ch, big = false }: { ch: Channel; big?: boolean }) {
   );
 }
 
+interface Origin { cx: number; cy: number; scale: number; rot: number; }
+
 interface Props {
   channels: Channel[];
   onSelectChannel: (id: string) => void;
@@ -57,17 +62,24 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+
+  // 확대 상태 (자기 자리 → 중앙 FLIP)
   const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [origin, setOrigin] = useState<Origin | null>(null);
+  const [open, setOpen] = useState(false);
   const [tilt, setTilt] = useState({ rx: 0, ry: 0 });
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const focused = channels.find((c) => c.id === focusedId) || null;
 
-  // ESC로 확대 닫기
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setFocusedId(null); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && focusedId) closeFocus(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusedId]);
+
+  useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
 
   const submit = async () => {
     const n = name.trim();
@@ -77,15 +89,46 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
     finally { setBusy(false); }
   };
 
-  // 확대된 우표를 커서 위치에 따라 3D 기울임
+  // 클릭한 우표의 화면 위치를 잡아 중앙으로 날아오게
+  const openFocus = (ch: Channel, el: HTMLElement) => {
+    if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
+    const r = el.getBoundingClientRect();
+    setOrigin({
+      cx: r.left + r.width / 2,
+      cy: r.top + r.height / 2,
+      scale: r.width / BIG_W,
+      rot: Number(el.dataset.rot || 0),
+    });
+    setTilt({ rx: 0, ry: 0 });
+    setFocusedId(ch.id);
+    setOpen(false);
+    requestAnimationFrame(() => requestAnimationFrame(() => setOpen(true)));
+  };
+
+  const closeFocus = () => {
+    setOpen(false);
+    setTilt({ rx: 0, ry: 0 });
+    closeTimer.current = setTimeout(() => { setFocusedId(null); setOrigin(null); }, 460);
+  };
+
   const onTiltMove = (e: ReactMouseEvent<HTMLDivElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
-    const px = (e.clientX - r.left) / r.width - 0.5;   // -0.5 ~ 0.5
+    const px = (e.clientX - r.left) / r.width - 0.5;
     const py = (e.clientY - r.top) / r.height - 0.5;
     setTilt({ rx: -py * 16, ry: px * 16 });
   };
 
-  const openFocus = (id: string) => { setTilt({ rx: 0, ry: 0 }); setFocusedId(id); };
+  // FLIP transform 계산 (transform-origin: center)
+  const flyTransform = () => {
+    if (!origin) return '';
+    const w = typeof window !== 'undefined' ? window.innerWidth : 1200;
+    const h = typeof window !== 'undefined' ? window.innerHeight : 700;
+    if (open) {
+      const cx = w / 2, cy = h / 2 - 26;
+      return `translate(${cx - BIG_W / 2}px, ${cy - BIG_H / 2}px) scale(1) rotate(0deg)`;
+    }
+    return `translate(${origin.cx - BIG_W / 2}px, ${origin.cy - BIG_H / 2}px) scale(${origin.scale}) rotate(${origin.rot}deg)`;
+  };
 
   return (
     <div className="relative h-full w-full overflow-auto" style={{ background: '#141917' }}>
@@ -112,24 +155,26 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
           {channels.map((ch, i) => {
             const p = POS[i % POS.length];
             const dim = (hoveredId !== null && hoveredId !== ch.id) || (focusedId !== null && focusedId !== ch.id);
+            const hidden = focusedId === ch.id; // 확대 클론이 대신 표시되는 동안 원본 숨김
             return (
               <div
                 key={ch.id}
+                data-rot={p.rot}
                 className="stamp-in absolute w-[132px] h-[176px] hover:z-20"
                 style={{
                   left: p.left,
                   top: p.top,
                   animationDelay: `${i * 0.06}s`,
                   filter: dim ? 'blur(3px)' : 'none',
-                  opacity: dim ? 0.5 : 1,
+                  opacity: hidden ? 0 : (dim ? 0.5 : 1),
                   transition: 'filter .25s ease, opacity .25s ease',
                 }}
                 onMouseEnter={() => setHoveredId(ch.id)}
                 onMouseLeave={() => setHoveredId(null)}
+                onClick={(e) => openFocus(ch, e.currentTarget)}
               >
-                <button
-                  onClick={() => openFocus(ch.id)}
-                  className="w-full h-full hover:!rotate-0 hover:scale-105 cursor-pointer"
+                <div
+                  className="w-full h-full cursor-pointer hover:!rotate-0 hover:scale-105"
                   style={{
                     transform: `rotate(${p.rot}deg)`,
                     transition: 'transform .22s ease',
@@ -137,48 +182,74 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
                   }}
                 >
                   <StampFace ch={ch} />
-                </button>
+                </div>
               </div>
             );
           })}
         </div>
       )}
 
-      {/* 확대 오버레이 — 커서 기울임 + 입장 */}
-      {focused && (
-        <div
-          className="fixed inset-0 z-40 flex flex-col items-center justify-center gap-6"
-          style={{ background: 'rgba(10,13,11,0.72)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}
-          onClick={() => setFocusedId(null)}
-        >
-          <div className="stamp-focus-in" style={{ perspective: '1100px' }} onClick={(e) => e.stopPropagation()}>
+      {/* 확대: 원래 자리 → 중앙 (FLIP), 바깥/ESC로 원래 자리 복귀 */}
+      {focused && origin && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            style={{
+              background: 'rgba(10,13,11,0.72)',
+              backdropFilter: open ? 'blur(6px)' : 'blur(0px)',
+              WebkitBackdropFilter: open ? 'blur(6px)' : 'blur(0px)',
+              opacity: open ? 1 : 0,
+              transition: 'opacity .38s ease, backdrop-filter .38s ease',
+            }}
+            onClick={closeFocus}
+          />
+          <div
+            className="fixed z-50"
+            style={{
+              left: 0, top: 0, width: BIG_W, height: BIG_H,
+              transformOrigin: 'center',
+              transform: flyTransform(),
+              transition: 'transform .46s cubic-bezier(0.22, 1, 0.36, 1)',
+              pointerEvents: open ? 'auto' : 'none',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div
-              className="w-[300px] h-[400px]"
+              className="w-full h-full"
               style={{
-                transform: `rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg)`,
+                transform: `perspective(1100px) rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg)`,
                 transition: 'transform .12s ease-out',
                 filter: 'drop-shadow(0 30px 55px rgba(0,0,0,0.6))',
               }}
-              onMouseMove={onTiltMove}
+              onMouseMove={open ? onTiltMove : undefined}
               onMouseLeave={() => setTilt({ rx: 0, ry: 0 })}
             >
               <StampFace ch={focused} big />
             </div>
           </div>
-
-          <button
-            onClick={(e) => { e.stopPropagation(); onSelectChannel(focused.id); }}
-            className="inline-flex items-center gap-2 bg-accent text-accent-fg rounded-xl px-6 py-3 text-[15px] font-bold hover:bg-accent-hover transition-colors cursor-pointer shadow-xl"
+          <div
+            className="fixed z-50 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3"
+            style={{
+              top: (typeof window !== 'undefined' ? window.innerHeight : 700) / 2 + 190,
+              opacity: open ? 1 : 0,
+              transition: 'opacity .28s ease .12s',
+              pointerEvents: open ? 'auto' : 'none',
+            }}
           >
-            입장하기 <ArrowRight className="w-4 h-4" />
-          </button>
-          <div className="text-[12px] text-[#8a978d] select-none">바깥을 클릭하거나 ESC로 닫기</div>
-        </div>
+            <button
+              onClick={() => onSelectChannel(focused.id)}
+              className="inline-flex items-center gap-2 bg-accent text-accent-fg rounded-xl px-6 py-3 text-[15px] font-bold hover:bg-accent-hover transition-colors cursor-pointer shadow-xl"
+            >
+              입장하기 <ArrowRight className="w-4 h-4" />
+            </button>
+            <div className="text-[12px] text-[#8a978d] select-none">바깥을 클릭하거나 ESC로 닫기</div>
+          </div>
+        </>
       )}
 
       {/* 채널 만들기 다이얼로그 */}
       {creating && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-6" role="dialog" aria-modal="true">
           <div className="absolute inset-0 bg-black/55" onClick={() => setCreating(false)} />
           <div className="relative w-full max-w-[360px] bg-surface border border-border rounded-3xl p-5">
             <div className="flex items-center justify-between mb-3">
