@@ -6,10 +6,6 @@ export interface User {
   photoUrl?: string;
 }
 
-export interface ReactionMap {
-  [emoji: string]: string[]; // emoji -> list of userIds who reacted
-}
-
 export interface Message {
   id: string;
   channelId: string;
@@ -18,8 +14,6 @@ export interface Message {
   userName: string;
   userAvatar: string;
   createdAt: number; // unix epoch ms
-  replyToId?: string; // Optional message ID being replied to
-  reactions: ReactionMap;
 }
 
 export interface Channel {
@@ -43,8 +37,6 @@ export type WSMessageType =
   | 'init'
   | 'channel:create'
   | 'message:new'
-  | 'message:react'
-  | 'message:delete'
   | 'presence:update'
   | 'user:joined';
 
