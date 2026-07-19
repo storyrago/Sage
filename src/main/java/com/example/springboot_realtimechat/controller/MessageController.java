@@ -24,7 +24,10 @@ public class MessageController {
             @AuthenticationPrincipal CustomUserDetails customUserDetails,
             @Valid @RequestBody MessageRequest messageRequest) {
         Message message = messageService.create(
-                messageRequest.getContent(), customUserDetails.getMemberId(), chatroomId);
+                messageRequest.getContent(),
+                messageRequest.getImageUrl(),
+                customUserDetails.getMemberId(),
+                chatroomId);
         return MessageResponse.from(message);
     }
 

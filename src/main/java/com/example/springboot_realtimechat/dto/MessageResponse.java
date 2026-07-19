@@ -11,14 +11,16 @@ import java.time.LocalDateTime;
 public class MessageResponse {
     Long messageId;
     String content;
+    String imageUrl;
     Long memberId;
     String nickname;
     Long chatroomId;
     LocalDateTime createdAt;
 
-    public MessageResponse(Long messageId, String content, Long memberId, String nickname, Long chatroomId, LocalDateTime createdAt) {
+    public MessageResponse(Long messageId, String content, String imageUrl, Long memberId, String nickname, Long chatroomId, LocalDateTime createdAt) {
         this.messageId = messageId;
         this.content = content;
+        this.imageUrl = imageUrl;
         this.memberId = memberId;
         this.nickname = nickname;
         this.chatroomId = chatroomId;
@@ -29,6 +31,7 @@ public class MessageResponse {
         return new MessageResponse(
                 message.getId(),
                 message.getContent(),
+                message.getImageUrl(),
                 message.getMember().getId(),
                 message.getMember().getNickname(),
                 message.getChatRoom().getId(),

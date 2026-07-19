@@ -18,3 +18,8 @@ spring:
 jwt:
   secret: test-secret-key-for-jwt-authentication-1234567890
   access-token-expiration-ms: 3600000
+
+aws:
+  s3:
+    bucket: test-bucket
+    region: ap-northeast-2

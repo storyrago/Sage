@@ -3,6 +3,7 @@ package com.example.springboot_realtimechat.controller;
 import com.example.springboot_realtimechat.domain.Member;
 import com.example.springboot_realtimechat.dto.MemberRequest;
 import com.example.springboot_realtimechat.dto.MemberResponse;
+import com.example.springboot_realtimechat.dto.ProfileImageRequest;
 import com.example.springboot_realtimechat.security.CustomUserDetails;
 import com.example.springboot_realtimechat.service.MemberService;
 import jakarta.validation.Valid;
@@ -50,9 +51,21 @@ public class MemberController {
         return MemberResponse.from(member);
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteMember(@PathVariable Long id){
-        memberService.delete(id);
+    @PatchMapping("/me/profile-image")
+    public MemberResponse updateProfileImage(
+            @AuthenticationPrincipal CustomUserDetails customUserDetails,
+            @Valid @RequestBody ProfileImageRequest request) {
+
+        Member member = memberService.updateProfileImage(
+                customUserDetails.getMemberId(),
+                request.getImageUrl());
+
+        return MemberResponse.from(member);
+    }
+
+    @DeleteMapping("/me")
+    public ResponseEntity<Void> deleteMe(@AuthenticationPrincipal CustomUserDetails customUserDetails){
+        memberService.delete(customUserDetails.getMemberId());
         return ResponseEntity.noContent().build();
     }
 }

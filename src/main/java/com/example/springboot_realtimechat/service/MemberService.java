@@ -42,6 +42,13 @@ public class MemberService {
     }
 
     @Transactional
+    public Member updateProfileImage(Long memberId, String imageUrl) {
+        Member member = getMemberById(memberId);        // 기존 메서드 재사용
+        member.updateProfileImageUrl(imageUrl);         // 엔티티에 만든 메서드
+        return member;
+    }
+
+    @Transactional
     public void delete(Long id){
         Member member = memberRepository.findById(id)
                 .orElseThrow(()-> new CustomException(ErrorCode.MEMBER_NOT_FOUND));

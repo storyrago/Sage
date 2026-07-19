@@ -1,0 +1,33 @@
+services:
+  app:
+    image: ghcr.io/storyrago/realtimechat-backend-app:latest
+    build: .
+    restart: unless-stopped
+    expose:
+      - "8080"
+    environment:
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      SPRING_DATA_REDIS_HOST: redis
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      - redis
+
+  web:
+    image: ghcr.io/storyrago/realtimechat-backend-web:latest
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro   # 인증서를 컨테이너에 읽기전용 마운트
+    depends_on:
+      - app
+
+  redis:
+    image: redis:7
+    restart: unless-stopped

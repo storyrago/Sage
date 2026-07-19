@@ -35,9 +35,9 @@ public class MessageServiceTest {
         ChatRoom chatRoom = chatRoomService.create("room1");
         chatRoomMemberService.join(member.getId(), chatRoom.getId());
 
-        messageService.create("1번", member.getId(), chatRoom.getId());
-        messageService.create("2번", member.getId(), chatRoom.getId());
-        messageService.create("3번", member.getId(), chatRoom.getId());
+        messageService.create("1번", null, member.getId(), chatRoom.getId());
+        messageService.create("2번", null, member.getId(), chatRoom.getId());
+        messageService.create("3번", null, member.getId(), chatRoom.getId());
 
         // when
         List<Message> messages = messageService.getAllChatRoomMessages(chatRoom.getId());
@@ -55,7 +55,7 @@ public class MessageServiceTest {
         Member member = memberService.create("test2@email.com", "1234", "nick2");
         ChatRoom chatRoom = chatRoomService.create("room2");
         chatRoomMemberService.join(member.getId(), chatRoom.getId());
-        Message savedMessage = messageService.create("Hello", member.getId(), chatRoom.getId());
+        Message savedMessage = messageService.create("Hello", null, member.getId(), chatRoom.getId());
 
         // when
         Message findMessage = messageService.getMessageById(savedMessage.getId());

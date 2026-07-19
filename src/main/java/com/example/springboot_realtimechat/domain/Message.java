@@ -19,6 +19,9 @@ public class Message {
     @Column(nullable = false, length = 500)
     private String content;
 
+    @Column(name = "image_url", length = 500)
+    private String imageUrl;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_id")
     private Member member;
@@ -31,8 +34,9 @@ public class Message {
     @CreationTimestamp
     private LocalDateTime createdAt;
 
-    public Message(String content, Member member, ChatRoom chatRoom) {
+    public Message(String content, String imageUrl, Member member, ChatRoom chatRoom) {
         this.content = content;
+        this.imageUrl = imageUrl;
         connect(member, chatRoom);
     }
 

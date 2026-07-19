@@ -3,6 +3,7 @@ export interface User {
   email: string;
   displayName: string;
   avatar: string; // Tailored color index, gradient, or icon abbreviation
+  photoUrl?: string;
 }
 
 export interface ReactionMap {

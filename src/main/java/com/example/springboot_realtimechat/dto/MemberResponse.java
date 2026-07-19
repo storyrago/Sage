@@ -12,13 +12,15 @@ public class MemberResponse {
     Long id;
     String email;
     String nickname;
-    LocalDateTime createAt;
+    String profileImageUrl;
+    LocalDateTime createdAt;
 
-    public MemberResponse(Long id, String email, String nickname, LocalDateTime createAt) {
+    public MemberResponse(Long id, String email, String nickname, String profileImageUrl, LocalDateTime createdAt) {
         this.id = id;
         this.email = email;
         this.nickname = nickname;
-        this.createAt = createAt;
+        this.profileImageUrl = profileImageUrl;
+        this.createdAt = createdAt;
     }
 
     public static MemberResponse from(Member member){
@@ -26,6 +28,7 @@ public class MemberResponse {
                 member.getId(),
                 member.getEmail(),
                 member.getNickname(),
+                member.getProfileImageUrl(),
                 member.getCreatedAt()
         );
     }
