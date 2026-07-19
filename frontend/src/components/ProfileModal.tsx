@@ -24,6 +24,15 @@ export default function ProfileModal({ open, memberId, token, onClose }: Profile
       .catch((e) => setError(e instanceof Error ? e.message : '조회 실패'));
   }, [open, memberId, token]);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   return (

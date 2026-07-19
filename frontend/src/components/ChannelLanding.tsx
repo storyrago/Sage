@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Plus, Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell, X } from 'lucide-react';
-import { Channel, User } from '../types';
+import { Channel } from '../types';
 
 const ICONS = [Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell];
 
@@ -17,7 +17,6 @@ const POS = [
 
 interface Props {
   channels: Channel[];
-  currentUser: User;
   onSelectChannel: (id: string) => void;
   onCreateChannel: (name: string) => Promise<void>;
 }

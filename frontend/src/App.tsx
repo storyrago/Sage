@@ -48,7 +48,7 @@ export default function App() {
   const stompRef = useRef<SpringStompClient | null>(null);
   const selectedChannelRef = useRef<string>('');
 
-  const { theme, toggleTheme, setThemeMode } = useTheme();
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     selectedChannelRef.current = selectedChannelId;
@@ -358,7 +358,6 @@ export default function App() {
         ) : (
           <ChannelLanding
             channels={channels}
-            currentUser={user}
             onSelectChannel={(id) => setSelectedChannelId(id)}
             onCreateChannel={async (name) => {
               if (!token) return;
