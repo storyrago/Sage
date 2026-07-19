@@ -1,6 +1,7 @@
 import { useState, FormEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Channel, Presence, User } from '../types';
+import Avatar from './Avatar';
 import {
   Hash, Plus, LogOut, Users, MessageSquareCode,
   Sparkles, Settings2, X, Sun, Moon
@@ -164,9 +165,7 @@ export default function Sidebar({
                 >
                   {/* Status avatar with indicator overlay */}
                   <div className="relative">
-                    <div className={`w-8 h-8 rounded-lg bg-gradient-to-tr ${user.userAvatar} flex items-center justify-center text-xs font-bold`}>
-                      {user.userName ? user.userName.charAt(0).toUpperCase() : '?'}
-                    </div>
+                    <Avatar gradient={user.userAvatar} name={user.userName} className="w-8 h-8 rounded-lg text-xs" />
                     <span className="absolute bottom-[-2px] right-[-2px] h-2.5 w-2.5 rounded-full bg-online border-2 border-surface"></span>
                   </div>
 
@@ -193,9 +192,12 @@ export default function Sidebar({
       {/* USER SETTINGS AT BOTTOM */}
       <div className="p-3 border-t border-border">
         <div className="flex items-center gap-2.5 px-1 mb-2.5">
-          <div className={`w-9 h-9 rounded-full bg-gradient-to-tr ${currentUser.avatar} flex items-center justify-center text-sm font-bold shadow-md flex-shrink-0`}>
-            {currentUser.displayName.charAt(0).toUpperCase()}
-          </div>
+          <Avatar
+            photoUrl={currentUser.photoUrl}
+            gradient={currentUser.avatar}
+            name={currentUser.displayName}
+            className="w-9 h-9 rounded-full text-sm shadow-md flex-shrink-0"
+          />
           <div className="min-w-0">
             <span className="text-[13px] font-bold text-text block truncate">{currentUser.displayName}</span>
             <span className="text-[11px] text-online font-medium select-none flex items-center gap-1">

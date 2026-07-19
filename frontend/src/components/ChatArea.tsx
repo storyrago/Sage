@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, FormEvent, ChangeEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Channel, Message, Presence, User } from '../types';
+import Avatar from './Avatar';
 import EmojiPicker from './EmojiPicker';
 import {
   Send, Smile, CornerUpLeft, Trash2, ArrowDown,
@@ -191,9 +192,7 @@ export default function ChatArea({
             >
 
               {/* User Avatar Badge */}
-              <div className={`w-9 h-9 rounded-xl flex-shrink-0 bg-gradient-to-tr ${msg.userAvatar} shadow-md flex items-center justify-center text-xs font-bold font-sans self-start select-none`}>
-                {msg.userName ? msg.userName.charAt(0).toUpperCase() : '?'}
-              </div>
+              <Avatar gradient={msg.userAvatar} name={msg.userName} className="w-9 h-9 rounded-xl text-xs font-sans self-start shadow-md flex-shrink-0" />
 
               {/* Chat Bubble Body Container */}
               <div className="space-y-1 max-w-[85%]">
