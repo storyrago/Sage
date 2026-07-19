@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Plus, Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell, X } from 'lucide-react';
 import { Channel, User } from '../types';
 
@@ -27,6 +27,13 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [zoomingId, setZoomingId] = useState<string | null>(null);
+  const enterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
+    };
+  }, []);
 
   const submit = async () => {
     const n = name.trim();
@@ -37,8 +44,9 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
   };
 
   const enter = (id: string) => {
+    if (zoomingId) return;
     setZoomingId(id);
-    setTimeout(() => onSelectChannel(id), 260);
+    enterTimerRef.current = setTimeout(() => onSelectChannel(id), 260);
   };
 
   return (
@@ -72,7 +80,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
                   transform: zoomingId === ch.id ? 'scale(2.4)' : `rotate(${p.rot}deg)`,
                   opacity: zoomingId && zoomingId !== ch.id ? 0 : 1,
                   zIndex: zoomingId === ch.id ? 30 : undefined,
-                  transition: 'transform .26s ease, opacity .26s ease',
+                  transition: 'transform .26s ease, rotate .2s ease, scale .2s ease, opacity .26s ease',
                   filter: 'drop-shadow(0 6px 10px rgba(0,0,0,0.45))',
                 }}
               >
