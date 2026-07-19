@@ -218,18 +218,6 @@ export default function App() {
     }]);
   }, [user, selectedChannelId]);
 
-  const handleSelectChannel = (channelId: string) => {
-    setSelectedChannelId(channelId);
-  };
-
-  const handleCreateChannel = async (_id: string, name: string) => {
-    if (!token) return;
-    const createdRoom = await createChatRoom(token, name);
-    const nextChannel = toChannel(createdRoom);
-    setChannels((prev) => [...prev, nextChannel]);
-    setSelectedChannelId(nextChannel.id);
-  };
-
   const handleSendMessage = async (text: string) => {
     if (!token || !selectedChannelId) return;
 
