@@ -11,6 +11,7 @@ interface StompClientOptions {
   onConnect: () => void;
   onMessage: (message: BackendMessage) => void;
   onPresence?: (onlineMemberIds: string[]) => void;
+  onTyping?: (p: { chatroomId: string; memberId: string; nickname: string; typing: boolean }) => void;
   onDisconnect: () => void;
   onError: () => void;
 }
@@ -22,9 +23,10 @@ export class SpringStompClient {
   private connected = false;
   private subscriptionId = 0;
   private currentChatSubscription?: string;
+  private currentTypingSubscription?: string;
   private presenceSubscription?: string;
   // subscription id -> 종류: 들어온 MESSAGE 프레임을 알맞은 핸들러로 라우팅
-  private subscriptionKinds = new Map<string, 'chat' | 'presence'>();
+  private subscriptionKinds = new Map<string, 'chat' | 'presence' | 'typing'>();
   private options: StompClientOptions;
 
   constructor(options: StompClientOptions) {
@@ -61,6 +63,7 @@ export class SpringStompClient {
     this.socket = null;
     this.connected = false;
     this.currentChatSubscription = undefined;
+    this.currentTypingSubscription = undefined;
     this.presenceSubscription = undefined;
     this.subscriptionKinds.clear();
   }
@@ -71,12 +74,24 @@ export class SpringStompClient {
       this.write('UNSUBSCRIBE', { id: this.currentChatSubscription });
       this.subscriptionKinds.delete(this.currentChatSubscription);
     }
+    if (this.currentTypingSubscription) {
+      this.write('UNSUBSCRIBE', { id: this.currentTypingSubscription });
+      this.subscriptionKinds.delete(this.currentTypingSubscription);
+    }
 
     this.currentChatSubscription = `sub-${++this.subscriptionId}`;
     this.subscriptionKinds.set(this.currentChatSubscription, 'chat');
     this.write('SUBSCRIBE', {
       id: this.currentChatSubscription,
       destination: `/sub/chatrooms/${chatroomId}`,
+      ack: 'auto',
+    });
+
+    this.currentTypingSubscription = `sub-${++this.subscriptionId}`;
+    this.subscriptionKinds.set(this.currentTypingSubscription, 'typing');
+    this.write('SUBSCRIBE', {
+      id: this.currentTypingSubscription,
+      destination: `/sub/chatrooms/${chatroomId}/typing`,
       ack: 'auto',
     });
   }
@@ -101,6 +116,14 @@ export class SpringStompClient {
     return true;
   }
 
+  sendTyping(chatroomId: string, isTyping: boolean) {
+    if (!this.connected) return;
+    this.write('SEND', {
+      destination: `/pub/chatrooms/${chatroomId}/typing`,
+      'content-type': 'application/json',
+    }, JSON.stringify({ typing: isTyping }));
+  }
+
   private handleRawMessage(raw: string) {
     parseFrames(raw).forEach((frame) => {
       if (frame.command === 'CONNECTED') {
@@ -115,6 +138,14 @@ export class SpringStompClient {
         if (kind === 'presence') {
           const payload = JSON.parse(frame.body) as { onlineMemberIds: Array<number | string> };
           this.options.onPresence?.(payload.onlineMemberIds.map(String));
+        } else if (kind === 'typing') {
+          const p = JSON.parse(frame.body) as { chatroomId: number | string; memberId: number | string; nickname: string; typing: boolean };
+          this.options.onTyping?.({
+            chatroomId: String(p.chatroomId),
+            memberId: String(p.memberId),
+            nickname: p.nickname,
+            typing: p.typing,
+          });
         } else {
           this.options.onMessage(JSON.parse(frame.body) as BackendMessage);
         }
