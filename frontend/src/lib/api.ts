@@ -198,6 +198,5 @@ export function toMessage(message: BackendMessage): Message {
     userName: message.nickname,
     userAvatar: avatarForId(message.memberId),
     createdAt: message.createdAt ? Date.parse(message.createdAt) : Date.now(),
-    reactions: {},
   };
 }

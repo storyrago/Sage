@@ -37,6 +37,7 @@ export default function App() {
   const [selectedChannelId, setSelectedChannelId] = useState<string>('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [presences, setPresences] = useState<Presence[]>([]);
+  const [onlineMemberIds, setOnlineMemberIds] = useState<Set<string>>(new Set());
   const [connected, setConnected] = useState<boolean>(false);
   const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
   const [profileMemberId, setProfileMemberId] = useState<string | null>(null);
@@ -69,6 +70,7 @@ export default function App() {
     setChannels([]);
     setMessages([]);
     setPresences([]);
+    setOnlineMemberIds(new Set());
     setSelectedChannelId('');
     setConnected(false);
   }, []);
@@ -182,6 +184,9 @@ export default function App() {
             return [...prev, nextMessage];
           });
         },
+        onPresence: (ids) => {
+          setOnlineMemberIds(new Set(ids));
+        },
         onDisconnect: scheduleReconnect,
         onError: scheduleReconnect,
       });
@@ -227,14 +232,6 @@ export default function App() {
       const nextMessage = toMessage(saved);
       setMessages((prev) => [...prev, nextMessage]);
     }
-  };
-
-  const handleSendReaction = () => {
-    // The Spring Boot API currently has no reaction endpoint.
-  };
-
-  const handleDeleteMessage = () => {
-    // The Spring Boot API currently has no message deletion endpoint.
   };
 
   const handleTypeStateChange = (isTyping: boolean) => {
@@ -322,10 +319,9 @@ export default function App() {
               currentUser={user}
               token={token ?? ''}
               onSendMessage={handleSendMessage}
-              onSendReaction={handleSendReaction}
-              onDeleteMessage={handleDeleteMessage}
               onTypeStateChange={handleTypeStateChange}
               onOpenProfile={(id) => setProfileMemberId(id)}
+              onlineMemberIds={onlineMemberIds}
               theme={theme}
               onToggleTheme={toggleTheme}
               onOpenSettings={() => setSettingsOpen(true)}
