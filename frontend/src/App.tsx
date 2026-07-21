@@ -47,6 +47,9 @@ export default function App() {
 
   const stompRef = useRef<SpringStompClient | null>(null);
   const selectedChannelRef = useRef<string>('');
+  const typingSentAtRef = useRef<number>(0);
+  const typingActiveRef = useRef<boolean>(false);
+  const typingExpiryRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const { theme, toggleTheme } = useTheme();
 
@@ -71,6 +74,10 @@ export default function App() {
     setMessages([]);
     setPresences([]);
     setOnlineMemberIds(new Set());
+    typingExpiryRef.current.forEach((t) => clearTimeout(t));
+    typingExpiryRef.current.clear();
+    typingActiveRef.current = false;
+    typingSentAtRef.current = 0;
     setSelectedChannelId('');
     setConnected(false);
   }, []);
@@ -187,6 +194,25 @@ export default function App() {
         onPresence: (ids) => {
           setOnlineMemberIds(new Set(ids));
         },
+        onTyping: ({ chatroomId, memberId, nickname, typing }) => {
+          setPresences((prev) => {
+            const others = prev.filter((p) => p.userId !== memberId);
+            return typing
+              ? [...others, { userId: memberId, userName: nickname, userAvatar: '', isTyping: true, channelId: chatroomId, lastSeen: Date.now() }]
+              : others;
+          });
+          const timers = typingExpiryRef.current;
+          const existing = timers.get(memberId);
+          if (existing) clearTimeout(existing);
+          if (typing) {
+            timers.set(memberId, setTimeout(() => {
+              setPresences((prev) => prev.filter((p) => p.userId !== memberId));
+              timers.delete(memberId);
+            }, 5000));   // 하트비트(3초)보다 길게
+          } else {
+            timers.delete(memberId);
+          }
+        },
         onDisconnect: scheduleReconnect,
         onError: scheduleReconnect,
       });
@@ -208,19 +234,9 @@ export default function App() {
   }, [token, user?.id]);
 
   useEffect(() => {
-    if (!user || !selectedChannelId) {
-      setPresences([]);
-      return;
-    }
-
-    setPresences([{
-      userId: user.id,
-      userName: user.displayName,
-      userAvatar: user.avatar,
-      isTyping: false,
-      channelId: selectedChannelId,
-      lastSeen: Date.now(),
-    }]);
+    // presences는 이제 "남의 타이핑"만 담는다 (self는 typingUsers 필터에서 제외되므로 불필요).
+    // 채널/유저 전환 시 이전 방의 타이핑 표시를 초기화.
+    setPresences([]);
   }, [user, selectedChannelId]);
 
   const handleSendMessage = async (text: string) => {
@@ -235,15 +251,21 @@ export default function App() {
   };
 
   const handleTypeStateChange = (isTyping: boolean) => {
-    if (!user || !selectedChannelId) return;
-    setPresences([{
-      userId: user.id,
-      userName: user.displayName,
-      userAvatar: user.avatar,
-      isTyping,
-      channelId: selectedChannelId,
-      lastSeen: Date.now(),
-    }]);
+    const client = stompRef.current;
+    if (!client || !selectedChannelId) return;
+
+    if (isTyping) {
+      const now = Date.now();
+      if (now - typingSentAtRef.current >= 3000) {   // 3초 하트비트 스로틀
+        client.sendTyping(selectedChannelId, true);
+        typingSentAtRef.current = now;
+        typingActiveRef.current = true;
+      }
+    } else if (typingActiveRef.current) {
+      client.sendTyping(selectedChannelId, false);
+      typingActiveRef.current = false;
+      typingSentAtRef.current = 0;
+    }
   };
 
   const handleLogout = () => {
