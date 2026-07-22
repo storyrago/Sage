@@ -27,7 +27,8 @@ public class MessageController {
                 messageRequest.getContent(),
                 messageRequest.getImageUrl(),
                 customUserDetails.getMemberId(),
-                chatroomId);
+                chatroomId,
+                messageRequest.getReplyToId());
         return MessageResponse.from(message);
     }
 

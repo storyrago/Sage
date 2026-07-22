@@ -16,8 +16,9 @@ public class MessageResponse {
     String nickname;
     Long chatroomId;
     LocalDateTime createdAt;
+    Long replyToId;
 
-    public MessageResponse(Long messageId, String content, String imageUrl, Long memberId, String nickname, Long chatroomId, LocalDateTime createdAt) {
+    public MessageResponse(Long messageId, String content, String imageUrl, Long memberId, String nickname, Long chatroomId, LocalDateTime createdAt, Long replyToId) {
         this.messageId = messageId;
         this.content = content;
         this.imageUrl = imageUrl;
@@ -25,6 +26,7 @@ public class MessageResponse {
         this.nickname = nickname;
         this.chatroomId = chatroomId;
         this.createdAt = createdAt;
+        this.replyToId = replyToId;
     }
 
     public static MessageResponse from(Message message){
@@ -35,7 +37,8 @@ public class MessageResponse {
                 message.getMember().getId(),
                 message.getMember().getNickname(),
                 message.getChatRoom().getId(),
-                message.getCreatedAt()
+                message.getCreatedAt(),
+                message.getReplyTo() != null ? message.getReplyTo().getId() : null
         );
     }
 }

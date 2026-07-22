@@ -74,7 +74,7 @@ class ServiceFlowTest {
         chatRoomMemberService.join(member.getId(), chatRoom.getId());
 
         // when
-        Message message = messageService.create("hello", null, member.getId(), chatRoom.getId());
+        Message message = messageService.create("hello", null, member.getId(), chatRoom.getId(), null);
 
         // then
         assertThat(message.getId()).isNotNull();
@@ -90,7 +90,7 @@ class ServiceFlowTest {
         ChatRoom chatRoom = chatRoomService.create("private-room");
 
         // when & then
-        assertThatThrownBy(() -> messageService.create("hello", null, member.getId(), chatRoom.getId()))
+        assertThatThrownBy(() -> messageService.create("hello", null, member.getId(), chatRoom.getId(), null))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.NOT_JOINED_ROOM);

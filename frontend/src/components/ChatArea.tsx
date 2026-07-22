@@ -5,7 +5,7 @@ import Avatar from './Avatar';
 import { getRoomMemberProfiles, BackendMember } from '../lib/api';
 import { avatarForId } from '../lib/avatar';
 import {
-  Send, ArrowDown,
+  Send, CornerUpLeft, ArrowDown,
   MessageCircle, Hash, Info, Users, X,
   ArrowLeft, Sun, Moon, Settings2
 } from 'lucide-react';
@@ -16,7 +16,7 @@ interface ChatAreaProps {
   presences: Presence[];
   currentUser: User;
   token: string;
-  onSendMessage: (text: string) => void;
+  onSendMessage: (text: string, replyToId?: string) => void;
   onTypeStateChange: (isTyping: boolean) => void;
   onOpenProfile: (userId: string) => void;
   onlineMemberIds: Set<string>;
@@ -45,6 +45,8 @@ export default function ChatArea({
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
   const [participants, setParticipants] = useState<BackendMember[] | null>(null);
   const [showMembers, setShowMembers] = useState(false);
+  const [replyMessage, setReplyMessage] = useState<Message | null>(null);
+  const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -79,6 +81,7 @@ export default function ChatArea({
     setInputText('');
     setShowMembers(false);
     setParticipants(null);
+    setReplyMessage(null);
   }, [channel.id]);
 
   // Scroll on new messages if close to bottom
@@ -108,8 +111,9 @@ export default function ChatArea({
     const cleanText = inputText.trim();
     if (!cleanText) return;
 
-    onSendMessage(cleanText);
+    onSendMessage(cleanText, replyMessage?.id);
     setInputText('');
+    setReplyMessage(null);
 
     // Stop typing state instantly on submit
     if (typingTimeoutRef.current) {
@@ -309,6 +313,8 @@ export default function ChatArea({
         {channelMessages.map((msg) => {
           const isSelf = msg.userId === currentUser.id;
           const imageUrl = getEmbeddedImageUrl(msg.text);
+          const isMsgHovered = hoveredMessageId === msg.id;
+          const parentMsg = msg.replyToId ? messages.find(m => m.id === msg.replyToId) : null;
 
           return (
             <motion.div
@@ -318,6 +324,8 @@ export default function ChatArea({
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
               className={`flex items-start gap-3 group relative max-w-3xl ${isSelf ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}
               id={`message-bubble-${msg.id}`}
+              onMouseEnter={() => setHoveredMessageId(msg.id)}
+              onMouseLeave={() => setHoveredMessageId(null)}
             >
 
               {/* User Avatar Badge */}
@@ -335,6 +343,15 @@ export default function ChatArea({
                   </button>
                   <span className="text-faint font-medium select-none">{formatTime(msg.createdAt)}</span>
                 </div>
+
+                {/* Reply display box inside bubble if replies to parent */}
+                {parentMsg && (
+                  <div className={`text-xs px-3 py-1.5 rounded-lg text-muted bg-surface-2 border border-border mb-1 flex items-center gap-1.5 ${isSelf ? 'border-r-2 border-r-accent' : 'border-l-2 border-l-border'}`}>
+                    <CornerUpLeft className="w-3 h-3 text-faint" />
+                    <span className="font-bold text-text truncate max-w-[80px]">{parentMsg.userName}:</span>
+                    <span className="truncate">{parentMsg.text}</span>
+                  </div>
+                )}
 
                 {/* Actual Message Text Block */}
                 <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words whitespace-pre-wrap ${
@@ -358,6 +375,29 @@ export default function ChatArea({
                   )}
                 </div>
               </div>
+
+              {/* ACTION BUTTON RAIL ON HOVER — 답장 */}
+              <AnimatePresence>
+                {isMsgHovered && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className={`absolute bottom-[-14px] z-20 flex items-center gap-1 bg-surface border border-border rounded-xl p-0.5 shadow-lg ${
+                      isSelf ? 'left-[-40px]' : 'right-[-40px]'
+                    }`}
+                  >
+                    <button
+                      onClick={() => setReplyMessage(msg)}
+                      className="p-1.5 text-muted hover:text-accent-text rounded-lg cursor-pointer hover:bg-surface-2"
+                      title="답장 달기"
+                    >
+                      <CornerUpLeft className="w-3.5 h-3.5" />
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           );
         })}
@@ -405,6 +445,29 @@ export default function ChatArea({
 
       {/* CHAT INPUT AREA PANEL */}
       <div className="border-t border-border p-4 bg-surface relative z-10">
+
+        {/* Active Reply Banner */}
+        <AnimatePresence>
+          {replyMessage && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 38, opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="bg-accent-subtle border border-transparent rounded-xl px-3 flex items-center justify-between text-xs text-accent-text font-bold mb-3 overflow-hidden select-none"
+            >
+              <span className="truncate flex items-center gap-1.5">
+                <CornerUpLeft className="w-3.5 h-3.5" />
+                {replyMessage.userName}의 메시지: &quot;{replyMessage.text}&quot; 에 답장하는 중
+              </span>
+              <button
+                onClick={() => setReplyMessage(null)}
+                className="text-[10px] uppercase text-accent-text hover:text-text bg-surface-2 border border-border rounded px-1.5 py-0.5 cursor-pointer font-bold"
+              >
+                취소
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <form onSubmit={handleSend} className="flex gap-2">
 
