@@ -13,7 +13,7 @@ import java.time.Duration;
 public class LoginRateLimiter {
 
     private static final int MAX_FAILURES = 10;
-    private static final Duration WINDOW = Duration.ofMinutes(10);
+    private static final Duration WINDOW = Duration.ofMinutes(5);
     private static final String PREFIX = "login:fail:";
 
     private final StringRedisTemplate redis;
