@@ -35,6 +35,9 @@ public class MessageService {
         Message replyTo = replyToId != null
                 ? messageRepository.findById(replyToId).orElse(null)
                 : null;
+        if (replyTo != null && !replyTo.getChatRoom().getId().equals(chatRoom.getId())) {
+            replyTo = null; // 다른 방 메시지엔 답장 링크하지 않음
+        }
 
         Message message = new Message(content, imageUrl, member, chatRoom, replyTo);
         return messageRepository.save(message);
