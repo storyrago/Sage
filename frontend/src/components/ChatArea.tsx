@@ -46,7 +46,6 @@ export default function ChatArea({
   const [participants, setParticipants] = useState<BackendMember[] | null>(null);
   const [showMembers, setShowMembers] = useState(false);
   const [replyMessage, setReplyMessage] = useState<Message | null>(null);
-  const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -313,7 +312,6 @@ export default function ChatArea({
         {channelMessages.map((msg) => {
           const isSelf = msg.userId === currentUser.id;
           const imageUrl = getEmbeddedImageUrl(msg.text);
-          const isMsgHovered = hoveredMessageId === msg.id;
           const parentMsg = msg.replyToId ? messages.find(m => m.id === msg.replyToId) : null;
 
           return (
@@ -324,8 +322,6 @@ export default function ChatArea({
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
               className={`flex items-start gap-3 group relative max-w-3xl ${isSelf ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}
               id={`message-bubble-${msg.id}`}
-              onMouseEnter={() => setHoveredMessageId(msg.id)}
-              onMouseLeave={() => setHoveredMessageId(null)}
             >
 
               {/* User Avatar Badge */}
@@ -376,28 +372,14 @@ export default function ChatArea({
                 </div>
               </div>
 
-              {/* ACTION BUTTON RAIL ON HOVER — 답장 */}
-              <AnimatePresence>
-                {isMsgHovered && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ duration: 0.15 }}
-                    className={`absolute top-1/2 -translate-y-1/2 z-20 flex items-center gap-1 bg-surface border border-border rounded-xl p-0.5 shadow-lg ${
-                      isSelf ? 'left-[-40px]' : 'right-[-40px]'
-                    }`}
-                  >
-                    <button
-                      onClick={() => setReplyMessage(msg)}
-                      className="p-1.5 text-muted hover:text-accent-text rounded-lg cursor-pointer hover:bg-surface-2"
-                      title="답장 달기"
-                    >
-                      <CornerUpLeft className="w-3.5 h-3.5" />
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {/* 답장 버튼 — 말풍선 바로 옆 (hover 시 표시) */}
+              <button
+                onClick={() => setReplyMessage(msg)}
+                className={`self-center flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 text-muted hover:text-accent-text rounded-lg cursor-pointer hover:bg-surface-2 ${isSelf ? '-mr-2' : '-ml-2'}`}
+                title="답장 달기"
+              >
+                <CornerUpLeft className="w-3.5 h-3.5" />
+              </button>
             </motion.div>
           );
         })}
