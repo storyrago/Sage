@@ -191,8 +191,10 @@ export default function App() {
             return [...prev, nextMessage];
           });
         },
-        onPresence: (ids) => {
-          setOnlineMemberIds(new Set(ids));
+        onPresence: (roomId, ids) => {
+          if (roomId === selectedChannelRef.current) {
+            setOnlineMemberIds(new Set(ids));
+          }
         },
         onTyping: ({ chatroomId, memberId, nickname, typing }) => {
           setPresences((prev) => {
@@ -238,6 +240,13 @@ export default function App() {
     // 채널/유저 전환 시 이전 방의 타이핑 표시를 초기화.
     setPresences([]);
   }, [user, selectedChannelId]);
+
+  useEffect(() => {
+    if (!selectedChannelId) {
+      stompRef.current?.unsubscribeRoom();
+      setOnlineMemberIds(new Set());
+    }
+  }, [selectedChannelId]);
 
   const handleSendMessage = async (text: string, replyToId?: string) => {
     if (!token || !selectedChannelId) return;
