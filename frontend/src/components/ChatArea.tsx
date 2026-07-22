@@ -375,7 +375,7 @@ export default function ChatArea({
               {/* 답장 버튼 — 말풍선 바로 옆 (hover 시 표시) */}
               <button
                 onClick={() => setReplyMessage(msg)}
-                className={`self-center flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 text-muted hover:text-accent-text rounded-lg cursor-pointer hover:bg-surface-2 ${isSelf ? '-mr-2' : '-ml-2'}`}
+                className={`self-end flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 text-muted hover:text-accent-text rounded-lg cursor-pointer hover:bg-surface-2 ${isSelf ? '-mr-2' : '-ml-2'}`}
                 title="답장 달기"
               >
                 <CornerUpLeft className="w-3.5 h-3.5" />
