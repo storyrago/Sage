@@ -8,6 +8,7 @@ public enum ErrorCode {
     MEMBER_NOT_FOUND(404, "해당 회원을 찾을 수 없습니다."),
     DUPLICATE_EMAIL(409, "이미 사용 중인 이메일입니다."),
     INVALID_PASSWORD(401, "비밀번호가 일치하지 않습니다."),
+    TOO_MANY_LOGIN_ATTEMPTS(429, "로그인 시도가 너무 많습니다. 잠시 후 다시 시도해 주세요."),
 
     // ChatRoom
     CHAT_ROOM_NOT_FOUND(404, "존재하지 않는 채팅방입니다."),
