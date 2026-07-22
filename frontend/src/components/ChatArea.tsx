@@ -346,10 +346,10 @@ export default function ChatArea({
 
                 {/* Reply display box inside bubble if replies to parent */}
                 {parentMsg && (
-                  <div className={`text-xs px-3 py-1.5 rounded-lg text-muted bg-surface-2 border border-border mb-1 flex items-center gap-1.5 ${isSelf ? 'border-r-2 border-r-accent' : 'border-l-2 border-l-border'}`}>
-                    <CornerUpLeft className="w-3 h-3 text-faint" />
-                    <span className="font-bold text-text truncate max-w-[80px]">{parentMsg.userName}:</span>
-                    <span className="truncate">{parentMsg.text}</span>
+                  <div className="text-xs px-3 py-1.5 rounded-lg text-muted bg-surface-2 border border-border mb-1 flex items-center gap-1.5">
+                    <CornerUpLeft className="w-3 h-3 text-faint flex-shrink-0" />
+                    <span className="font-bold text-text flex-shrink-0">{parentMsg.userName}:</span>
+                    <span className="truncate min-w-0">{parentMsg.text}</span>
                   </div>
                 )}
 
