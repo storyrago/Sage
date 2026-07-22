@@ -55,6 +55,7 @@ export default function ChatArea({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const scrolledChannelRef = useRef<string>('');   // 이 채널에 초기 스크롤(맨아래) 했는지
 
   // Filter messages for current channel only
   const channelMessages = messages.filter(m => m.channelId === channel.id);
@@ -69,6 +70,12 @@ export default function ChatArea({
     messagesEndRef.current?.scrollIntoView({ behavior });
   };
 
+  // 이미지가 로드되며 높이가 커지면, 맨 아래 근처였을 때 다시 맨 아래로 (이미지 전송/입장 시)
+  const handleImageLoad = () => {
+    const el = scrollContainerRef.current;
+    if (el && el.scrollHeight - el.scrollTop - el.clientHeight < 400) scrollToBottom('auto');
+  };
+
   // Keep track of scroll position
   const handleScroll = () => {
     if (!scrollContainerRef.current) return;
@@ -79,25 +86,28 @@ export default function ChatArea({
     setShowScrollBottomBtn(!isAtBottom);
   };
 
-  // Scroll to bottom on first load or when channel changes
+  // 채널 전환 시 입력/모달 상태 초기화 (스크롤은 아래 통합 이펙트가 처리)
   useEffect(() => {
-    scrollToBottom('auto');
     setInputText('');
     setShowMembers(false);
     setParticipants(null);
     setReplyMessage(null);
   }, [channel.id]);
 
-  // Scroll on new messages if close to bottom
+  // 스크롤: 방 입장/전환 시 무조건 맨 아래로, 같은 방 새 메시지는 근처에 있을 때만 따라감
   useEffect(() => {
-    if (!scrollContainerRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
-    const isCloseToBottom = scrollHeight - scrollTop - clientHeight < 250;
-
-    if (isCloseToBottom) {
-      setTimeout(() => scrollToBottom('smooth'), 50);
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    if (scrolledChannelRef.current !== channel.id) {
+      scrollToBottom('auto');                                      // 입장/전환 → 맨 아래
+      if (channelMessages.length > 0) scrolledChannelRef.current = channel.id;  // 메시지 로드 완료 표시
+    } else {
+      const { scrollTop, scrollHeight, clientHeight } = el;
+      if (scrollHeight - scrollTop - clientHeight < 250) {
+        setTimeout(() => scrollToBottom('smooth'), 50);            // 새 메시지, 근처면 따라감
+      }
     }
-  }, [channelMessages.length]);
+  }, [channel.id, channelMessages.length]);
 
   const openMembers = async () => {
     setShowMembers(true);
@@ -399,6 +409,7 @@ export default function ChatArea({
                         referrerPolicy="no-referrer"
                         className="max-h-60 w-full object-cover cursor-pointer hover:opacity-95 transition-opacity"
                         onClick={() => window.open(msg.imageUrl, '_blank')}
+                        onLoad={handleImageLoad}
                       />
                     </div>
                   )}
@@ -412,6 +423,7 @@ export default function ChatArea({
                         referrerPolicy="no-referrer"
                         className="max-h-60 w-full object-cover cursor-pointer hover:opacity-95 transition-opacity"
                         onClick={() => window.open(imageUrl, '_blank')}
+                        onLoad={handleImageLoad}
                       />
                     </div>
                   )}
