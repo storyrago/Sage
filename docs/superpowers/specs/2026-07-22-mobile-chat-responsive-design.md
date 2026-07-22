@@ -76,3 +76,24 @@
 - 구현은 **Sonnet 서브에이전트**에 위임(설계·리뷰·검증은 상위 모델). 최소 변경범위·정합성·엣지케이스 준수.
 - 브랜치 `fix/mobile-chat-overflow` → **develop PR**(실질 버그수정이므로 PR 유지).
 - DB/백엔드 무변경(프론트 CSS만) → 배포 안전.
+
+## 검증 결과 — 설계 정정 (2026-07-22, Opus)
+
+**설계의 핵심 가정이 실측에서 틀렸다.** 실제 `ChatArea`를 프로덕션과 동일한 3중 flex 중첩
+(`root(flex w-screen overflow-hidden) > div.flex.w-full > div.flex.w-full > ChatArea.flex-1`)
+안에서 격리 하니스로 렌더해 E2E 재현·검증한 결과:
+
+1. **`overflow-wrap:anywhere`는 필요하지만 충분하지 않다.** 이 변경만으로는 버블 텍스트가
+   버블 내부에서 줄바꿈될 뿐, **메시지 영역 전체는 여전히 798px**로 뷰포트(375px)를 넘겨 잘렸다.
+   설계가 예상한 "1번을 고치면 2·3번이 자연 정상화"는 이 레이아웃에서 성립하지 않았다.
+2. **실제 원인은 flexbox `min-width:auto` 트랩.** `ChatArea` 루트가 바깥 flex-row의 `flex-1`
+   아이템인데 `min-w-0`이 없어, 콘텐츠 min-content(798px) 아래로 축소되지 못했다.
+   라이브 실험으로 **`ChatArea` 루트에 `min-w-0` 하나만** 추가하면 798→375로 붕괴됨을 확인
+   (스크롤러에는 불필요). `min-w-0` 체인이 메시지 행·버블에는 있었으나 **최상위 아이템엔 빠져 있었다.**
+3. 따라서 실제 수정 = **`overflow-wrap:anywhere`(텍스트 줄바꿈) + `ChatArea` 루트 `min-w-0`(축소 허용)**.
+   `overflow-x-clip`은 무해한 안전망(스크롤러에서 `overflow-x:hidden`으로 계산됨).
+   변경은 전부 `ChatArea.tsx` 내부에 머묾(App.tsx 무변경, 범위 유지).
+
+**검증 수치(합격):** 375px — `document.scrollWidth===clientWidth===375`,
+스크롤러 `scrollWidth===clientWidth===369`, 모든 행 `right≤357` (뷰포트 내). 1280px 회귀 —
+`scrollerSW===clientWidth===1274`, 버블 `max-w-3xl(768px)` 이내(실측 653px). `tsc`·`vite build` exit 0.
