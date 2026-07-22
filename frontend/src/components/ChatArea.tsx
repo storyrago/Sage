@@ -2,12 +2,12 @@ import { useState, useRef, useEffect, FormEvent, ChangeEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Channel, Message, Presence, User } from '../types';
 import Avatar from './Avatar';
-import { getRoomMemberProfiles, BackendMember } from '../lib/api';
+import { getRoomMemberProfiles, BackendMember, uploadImage } from '../lib/api';
 import { avatarForId } from '../lib/avatar';
 import {
   Send, CornerUpLeft, ArrowDown,
   MessageCircle, Hash, Info, Users, X,
-  ArrowLeft, Sun, Moon, Settings2
+  ArrowLeft, Sun, Moon, Settings2, Plus, Loader2
 } from 'lucide-react';
 
 interface ChatAreaProps {
@@ -17,6 +17,7 @@ interface ChatAreaProps {
   currentUser: User;
   token: string;
   onSendMessage: (text: string, replyToId?: string) => void;
+  onSendImage: (imageUrl: string) => void;
   onTypeStateChange: (isTyping: boolean) => void;
   onOpenProfile: (userId: string) => void;
   onlineMemberIds: Set<string>;
@@ -33,6 +34,7 @@ export default function ChatArea({
   currentUser,
   token,
   onSendMessage,
+  onSendImage,
   onTypeStateChange,
   onOpenProfile,
   onlineMemberIds,
@@ -46,6 +48,9 @@ export default function ChatArea({
   const [participants, setParticipants] = useState<BackendMember[] | null>(null);
   const [showMembers, setShowMembers] = useState(false);
   const [replyMessage, setReplyMessage] = useState<Message | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -121,6 +126,19 @@ export default function ChatArea({
     onTypeStateChange(false);
   };
 
+  const handleUpload = async (file: File) => {
+    if (!file.type.startsWith('image/')) return;   // 이미지만
+    setUploading(true);
+    try {
+      const url = await uploadImage(token, file);
+      onSendImage(url);
+    } catch (err) {
+      console.error('이미지 업로드 실패', err);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     setInputText(e.target.value);
 
@@ -155,7 +173,22 @@ export default function ChatArea({
   };
 
   return (
-    <div className="flex-1 h-full flex flex-col bg-bg font-sans relative">
+    <div
+      className="flex-1 h-full flex flex-col bg-bg font-sans relative"
+      onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+      onDragLeave={(e) => { if (e.currentTarget === e.target) setDragging(false); }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragging(false);
+        const file = e.dataTransfer.files?.[0];
+        if (file) handleUpload(file);
+      }}
+    >
+      {dragging && (
+        <div className="absolute inset-0 z-40 bg-accent-subtle/90 border-2 border-dashed border-accent flex items-center justify-center pointer-events-none">
+          <div className="text-accent-text font-bold text-lg select-none">여기에 이미지를 놓으세요 🖼️</div>
+        </div>
+      )}
 
       {/* CHANNEL CHAT HEADER */}
       <div className="h-16 border-b border-border bg-surface backdrop-blur-md px-3 md:px-6 flex items-center justify-between z-10 relative">
@@ -355,9 +388,22 @@ export default function ChatArea({
                     ? 'bg-accent border border-accent text-accent-fg rounded-tr-none'
                     : 'bg-bubble-other border border-border text-text rounded-tl-none'
                 }`}>
-                  {msg.text}
+                  {msg.text && <span>{msg.text}</span>}
 
-                  {/* Render Embedded Image Link thumbnail if exists */}
+                  {/* 업로드된 이미지 (imageUrl 필드) */}
+                  {msg.imageUrl && (
+                    <div className={`${msg.text ? 'mt-2.5' : ''} rounded-xl overflow-hidden border border-border bg-bg`}>
+                      <img
+                        src={msg.imageUrl}
+                        alt="첨부 이미지"
+                        referrerPolicy="no-referrer"
+                        className="max-h-60 w-full object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                        onClick={() => window.open(msg.imageUrl, '_blank')}
+                      />
+                    </div>
+                  )}
+
+                  {/* 텍스트에 박힌 URL 이미지 (하위호환) */}
                   {imageUrl && (
                     <div className="mt-2.5 rounded-xl overflow-hidden border border-border bg-bg">
                       <img
@@ -451,7 +497,24 @@ export default function ChatArea({
           )}
         </AnimatePresence>
 
-        <form onSubmit={handleSend} className="flex gap-2">
+        <form onSubmit={handleSend} className="flex gap-2 items-stretch">
+
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.target.value = ''; }}
+          />
+          <button
+            type="button"
+            onClick={() => imageInputRef.current?.click()}
+            disabled={uploading}
+            title="이미지 첨부"
+            className="w-11 flex-shrink-0 rounded-2xl border border-border bg-surface-2 text-muted hover:text-accent-text hover:border-accent flex items-center justify-center cursor-pointer transition-all disabled:opacity-40"
+          >
+            {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
+          </button>
 
           {/* Main Input Text Control */}
           <div className="flex-1 bg-surface-2 border border-border focus-within:border-accent rounded-2xl flex items-center px-4 py-3 transition-colors">
