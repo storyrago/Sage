@@ -111,12 +111,12 @@ export class SpringStompClient {
     this.currentRoomPresenceSubscription = undefined;
   }
 
-  send(chatroomId: string, content: string, replyToId?: string) {
+  send(chatroomId: string, content: string, replyToId?: string, imageUrl?: string) {
     if (!this.connected) return false;
     this.write('SEND', {
       destination: `/pub/chatrooms/${chatroomId}/messages`,
       'content-type': 'application/json',
-    }, JSON.stringify({ content, replyToId: replyToId ? Number(replyToId) : null }));
+    }, JSON.stringify({ content, replyToId: replyToId ? Number(replyToId) : null, imageUrl: imageUrl ?? null }));
     return true;
   }
 
