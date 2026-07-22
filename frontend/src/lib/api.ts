@@ -35,6 +35,8 @@ export interface BackendMessage {
   createdAt?: string;
   replyToId?: number | null;
   imageUrl?: string | null;
+  editedAt?: string | null;
+  deleted?: boolean;
 }
 
 interface LoginResponse {
@@ -139,6 +141,19 @@ export async function sendMessage(token: string, chatroomId: string, content: st
   }, token);
 }
 
+export async function updateMessage(token: string, chatroomId: string, messageId: string, content: string) {
+  return request<BackendMessage>(`/api/chatrooms/${chatroomId}/messages/${messageId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ content }),
+  }, token);
+}
+
+export async function deleteMessage(token: string, chatroomId: string, messageId: string) {
+  return request<BackendMessage>(`/api/chatrooms/${chatroomId}/messages/${messageId}`, {
+    method: 'DELETE',
+  }, token);
+}
+
 export async function getMemberById(token: string, id: string) {
   return request<BackendMember>(`/api/members/${id}`, {}, token);
 }
@@ -222,5 +237,7 @@ export function toMessage(message: BackendMessage): Message {
     createdAt: message.createdAt ? Date.parse(message.createdAt) : Date.now(),
     replyToId: message.replyToId != null ? String(message.replyToId) : undefined,
     imageUrl: message.imageUrl ?? undefined,
+    edited: message.editedAt != null,
+    deleted: message.deleted ?? false,
   };
 }

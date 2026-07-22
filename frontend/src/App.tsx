@@ -9,6 +9,7 @@ import ChannelLanding from './components/ChannelLanding';
 import { WifiOff, RefreshCw } from 'lucide-react';
 import {
   createChatRoom,
+  deleteMessage,
   getChatRooms,
   getMe,
   getMessages,
@@ -19,6 +20,7 @@ import {
   toChannel,
   toMessage,
   toUser,
+  updateMessage,
 } from './lib/api';
 import { SpringStompClient } from './lib/stomp';
 import { useTheme } from './lib/useTheme';
@@ -199,8 +201,20 @@ export default function App() {
         onMessage: (backendMessage) => {
           const nextMessage = toMessage(backendMessage);
           setMessages((prev) => {
-            if (prev.some((message) => message.id === nextMessage.id)) return prev;
-            return [...prev, nextMessage];
+            const idx = prev.findIndex((message) => message.id === nextMessage.id);
+            if (idx >= 0) {
+              const copy = [...prev];
+              copy[idx] = nextMessage; // 수정/삭제 등 기존 메시지 제자리 갱신
+              return copy;
+            }
+            // 로드 안 된 메시지: 이 방에서 가장 새 id보다 클 때만 새 메시지로 append.
+            // 더 오래된 id면 로드되지 않은 옛 메시지의 수정/삭제이므로 무시(페이지네이션으로 최신 상태를 받음).
+            const roomMax = prev.reduce(
+              (mx, m) => (m.channelId === nextMessage.channelId ? Math.max(mx, Number(m.id)) : mx),
+              0,
+            );
+            if (Number(nextMessage.id) > roomMax) return [...prev, nextMessage];
+            return prev;
           });
         },
         onPresence: (roomId, ids) => {
@@ -339,6 +353,30 @@ export default function App() {
     }
   }, [token]);
 
+  const handleEditMessage = async (messageId: string, content: string) => {
+    if (!token || !selectedChannelId) return;
+    try {
+      const updated = await updateMessage(token, selectedChannelId, messageId, content);
+      const mapped = toMessage(updated);
+      setMessages((prev) => prev.map((m) => (m.id === mapped.id ? mapped : m)));
+    } catch (error) {
+      console.error('메시지 수정 실패', error);
+      alert(error instanceof Error ? error.message : '메시지 수정에 실패했습니다.');
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!token || !selectedChannelId) return;
+    try {
+      const deleted = await deleteMessage(token, selectedChannelId, messageId);
+      const mapped = toMessage(deleted);
+      setMessages((prev) => prev.map((m) => (m.id === mapped.id ? mapped : m)));
+    } catch (error) {
+      console.error('메시지 삭제 실패', error);
+      alert(error instanceof Error ? error.message : '메시지 삭제에 실패했습니다.');
+    }
+  };
+
   const activeChannel = channels.find((channel) => channel.id === selectedChannelId) || {
     id: selectedChannelId || 'empty',
     name: selectedChannelId ? '채팅방' : '채팅방 없음',
@@ -395,6 +433,8 @@ export default function App() {
               onLoadOlder={() => loadOlderMessages(selectedChannelId)}
               hasMoreOlder={pageState[selectedChannelId]?.hasMore ?? false}
               loadingOlder={pageState[selectedChannelId]?.loading ?? false}
+              onEditMessage={handleEditMessage}
+              onDeleteMessage={handleDeleteMessage}
             />
           </div>
         ) : (

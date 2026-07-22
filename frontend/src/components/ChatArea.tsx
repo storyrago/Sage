@@ -7,7 +7,7 @@ import { avatarForId } from '../lib/avatar';
 import {
   Send, CornerUpLeft, ArrowDown,
   MessageCircle, Hash, Info, Users, X,
-  ArrowLeft, Sun, Moon, Settings2, Plus, Loader2
+  ArrowLeft, Sun, Moon, Settings2, Plus, Loader2, Pencil, Trash2
 } from 'lucide-react';
 
 interface ChatAreaProps {
@@ -28,6 +28,8 @@ interface ChatAreaProps {
   onLoadOlder?: () => void;
   hasMoreOlder?: boolean;
   loadingOlder?: boolean;
+  onEditMessage?: (messageId: string, content: string) => void;
+  onDeleteMessage?: (messageId: string) => void;
 }
 
 export default function ChatArea({
@@ -47,13 +49,16 @@ export default function ChatArea({
   onGoHome,
   onLoadOlder,
   hasMoreOlder,
-  loadingOlder
+  loadingOlder,
+  onEditMessage,
+  onDeleteMessage
 }: ChatAreaProps) {
   const [inputText, setInputText] = useState('');
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
   const [participants, setParticipants] = useState<BackendMember[] | null>(null);
   const [showMembers, setShowMembers] = useState(false);
   const [replyMessage, setReplyMessage] = useState<Message | null>(null);
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -113,6 +118,7 @@ export default function ChatArea({
     setShowMembers(false);
     setParticipants(null);
     setReplyMessage(null);
+    setEditingMessage(null);
   }, [channel.id]);
 
   // 스크롤: 방 입장/전환 시 무조건 맨 아래로, 같은 방 새 메시지는 근처에 있을 때만 따라감
@@ -156,11 +162,15 @@ export default function ChatArea({
     const cleanText = inputText.trim();
     if (!cleanText) return;
 
-    onSendMessage(cleanText, replyMessage?.id);
+    if (editingMessage) {
+      onEditMessage?.(editingMessage.id, cleanText);
+      setEditingMessage(null);
+    } else {
+      onSendMessage(cleanText, replyMessage?.id);
+      setReplyMessage(null);
+    }
     setInputText('');
-    setReplyMessage(null);
 
-    // Stop typing state instantly on submit
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
@@ -417,7 +427,7 @@ export default function ChatArea({
                   <button onClick={() => onOpenProfile(msg.userId)} className="font-bold text-text cursor-pointer hover:text-accent-text transition-colors" aria-label={`${msg.userName} 프로필`}>
                     {msg.userName}
                   </button>
-                  <span className="text-faint font-medium select-none">{formatTime(msg.createdAt)}</span>
+                  <span className="text-faint font-medium select-none">{formatTime(msg.createdAt)}{msg.edited && !msg.deleted ? ' · 수정됨' : ''}</span>
                 </div>
 
                 {/* Reply display box inside bubble if replies to parent */}
@@ -430,51 +440,78 @@ export default function ChatArea({
                 )}
 
                 {/* Actual Message Text Block */}
-                <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap ${
-                  isSelf
-                    ? 'bg-accent border border-accent text-accent-fg rounded-tr-none'
-                    : 'bg-bubble-other border border-border text-text rounded-tl-none'
-                }`}>
-                  {msg.text && <span>{msg.text}</span>}
+                {msg.deleted ? (
+                  <div className="px-4 py-2.5 rounded-2xl text-sm italic text-faint bg-surface-2 border border-border">
+                    삭제된 메시지입니다
+                  </div>
+                ) : (
+                  <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap ${
+                    isSelf
+                      ? 'bg-accent border border-accent text-accent-fg rounded-tr-none'
+                      : 'bg-bubble-other border border-border text-text rounded-tl-none'
+                  }`}>
+                    {msg.text && <span>{msg.text}</span>}
 
-                  {/* 업로드된 이미지 (imageUrl 필드) */}
-                  {msg.imageUrl && (
-                    <div className={`${msg.text ? 'mt-2.5' : ''} rounded-xl overflow-hidden border border-border bg-bg`}>
-                      <img
-                        src={msg.imageUrl}
-                        alt="첨부 이미지"
-                        referrerPolicy="no-referrer"
-                        className="max-h-60 w-full object-cover cursor-pointer hover:opacity-95 transition-opacity"
-                        onClick={() => window.open(msg.imageUrl, '_blank')}
-                        onLoad={handleImageLoad}
-                      />
-                    </div>
-                  )}
+                    {/* 업로드된 이미지 (imageUrl 필드) */}
+                    {msg.imageUrl && (
+                      <div className={`${msg.text ? 'mt-2.5' : ''} rounded-xl overflow-hidden border border-border bg-bg`}>
+                        <img
+                          src={msg.imageUrl}
+                          alt="첨부 이미지"
+                          referrerPolicy="no-referrer"
+                          className="max-h-60 w-full object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                          onClick={() => window.open(msg.imageUrl, '_blank')}
+                          onLoad={handleImageLoad}
+                        />
+                      </div>
+                    )}
 
-                  {/* 텍스트에 박힌 URL 이미지 (하위호환) */}
-                  {imageUrl && (
-                    <div className="mt-2.5 rounded-xl overflow-hidden border border-border bg-bg">
-                      <img
-                        src={imageUrl}
-                        alt="Shared interactive link"
-                        referrerPolicy="no-referrer"
-                        className="max-h-60 w-full object-cover cursor-pointer hover:opacity-95 transition-opacity"
-                        onClick={() => window.open(imageUrl, '_blank')}
-                        onLoad={handleImageLoad}
-                      />
-                    </div>
-                  )}
-                </div>
+                    {/* 텍스트에 박힌 URL 이미지 (하위호환) */}
+                    {imageUrl && (
+                      <div className="mt-2.5 rounded-xl overflow-hidden border border-border bg-bg">
+                        <img
+                          src={imageUrl}
+                          alt="Shared interactive link"
+                          referrerPolicy="no-referrer"
+                          className="max-h-60 w-full object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                          onClick={() => window.open(imageUrl, '_blank')}
+                          onLoad={handleImageLoad}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {/* 답장 버튼 — 말풍선 바로 옆 (hover 시 표시) */}
-              <button
-                onClick={() => setReplyMessage(msg)}
-                className={`self-end flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 text-muted hover:text-accent-text rounded-lg cursor-pointer hover:bg-surface-2 ${isSelf ? '-mr-2' : '-ml-2'}`}
-                title="답장 달기"
-              >
-                <CornerUpLeft className="w-3.5 h-3.5" />
-              </button>
+              {!msg.deleted && (
+                <div className={`self-end flex-shrink-0 flex items-center opacity-0 group-hover:opacity-100 transition-opacity ${isSelf ? '-mr-1' : '-ml-1'}`}>
+                  <button
+                    onClick={() => { setReplyMessage(msg); setEditingMessage(null); }}
+                    className="p-1.5 text-muted hover:text-accent-text rounded-lg cursor-pointer hover:bg-surface-2"
+                    title="답장 달기"
+                  >
+                    <CornerUpLeft className="w-3.5 h-3.5" />
+                  </button>
+                  {isSelf && (
+                    <>
+                      <button
+                        onClick={() => { setEditingMessage(msg); setReplyMessage(null); setInputText(msg.text); }}
+                        className="p-1.5 text-muted hover:text-accent-text rounded-lg cursor-pointer hover:bg-surface-2"
+                        title="수정"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => { if (window.confirm('이 메시지를 삭제할까요?')) onDeleteMessage?.(msg.id); }}
+                        className="p-1.5 text-muted hover:text-rose-500 rounded-lg cursor-pointer hover:bg-surface-2"
+                        title="삭제"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
             </motion.div>
           );
         })}
@@ -522,6 +559,29 @@ export default function ChatArea({
 
       {/* CHAT INPUT AREA PANEL */}
       <div className="border-t border-border p-4 bg-surface relative z-10">
+
+        {/* Active Edit Banner */}
+        <AnimatePresence>
+          {editingMessage && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 38, opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="bg-accent-subtle border border-transparent rounded-xl px-3 flex items-center justify-between text-xs text-accent-text font-bold mb-3 overflow-hidden select-none"
+            >
+              <span className="truncate flex items-center gap-1.5">
+                <Pencil className="w-3.5 h-3.5" />
+                메시지 수정 중
+              </span>
+              <button
+                onClick={() => { setEditingMessage(null); setInputText(''); }}
+                className="text-[10px] uppercase text-accent-text hover:text-text bg-surface-2 border border-border rounded px-1.5 py-0.5 cursor-pointer font-bold"
+              >
+                취소
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Active Reply Banner */}
         <AnimatePresence>

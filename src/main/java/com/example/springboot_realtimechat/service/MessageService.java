@@ -78,4 +78,30 @@ public class MessageService {
         Collections.reverse(page); // 오름차순(오래된 → 최신)
         return new MessagePage(page, hasMore);
     }
+
+    @Transactional
+    public Message update(Long messageId, Long memberId, String content) {
+        Message message = getMessageById(messageId); // MESSAGE_NOT_FOUND on miss
+        if (!message.getMember().getId().equals(memberId)) {
+            throw new CustomException(ErrorCode.NOT_MESSAGE_OWNER);
+        }
+        if (message.isDeleted()) {
+            throw new CustomException(ErrorCode.MESSAGE_NOT_FOUND); // 삭제된 메시지는 수정 불가
+        }
+        if (content == null || content.isBlank()) {
+            throw new CustomException(ErrorCode.EMPTY_MESSAGE);
+        }
+        message.edit(content); // 더티체킹으로 반영
+        return message;
+    }
+
+    @Transactional
+    public Message delete(Long messageId, Long memberId) {
+        Message message = getMessageById(messageId);
+        if (!message.getMember().getId().equals(memberId)) {
+            throw new CustomException(ErrorCode.NOT_MESSAGE_OWNER);
+        }
+        message.softDelete();
+        return message;
+    }
 }
