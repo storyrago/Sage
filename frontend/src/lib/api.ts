@@ -115,8 +115,21 @@ export async function joinChatRoom(token: string, chatroomId: string) {
   }
 }
 
-export async function getMessages(token: string, chatroomId: string) {
-  return request<BackendMessage[]>(`/api/chatrooms/${chatroomId}/messages`, {}, token);
+export interface PagedMessages {
+  messages: BackendMessage[];
+  hasMore: boolean;
+}
+
+export async function getMessages(
+  token: string,
+  chatroomId: string,
+  before?: number,
+  limit = 30,
+): Promise<PagedMessages> {
+  const params = new URLSearchParams();
+  if (before != null) params.set('before', String(before));
+  params.set('limit', String(limit));
+  return request<PagedMessages>(`/api/chatrooms/${chatroomId}/messages?${params.toString()}`, {}, token);
 }
 
 export async function sendMessage(token: string, chatroomId: string, content: string, replyToId?: string, imageUrl?: string) {

@@ -1,6 +1,7 @@
 package com.example.springboot_realtimechat.controller;
 
 import com.example.springboot_realtimechat.domain.Message;
+import com.example.springboot_realtimechat.dto.MessagePageResponse;
 import com.example.springboot_realtimechat.dto.MessageRequest;
 import com.example.springboot_realtimechat.dto.MessageResponse;
 import com.example.springboot_realtimechat.security.CustomUserDetails;
@@ -33,10 +34,17 @@ public class MessageController {
     }
 
     @GetMapping
-    public List<MessageResponse> getMessages(@PathVariable Long chatroomId) {
-        List<Message> messageList = messageService.getAllChatRoomMessages(chatroomId);
-        return messageList.stream()
+    public MessagePageResponse getMessages(
+            @PathVariable Long chatroomId,
+            @AuthenticationPrincipal CustomUserDetails customUserDetails,
+            @RequestParam(required = false) Long before,
+            @RequestParam(defaultValue = "30") int limit) {
+        int capped = Math.min(Math.max(limit, 1), 50);
+        MessageService.MessagePage page = messageService.getMessages(
+                chatroomId, customUserDetails.getMemberId(), before, capped);
+        List<MessageResponse> messages = page.messages().stream()
                 .map(MessageResponse::from)
                 .toList();
+        return new MessagePageResponse(messages, page.hasMore());
     }
 }

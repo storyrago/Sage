@@ -36,6 +36,9 @@ export default function App() {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [selectedChannelId, setSelectedChannelId] = useState<string>('');
   const [messages, setMessages] = useState<Message[]>([]);
+  const [pageState, setPageState] = useState<Record<string, { oldestId: number | null; hasMore: boolean; loading: boolean }>>({});
+  const pageStateRef = useRef(pageState);
+  useEffect(() => { pageStateRef.current = pageState; }, [pageState]);
   const [presences, setPresences] = useState<Presence[]>([]);
   const [onlineMemberIds, setOnlineMemberIds] = useState<Set<string>>(new Set());
   const [connected, setConnected] = useState<boolean>(false);
@@ -138,12 +141,21 @@ export default function App() {
       try {
         setLoadingMessage('메시지를 불러오는 중입니다.');
         await joinChatRoom(token, selectedChannelId);
-        const nextMessages = await getMessages(token, selectedChannelId);
+        const page = await getMessages(token, selectedChannelId);
         if (!cancelled) {
+          const mapped = page.messages.map(toMessage);
           setMessages((prev) => {
             const otherRooms = prev.filter((message) => message.channelId !== selectedChannelId);
-            return [...otherRooms, ...nextMessages.map(toMessage)];
+            return [...otherRooms, ...mapped];
           });
+          setPageState((prev) => ({
+            ...prev,
+            [selectedChannelId]: {
+              oldestId: page.messages.length ? page.messages[0].messageId : null,
+              hasMore: page.hasMore,
+              loading: false,
+            },
+          }));
         }
       } catch (error) {
         console.error('[ChatRoom] Failed to load messages:', error);
@@ -305,6 +317,28 @@ export default function App() {
     setWarping(false);
   };
 
+  const loadOlderMessages = useCallback(async (roomId: string) => {
+    const st = pageStateRef.current[roomId];
+    if (!token || !st || !st.hasMore || st.loading || st.oldestId == null) return;
+    setPageState((prev) => ({ ...prev, [roomId]: { ...prev[roomId], loading: true } }));
+    try {
+      const page = await getMessages(token, roomId, st.oldestId);
+      const mapped = page.messages.map(toMessage);
+      setMessages((prev) => [...mapped, ...prev]); // prepend older (before는 exclusive라 중복 없음)
+      setPageState((prev) => ({
+        ...prev,
+        [roomId]: {
+          oldestId: page.messages.length ? page.messages[0].messageId : prev[roomId].oldestId,
+          hasMore: page.hasMore,
+          loading: false,
+        },
+      }));
+    } catch (error) {
+      console.error('[ChatRoom] Failed to load older messages:', error);
+      setPageState((prev) => ({ ...prev, [roomId]: { ...prev[roomId], loading: false } }));
+    }
+  }, [token]);
+
   const activeChannel = channels.find((channel) => channel.id === selectedChannelId) || {
     id: selectedChannelId || 'empty',
     name: selectedChannelId ? '채팅방' : '채팅방 없음',
@@ -358,6 +392,9 @@ export default function App() {
               onToggleTheme={toggleTheme}
               onOpenSettings={() => setSettingsOpen(true)}
               onGoHome={() => setSelectedChannelId('')}
+              onLoadOlder={() => loadOlderMessages(selectedChannelId)}
+              hasMoreOlder={pageState[selectedChannelId]?.hasMore ?? false}
+              loadingOlder={pageState[selectedChannelId]?.loading ?? false}
             />
           </div>
         ) : (
