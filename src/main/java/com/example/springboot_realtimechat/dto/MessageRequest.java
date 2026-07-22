@@ -12,4 +12,6 @@ public class MessageRequest {
     String content;
 
     String imageUrl;
+
+    Long replyToId;
 }

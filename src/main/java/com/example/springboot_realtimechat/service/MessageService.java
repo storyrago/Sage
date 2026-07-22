@@ -23,7 +23,7 @@ public class MessageService {
     private final ChatRoomService chatRoomService;
 
     @Transactional
-    public Message create(String content, String imageUrl, Long memberId, Long chatroomId){
+    public Message create(String content, String imageUrl, Long memberId, Long chatroomId, Long replyToId){
         Member member = memberService.getMemberById(memberId);
         ChatRoom chatRoom = chatRoomService.getChatRoomById(chatroomId);
 
@@ -32,7 +32,11 @@ public class MessageService {
             throw new CustomException(ErrorCode.NOT_JOINED_ROOM);
         }
 
-        Message message = new Message(content, imageUrl, member, chatRoom);
+        Message replyTo = replyToId != null
+                ? messageRepository.findById(replyToId).orElse(null)
+                : null;
+
+        Message message = new Message(content, imageUrl, member, chatRoom, replyTo);
         return messageRepository.save(message);
     }
 

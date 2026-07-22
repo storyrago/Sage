@@ -34,9 +34,18 @@ public class Message {
     @CreationTimestamp
     private LocalDateTime createdAt;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reply_to_id")
+    private Message replyTo;
+
     public Message(String content, String imageUrl, Member member, ChatRoom chatRoom) {
+        this(content, imageUrl, member, chatRoom, null);
+    }
+
+    public Message(String content, String imageUrl, Member member, ChatRoom chatRoom, Message replyTo) {
         this.content = content;
         this.imageUrl = imageUrl;
+        this.replyTo = replyTo;
         connect(member, chatRoom);
     }
 
