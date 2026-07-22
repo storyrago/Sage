@@ -384,7 +384,7 @@ export default function ChatArea({
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ duration: 0.15 }}
-                    className={`absolute bottom-[-14px] z-20 flex items-center gap-1 bg-surface border border-border rounded-xl p-0.5 shadow-lg ${
+                    className={`absolute top-1/2 -translate-y-1/2 z-20 flex items-center gap-1 bg-surface border border-border rounded-xl p-0.5 shadow-lg ${
                       isSelf ? 'left-[-40px]' : 'right-[-40px]'
                     }`}
                   >
