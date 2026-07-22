@@ -46,7 +46,6 @@ export default function ProfileModal({ open, memberId, token, onClose }: Profile
           <div className="flex flex-col items-center gap-3 pt-2">
             <Avatar photoUrl={member.profileImageUrl ?? undefined} gradient={avatarForId(member.id)} name={member.nickname} className="w-20 h-20 rounded-3xl text-2xl" />
             <div className="text-[17px] font-bold text-text">{member.nickname}</div>
-            <div className="text-[13px] text-muted">{member.email}</div>
             {member.createdAt && <div className="text-[12px] text-faint">가입: {new Date(member.createdAt).toLocaleDateString('ko-KR')}</div>}
           </div>
         )}

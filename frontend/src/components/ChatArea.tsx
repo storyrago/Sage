@@ -320,7 +320,7 @@ export default function ChatArea({
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-              className={`flex items-start gap-3 group relative max-w-3xl ${isSelf ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}
+              className={`flex items-start gap-3 group relative max-w-3xl min-w-0 ${isSelf ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}
               id={`message-bubble-${msg.id}`}
             >
 
@@ -330,7 +330,7 @@ export default function ChatArea({
               </button>
 
               {/* Chat Bubble Body Container */}
-              <div className="space-y-1 max-w-[85%]">
+              <div className="space-y-1 max-w-[85%] min-w-0">
 
                 {/* Header Profile Title */}
                 <div className={`flex items-center gap-2 text-[11px] ${isSelf ? 'justify-end' : 'justify-start'}`}>
