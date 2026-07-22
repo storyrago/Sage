@@ -21,7 +21,7 @@ public class PresenceRedisSubscriber implements MessageListener {
     public void onMessage(Message message, byte[] pattern) {
         try {
             PresenceResponse presence = objectMapper.readValue(message.getBody(), PresenceResponse.class);
-            messagingTemplate.convertAndSend("/sub/presence", presence);
+            messagingTemplate.convertAndSend("/sub/chatrooms/" + presence.getRoomId() + "/presence", presence);
         } catch (Exception e) {
             log.error("Redis presence 역직렬화 실패", e);
         }
