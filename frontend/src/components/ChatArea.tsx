@@ -184,7 +184,7 @@ export default function ChatArea({
 
   return (
     <div
-      className="flex-1 h-full flex flex-col bg-bg font-sans relative"
+      className="flex-1 min-w-0 h-full flex flex-col bg-bg font-sans relative"
       onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
       onDragLeave={(e) => { if (e.currentTarget === e.target) setDragging(false); }}
       onDrop={(e) => {
@@ -338,7 +338,7 @@ export default function ChatArea({
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-3 md:px-6 py-4 space-y-4 relative"
+        className="flex-1 overflow-y-auto overflow-x-clip px-3 md:px-6 py-4 space-y-4 relative"
       >
 
         {/* Topic Welcome Banner */}
@@ -393,7 +393,7 @@ export default function ChatArea({
                 )}
 
                 {/* Actual Message Text Block */}
-                <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words whitespace-pre-wrap ${
+                <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap ${
                   isSelf
                     ? 'bg-accent border border-accent text-accent-fg rounded-tr-none'
                     : 'bg-bubble-other border border-border text-text rounded-tl-none'
@@ -461,7 +461,7 @@ export default function ChatArea({
       </AnimatePresence>
 
       {/* LIVE CHAT MESSAGES TYPING STATUS BAR */}
-      <div className="h-5 px-6 pb-2 text-xs font-medium text-accent-text flex items-center gap-1.5 select-none font-sans">
+      <div className="h-5 px-4 md:px-6 pb-2 text-xs font-medium text-accent-text flex items-center gap-1.5 select-none font-sans">
         <AnimatePresence>
           {typingUsers.length > 0 && (
             <motion.div
@@ -532,7 +532,7 @@ export default function ChatArea({
           <div className="flex-1 bg-surface-2 border border-border focus-within:border-accent rounded-2xl flex items-center px-4 py-3 transition-colors">
             <input
               type="text"
-              placeholder="메시지를 입력하세요... (이미지 공유를 원하시면 URL 웹 경로를 입력해 주세요 🖼️)"
+              placeholder="메시지를 입력하세요"
               value={inputText}
               onChange={handleInputChange}
               className="bg-transparent flex-1 text-text text-sm outline-none placeholder-text-faint w-full"
