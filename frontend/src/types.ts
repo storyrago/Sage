@@ -16,6 +16,8 @@ export interface Message {
   createdAt: number; // unix epoch ms
   replyToId?: string; // 답장 대상 메시지 ID
   imageUrl?: string; // 업로드된 이미지 URL
+  edited?: boolean; // 수정됨 표시
+  deleted?: boolean; // 소프트 삭제
 }
 
 export interface Channel {

@@ -38,6 +38,12 @@ public class Message {
     @JoinColumn(name = "reply_to_id")
     private Message replyTo;
 
+    @Column(name = "edited_at")
+    private LocalDateTime editedAt;
+
+    @Column(nullable = false)
+    private boolean deleted = false;
+
     public Message(String content, String imageUrl, Member member, ChatRoom chatRoom) {
         this(content, imageUrl, member, chatRoom, null);
     }
@@ -56,5 +62,16 @@ public class Message {
         // 동기화
         member.getMessages().add(this);
         chatRoom.getMessages().add(this);
+    }
+
+    public void edit(String content) {
+        this.content = content;
+        this.editedAt = LocalDateTime.now();
+    }
+
+    public void softDelete() {
+        this.deleted = true;
+        this.content = "";
+        this.imageUrl = null;
     }
 }
