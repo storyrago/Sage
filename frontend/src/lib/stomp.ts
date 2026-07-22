@@ -107,12 +107,12 @@ export class SpringStompClient {
     });
   }
 
-  send(chatroomId: string, content: string) {
+  send(chatroomId: string, content: string, replyToId?: string) {
     if (!this.connected) return false;
     this.write('SEND', {
       destination: `/pub/chatrooms/${chatroomId}/messages`,
       'content-type': 'application/json',
-    }, JSON.stringify({ content }));
+    }, JSON.stringify({ content, replyToId: replyToId ? Number(replyToId) : null }));
     return true;
   }
 

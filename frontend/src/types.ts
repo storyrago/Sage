@@ -14,6 +14,7 @@ export interface Message {
   userName: string;
   userAvatar: string;
   createdAt: number; // unix epoch ms
+  replyToId?: string; // 답장 대상 메시지 ID
 }
 
 export interface Channel {

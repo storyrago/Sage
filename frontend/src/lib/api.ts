@@ -33,6 +33,7 @@ export interface BackendMessage {
   nickname: string;
   chatroomId: number;
   createdAt?: string;
+  replyToId?: number | null;
 }
 
 interface LoginResponse {
@@ -117,10 +118,10 @@ export async function getMessages(token: string, chatroomId: string) {
   return request<BackendMessage[]>(`/api/chatrooms/${chatroomId}/messages`, {}, token);
 }
 
-export async function sendMessage(token: string, chatroomId: string, content: string) {
+export async function sendMessage(token: string, chatroomId: string, content: string, replyToId?: string) {
   return request<BackendMessage>(`/api/chatrooms/${chatroomId}/messages`, {
     method: 'POST',
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ content, replyToId: replyToId ? Number(replyToId) : null }),
   }, token);
 }
 
@@ -198,5 +199,6 @@ export function toMessage(message: BackendMessage): Message {
     userName: message.nickname,
     userAvatar: avatarForId(message.memberId),
     createdAt: message.createdAt ? Date.parse(message.createdAt) : Date.now(),
+    replyToId: message.replyToId != null ? String(message.replyToId) : undefined,
   };
 }
