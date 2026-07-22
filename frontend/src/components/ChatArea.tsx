@@ -532,7 +532,7 @@ export default function ChatArea({
           <div className="flex-1 bg-surface-2 border border-border focus-within:border-accent rounded-2xl flex items-center px-4 py-3 transition-colors">
             <input
               type="text"
-              placeholder="메시지를 입력하세요..."
+              placeholder="메시지를 입력하세요"
               value={inputText}
               onChange={handleInputChange}
               className="bg-transparent flex-1 text-text text-sm outline-none placeholder-text-faint w-full"
