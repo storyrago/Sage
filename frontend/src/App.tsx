@@ -239,12 +239,12 @@ export default function App() {
     setPresences([]);
   }, [user, selectedChannelId]);
 
-  const handleSendMessage = async (text: string) => {
+  const handleSendMessage = async (text: string, replyToId?: string) => {
     if (!token || !selectedChannelId) return;
 
-    const sentOverStomp = stompRef.current?.send(selectedChannelId, text) ?? false;
+    const sentOverStomp = stompRef.current?.send(selectedChannelId, text, replyToId) ?? false;
     if (!sentOverStomp) {
-      const saved = await sendMessage(token, selectedChannelId, text);
+      const saved = await sendMessage(token, selectedChannelId, text, replyToId);
       const nextMessage = toMessage(saved);
       setMessages((prev) => [...prev, nextMessage]);
     }
