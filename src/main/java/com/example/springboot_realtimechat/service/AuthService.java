@@ -17,19 +17,19 @@ public class AuthService {
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final LoginRateLimiter loginRateLimiter;
 
-    public LoginResponse login(LoginRequest loginRequest){
-        Member member = memberRepository.findByEmail(loginRequest.getEmail())
-                .orElseThrow(()-> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
-        if(!passwordEncoder.matches(loginRequest.getPassword(), member.getPassword())){
-            throw new CustomException(ErrorCode.INVALID_PASSWORD);
+    public LoginResponse login(LoginRequest loginRequest, String clientIp){
+        if (loginRateLimiter.isBlocked(clientIp)) {
+            throw new CustomException(ErrorCode.TOO_MANY_LOGIN_ATTEMPTS);
         }
-
-        String accessToken = jwtTokenProvider.createAccessToken(
-                member.getId(),
-                member.getEmail()
-        );
-
+        Member member = memberRepository.findByEmail(loginRequest.getEmail()).orElse(null);
+        if (member == null || !passwordEncoder.matches(loginRequest.getPassword(), member.getPassword())) {
+            loginRateLimiter.recordFailure(clientIp);
+            throw new CustomException(member == null ? ErrorCode.MEMBER_NOT_FOUND : ErrorCode.INVALID_PASSWORD);
+        }
+        loginRateLimiter.reset(clientIp);
+        String accessToken = jwtTokenProvider.createAccessToken(member.getId(), member.getEmail());
         return new LoginResponse(accessToken);
     }
 }
