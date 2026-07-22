@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, FormEvent, ChangeEvent } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, FormEvent, ChangeEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Channel, Message, Presence, User } from '../types';
 import Avatar from './Avatar';
@@ -25,6 +25,9 @@ interface ChatAreaProps {
   onToggleTheme: () => void;
   onOpenSettings: () => void;
   onGoHome: () => void;
+  onLoadOlder?: () => void;
+  hasMoreOlder?: boolean;
+  loadingOlder?: boolean;
 }
 
 export default function ChatArea({
@@ -41,7 +44,10 @@ export default function ChatArea({
   theme,
   onToggleTheme,
   onOpenSettings,
-  onGoHome
+  onGoHome,
+  onLoadOlder,
+  hasMoreOlder,
+  loadingOlder
 }: ChatAreaProps) {
   const [inputText, setInputText] = useState('');
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
@@ -56,6 +62,8 @@ export default function ChatArea({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const scrolledChannelRef = useRef<string>('');   // 이 채널에 초기 스크롤(맨아래) 했는지
+  const prevScrollHeightRef = useRef(0);
+  const pendingPrependRef = useRef(false);
 
   // Filter messages for current channel only
   const channelMessages = messages.filter(m => m.channelId === channel.id);
@@ -84,6 +92,19 @@ export default function ChatArea({
     // Show scroll of bottom button if user has scrolled up significantly
     const isAtBottom = scrollHeight - scrollTop - clientHeight < 150;
     setShowScrollBottomBtn(!isAtBottom);
+
+    // 상단 근처 → 이전 페이지 로드 (초기 하단 스크롤 완료 후에만 트리거)
+    if (
+      scrollTop < 80 &&
+      hasMoreOlder &&
+      !loadingOlder &&
+      onLoadOlder &&
+      scrolledChannelRef.current === channel.id
+    ) {
+      prevScrollHeightRef.current = scrollHeight;
+      pendingPrependRef.current = true;
+      onLoadOlder();
+    }
   };
 
   // 채널 전환 시 입력/모달 상태 초기화 (스크롤은 아래 통합 이펙트가 처리)
@@ -108,6 +129,16 @@ export default function ChatArea({
       }
     }
   }, [channel.id, channelMessages.length]);
+
+  // 이전 메시지 prepend 시 스크롤 위치 보존 (콘텐츠가 위로 늘어 점프하는 것 방지)
+  useLayoutEffect(() => {
+    const el = scrollContainerRef.current;
+    if (pendingPrependRef.current && el) {
+      const delta = el.scrollHeight - prevScrollHeightRef.current;
+      if (delta > 0) el.scrollTop += delta;
+      pendingPrependRef.current = false;
+    }
+  }, [channelMessages.length]);
 
   const openMembers = async () => {
     setShowMembers(true);
@@ -341,16 +372,22 @@ export default function ChatArea({
         className="flex-1 overflow-y-auto overflow-x-clip px-3 md:px-6 py-4 space-y-4 relative"
       >
 
+        {loadingOlder && (
+          <div className="py-3 text-center text-xs text-muted select-none">이전 메시지 불러오는 중…</div>
+        )}
+
         {/* Topic Welcome Banner */}
-        <div className="py-6 border-b border-border mb-4 flex flex-col items-center text-center">
-          <div className="w-12 h-12 rounded-2xl bg-accent-subtle border border-transparent text-accent-text flex items-center justify-center mb-3">
-            <MessageCircle className="w-6 h-6" />
+        {!hasMoreOlder && (
+          <div className="py-6 border-b border-border mb-4 flex flex-col items-center text-center">
+            <div className="w-12 h-12 rounded-2xl bg-accent-subtle border border-transparent text-accent-text flex items-center justify-center mb-3">
+              <MessageCircle className="w-6 h-6" />
+            </div>
+            <h3 className="text-md font-bold text-text">#{channel.name} 채널의 비행이 시작되었습니다!</h3>
+            <p className="text-xs text-muted mt-1 max-w-sm">
+              {channel.description} 이공간에 참여자들과 유쾌한 대화를 시작해 보세요.
+            </p>
           </div>
-          <h3 className="text-md font-bold text-text">#{channel.name} 채널의 비행이 시작되었습니다!</h3>
-          <p className="text-xs text-muted mt-1 max-w-sm">
-            {channel.description} 이공간에 참여자들과 유쾌한 대화를 시작해 보세요.
-          </p>
-        </div>
+        )}
 
         {channelMessages.map((msg) => {
           const isSelf = msg.userId === currentUser.id;
