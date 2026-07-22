@@ -19,6 +19,7 @@ public enum ErrorCode {
     // Message
     MESSAGE_NOT_FOUND(404, "해당 메시지를 찾을 수 없습니다."),
     NOT_MESSAGE_OWNER(403, "해당 메시지에 대한 권한이 없습니다."),
+    EMPTY_MESSAGE(400, "내용 또는 이미지가 필요합니다."),
 
     // Global
     INVALID_INPUT_VALUE(400, "잘못된 입력값입니다."),

@@ -24,6 +24,10 @@ public class MessageService {
 
     @Transactional
     public Message create(String content, String imageUrl, Long memberId, Long chatroomId, Long replyToId){
+        if ((content == null || content.isBlank()) && (imageUrl == null || imageUrl.isBlank())) {
+            throw new CustomException(ErrorCode.EMPTY_MESSAGE);
+        }
+
         Member member = memberService.getMemberById(memberId);
         ChatRoom chatRoom = chatRoomService.getChatRoomById(chatroomId);
 
