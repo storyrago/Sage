@@ -248,12 +248,12 @@ export default function App() {
     }
   }, [selectedChannelId]);
 
-  const handleSendMessage = async (text: string, replyToId?: string) => {
+  const handleSendMessage = async (text: string, replyToId?: string, imageUrl?: string) => {
     if (!token || !selectedChannelId) return;
 
-    const sentOverStomp = stompRef.current?.send(selectedChannelId, text, replyToId) ?? false;
+    const sentOverStomp = stompRef.current?.send(selectedChannelId, text, replyToId, imageUrl) ?? false;
     if (!sentOverStomp) {
-      const saved = await sendMessage(token, selectedChannelId, text, replyToId);
+      const saved = await sendMessage(token, selectedChannelId, text, replyToId, imageUrl);
       const nextMessage = toMessage(saved);
       setMessages((prev) => [...prev, nextMessage]);
     }
@@ -350,6 +350,7 @@ export default function App() {
               currentUser={user}
               token={token ?? ''}
               onSendMessage={handleSendMessage}
+              onSendImage={(url) => handleSendMessage('', undefined, url)}
               onTypeStateChange={handleTypeStateChange}
               onOpenProfile={(id) => setProfileMemberId(id)}
               onlineMemberIds={onlineMemberIds}
