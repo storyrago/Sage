@@ -17,43 +17,63 @@ import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
 class PresenceRegistryTest {
 
-    private static final String KEY = "presence:sessions";
-
     @Mock StringRedisTemplate redis;
     @Mock HashOperations<String, Object, Object> hashOps;
     @InjectMocks PresenceRegistry registry;
 
     @Test
-    void 접속하면_해시에_세션과_멤버를_저장한다() {
+    void 방_온라인은_해시값_distinct_Long이다() {
         given(redis.opsForHash()).willReturn(hashOps);
+        given(hashOps.values("presence:room:5")).willReturn(List.of("10", "10", "20"));
 
-        registry.connect("session-1", 10L);
-
-        verify(hashOps).put(KEY, "session-1", "10");
+        assertThat(registry.getRoomOnlineMemberIds(5L)).containsExactlyInAnyOrder(10L, 20L);
     }
 
     @Test
-    void 온라인_목록은_해시_값들의_distinct_Long_집합이다() {
+    void 처음_입장하면_이전방_없음_empty() {
         given(redis.opsForHash()).willReturn(hashOps);
-        given(hashOps.values(KEY)).willReturn(List.of("10", "10", "20"));
+        given(hashOps.get("presence:session", "s1")).willReturn(null);
 
-        assertThat(registry.getOnlineMemberIds()).containsExactlyInAnyOrder(10L, 20L);
+        assertThat(registry.enterRoom("s1", 5L, "sub-1", 10L)).isEmpty();
+        verify(hashOps).put("presence:room:5", "s1", "10");
+        verify(hashOps).put("presence:session", "s1", "5|sub-1|10");
     }
 
     @Test
-    void 끊기면_해당_세션을_삭제하고_memberId를_반환한다() {
+    void 다른방으로_전환하면_이전방에서_제거하고_이전방id반환() {
         given(redis.opsForHash()).willReturn(hashOps);
-        given(hashOps.get(KEY, "session-1")).willReturn("10");
+        given(hashOps.get("presence:session", "s1")).willReturn("5|sub-1|10");
 
-        assertThat(registry.disconnect("session-1")).contains(10L);
-        verify(hashOps).delete(KEY, "session-1");
+        assertThat(registry.enterRoom("s1", 7L, "sub-2", 10L)).contains(5L);
+        verify(hashOps).delete("presence:room:5", "s1");
+        verify(hashOps).put("presence:room:7", "s1", "10");
     }
 
     @Test
-    void 모르는_세션을_끊으면_empty를_반환한다() {
+    void 현재_채팅subId면_방에서_나가고_방id반환() {
         given(redis.opsForHash()).willReturn(hashOps);
-        given(hashOps.get(KEY, "nope")).willReturn(null);
+        given(hashOps.get("presence:session", "s1")).willReturn("5|sub-1|10");
 
-        assertThat(registry.disconnect("nope")).isEmpty();
+        assertThat(registry.leaveBySubscription("s1", "sub-1")).contains(5L);
+        verify(hashOps).delete("presence:room:5", "s1");
+        verify(hashOps).delete("presence:session", "s1");
+    }
+
+    @Test
+    void 다른_subId_해제는_무시() {
+        given(redis.opsForHash()).willReturn(hashOps);
+        given(hashOps.get("presence:session", "s1")).willReturn("5|sub-1|10");
+
+        assertThat(registry.leaveBySubscription("s1", "sub-typing")).isEmpty();
+    }
+
+    @Test
+    void 접속종료시_현재방에서_제거() {
+        given(redis.opsForHash()).willReturn(hashOps);
+        given(hashOps.get("presence:session", "s1")).willReturn("5|sub-1|10");
+
+        assertThat(registry.disconnect("s1")).contains(5L);
+        verify(hashOps).delete("presence:room:5", "s1");
+        verify(hashOps).delete("presence:session", "s1");
     }
 }

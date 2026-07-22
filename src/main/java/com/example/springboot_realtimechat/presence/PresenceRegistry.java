@@ -12,23 +12,61 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PresenceRegistry {
 
-    private static final String KEY = "presence:sessions";
+    private static final String SESSION_KEY = "presence:session";  // sessionId -> "roomId|subId|memberId"
 
     private final StringRedisTemplate redis;
 
-    public void connect(String sessionId, Long memberId) {
-        redis.opsForHash().put(KEY, sessionId, String.valueOf(memberId));
+    private static String roomKey(Long roomId) {
+        return "presence:room:" + roomId;
     }
 
+    /** 입장/전환. 이전 방이 있고 다르면 그 방에서 제거하고 그 방 id 반환(방송용). */
+    public Optional<Long> enterRoom(String sessionId, Long roomId, String subId, Long memberId) {
+        Long previousRoom = null;
+        Object prev = redis.opsForHash().get(SESSION_KEY, sessionId);
+        if (prev != null) {
+            Long oldRoom = parseRoom(prev.toString());
+            if (oldRoom != null && !oldRoom.equals(roomId)) {
+                redis.opsForHash().delete(roomKey(oldRoom), sessionId);
+                previousRoom = oldRoom;
+            }
+        }
+        redis.opsForHash().put(roomKey(roomId), sessionId, String.valueOf(memberId));
+        redis.opsForHash().put(SESSION_KEY, sessionId, roomId + "|" + subId + "|" + memberId);
+        return Optional.ofNullable(previousRoom);
+    }
+
+    /** 지정 subId가 세션의 현재 채팅 구독이면 방에서 나감. 나간 방 id 반환. */
+    public Optional<Long> leaveBySubscription(String sessionId, String subId) {
+        Object cur = redis.opsForHash().get(SESSION_KEY, sessionId);
+        if (cur == null) return Optional.empty();
+        String[] parts = cur.toString().split("\\|");
+        if (parts.length < 2 || !parts[1].equals(subId)) return Optional.empty();
+        Long roomId = Long.valueOf(parts[0]);
+        redis.opsForHash().delete(roomKey(roomId), sessionId);
+        redis.opsForHash().delete(SESSION_KEY, sessionId);
+        return Optional.of(roomId);
+    }
+
+    /** 접속 종료 → 현재 방에서 제거. 나간 방 id 반환. */
     public Optional<Long> disconnect(String sessionId) {
-        Object previous = redis.opsForHash().get(KEY, sessionId);
-        redis.opsForHash().delete(KEY, sessionId);
-        return previous == null ? Optional.empty() : Optional.of(Long.valueOf(previous.toString()));
+        Object cur = redis.opsForHash().get(SESSION_KEY, sessionId);
+        if (cur == null) return Optional.empty();
+        redis.opsForHash().delete(SESSION_KEY, sessionId);
+        Long roomId = parseRoom(cur.toString());
+        if (roomId == null) return Optional.empty();
+        redis.opsForHash().delete(roomKey(roomId), sessionId);
+        return Optional.of(roomId);
     }
 
-    public Set<Long> getOnlineMemberIds() {
-        return redis.opsForHash().values(KEY).stream()
-                .map(value -> Long.valueOf(value.toString()))
+    public Set<Long> getRoomOnlineMemberIds(Long roomId) {
+        return redis.opsForHash().values(roomKey(roomId)).stream()
+                .map(v -> Long.valueOf(v.toString()))
                 .collect(Collectors.toSet());
+    }
+
+    private Long parseRoom(String state) {
+        String[] parts = state.split("\\|");
+        return parts.length > 0 ? Long.valueOf(parts[0]) : null;
     }
 }
