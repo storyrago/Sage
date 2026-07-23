@@ -59,9 +59,10 @@ interface Props {
   onSelectChannel: (id: string) => void;
   onCreateChannel: (name: string) => Promise<void>;
   onLogout: () => void;
+  unread?: Record<string, number>;
 }
 
-export default function ChannelLanding({ channels, onSelectChannel, onCreateChannel, onLogout }: Props) {
+export default function ChannelLanding({ channels, onSelectChannel, onCreateChannel, onLogout, unread }: Props) {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);

@@ -30,6 +30,7 @@ interface ChatAreaProps {
   loadingOlder?: boolean;
   onEditMessage?: (messageId: string, content: string) => void;
   onDeleteMessage?: (messageId: string) => void;
+  unreadFromId?: number | null;
 }
 
 export default function ChatArea({
@@ -51,7 +52,8 @@ export default function ChatArea({
   hasMoreOlder,
   loadingOlder,
   onEditMessage,
-  onDeleteMessage
+  onDeleteMessage,
+  unreadFromId
 }: ChatAreaProps) {
   const [inputText, setInputText] = useState('');
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
