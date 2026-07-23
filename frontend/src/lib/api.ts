@@ -134,6 +134,20 @@ export async function getMessages(
   return request<PagedMessages>(`/api/chatrooms/${chatroomId}/messages?${params.toString()}`, {}, token);
 }
 
+export interface UnreadCount {
+  chatroomId: number;
+  unreadCount: number;
+  lastReadMessageId: number | null;
+}
+
+export async function getUnreadCounts(token: string): Promise<UnreadCount[]> {
+  return request<UnreadCount[]>('/api/chatrooms/unread', {}, token);
+}
+
+export async function markRoomRead(token: string, chatroomId: string): Promise<void> {
+  return request<void>(`/api/chatrooms/${chatroomId}/read`, { method: 'POST' }, token);
+}
+
 export async function sendMessage(token: string, chatroomId: string, content: string, replyToId?: string, imageUrl?: string) {
   return request<BackendMessage>(`/api/chatrooms/${chatroomId}/messages`, {
     method: 'POST',
