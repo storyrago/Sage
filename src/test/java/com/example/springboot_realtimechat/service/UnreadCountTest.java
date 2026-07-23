@@ -54,4 +54,33 @@ public class UnreadCountTest {
         var forRoom = counts.stream().filter(c -> c.getChatroomId().equals(room.getId())).findFirst().orElseThrow();
         assertThat(forRoom.getUnreadCount()).isEqualTo(5L);  // b0~b4
     }
+
+    @Test
+    void 안읽음은_lastRead_이후만_세고_0인방도_결과에_포함() {
+        Member a = memberService.create("za@e.com", "1234", "za");
+        Member b = memberService.create("zb@e.com", "1234", "zb");
+
+        // room1: b joins empty, sends 2 "old", THEN a joins (a.lastRead = old2.id, non-null),
+        // then b sends 2 "new" → a's unread in room1 must be exactly 2 (id > lastRead branch).
+        ChatRoom room1 = chatRoomService.create("r1");
+        chatRoomMemberService.join(b.getId(), room1.getId());
+        messageService.create("old1", null, b.getId(), room1.getId(), null);
+        messageService.create("old2", null, b.getId(), room1.getId(), null);
+        chatRoomMemberService.join(a.getId(), room1.getId());            // a.lastRead = old2.id
+        messageService.create("new1", null, b.getId(), room1.getId(), null);
+        messageService.create("new2", null, b.getId(), room1.getId(), null);
+
+        // room2: a message exists, then a joins (a.lastRead = that msg id), no newer → unread 0,
+        // but room2 must still appear in the result with count 0 (LEFT JOIN / COUNT(m)=0, not 1).
+        ChatRoom room2 = chatRoomService.create("r2");
+        chatRoomMemberService.join(b.getId(), room2.getId());
+        messageService.create("r2m1", null, b.getId(), room2.getId(), null);
+        chatRoomMemberService.join(a.getId(), room2.getId());           // a.lastRead = r2m1.id
+
+        var counts = chatRoomMemberService.getUnreadCounts(a.getId());
+        var c1 = counts.stream().filter(c -> c.getChatroomId().equals(room1.getId())).findFirst().orElseThrow();
+        assertThat(c1.getUnreadCount()).isEqualTo(2L);   // only new1,new2 (id > lastRead)
+        var c2 = counts.stream().filter(c -> c.getChatroomId().equals(room2.getId())).findFirst().orElseThrow();
+        assertThat(c2.getUnreadCount()).isEqualTo(0L);   // 0-unread room present with count 0
+    }
 }
