@@ -83,4 +83,20 @@ public class UnreadCountTest {
         var c2 = counts.stream().filter(c -> c.getChatroomId().equals(room2.getId())).findFirst().orElseThrow();
         assertThat(c2.getUnreadCount()).isEqualTo(0L);   // 0-unread room present with count 0
     }
+
+    @Test
+    void 읽음처리하면_안읽음_0() {
+        Member a = memberService.create("ra@e.com", "1234", "ra");
+        Member b = memberService.create("rb@e.com", "1234", "rb");
+        ChatRoom room = chatRoomService.create("room");
+        chatRoomMemberService.join(a.getId(), room.getId());
+        chatRoomMemberService.join(b.getId(), room.getId());
+        for (int i = 0; i < 3; i++) messageService.create("b" + i, null, b.getId(), room.getId(), null);
+
+        chatRoomMemberService.markRead(a.getId(), room.getId());
+
+        var counts = chatRoomMemberService.getUnreadCounts(a.getId());
+        var forRoom = counts.stream().filter(c -> c.getChatroomId().equals(room.getId())).findFirst().orElseThrow();
+        assertThat(forRoom.getUnreadCount()).isEqualTo(0L);
+    }
 }

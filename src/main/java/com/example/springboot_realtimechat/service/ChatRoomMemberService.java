@@ -71,4 +71,13 @@ public class ChatRoomMemberService {
                 .map(p -> new UnreadCountResponse(p.getChatroomId(), p.getUnreadCount(), p.getLastReadMessageId()))
                 .toList();
     }
+
+    @Transactional
+    public void markRead(Long memberId, Long chatRoomId) {
+        Member member = memberService.getMemberById(memberId);
+        ChatRoom chatRoom = chatRoomService.getChatRoomById(chatRoomId);
+        ChatRoomMember cm = chatRoomMemberRepository.findByMemberAndChatRoom(member, chatRoom)
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_JOINED_ROOM));
+        cm.updateLastRead(messageRepository.findMaxIdByChatRoom(chatRoom));
+    }
 }

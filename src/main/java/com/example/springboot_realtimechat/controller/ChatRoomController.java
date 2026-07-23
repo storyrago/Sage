@@ -9,6 +9,7 @@ import com.example.springboot_realtimechat.service.ChatRoomMemberService;
 import com.example.springboot_realtimechat.service.ChatRoomService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,6 +31,12 @@ public class ChatRoomController {
     @GetMapping("/unread")
     public List<UnreadCountResponse> getUnreadCounts(@AuthenticationPrincipal CustomUserDetails user) {
         return chatRoomMemberService.getUnreadCounts(user.getMemberId());
+    }
+
+    @PostMapping("/{id}/read")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void markRead(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails user) {
+        chatRoomMemberService.markRead(user.getMemberId(), id);
     }
 
     @GetMapping("/{id}")
