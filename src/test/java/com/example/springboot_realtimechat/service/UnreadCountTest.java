@@ -3,6 +3,8 @@ package com.example.springboot_realtimechat.service;
 import com.example.springboot_realtimechat.domain.ChatRoom;
 import com.example.springboot_realtimechat.domain.ChatRoomMember;
 import com.example.springboot_realtimechat.domain.Member;
+import com.example.springboot_realtimechat.global.exception.CustomException;
+import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.repository.ChatRoomMemberRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,6 +12,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 @Transactional
@@ -98,5 +101,18 @@ public class UnreadCountTest {
         var counts = chatRoomMemberService.getUnreadCounts(a.getId());
         var forRoom = counts.stream().filter(c -> c.getChatroomId().equals(room.getId())).findFirst().orElseThrow();
         assertThat(forRoom.getUnreadCount()).isEqualTo(0L);
+    }
+
+    @Test
+    void 미참여자_markRead는_NOT_JOINED_ROOM() {
+        Member a = memberService.create("mja@e.com", "1234", "mja");
+        Member outsider = memberService.create("outsider2@e.com", "1234", "outsider2");
+        ChatRoom room = chatRoomService.create("room");
+        chatRoomMemberService.join(a.getId(), room.getId());
+
+        assertThatThrownBy(() -> chatRoomMemberService.markRead(outsider.getId(), room.getId()))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.NOT_JOINED_ROOM);
     }
 }
