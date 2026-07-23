@@ -3,6 +3,7 @@ package com.example.springboot_realtimechat.service;
 import com.example.springboot_realtimechat.domain.ChatRoom;
 import com.example.springboot_realtimechat.domain.ChatRoomMember;
 import com.example.springboot_realtimechat.domain.Member;
+import com.example.springboot_realtimechat.dto.UnreadCountResponse;
 import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.repository.ChatRoomMemberRepository;
@@ -63,5 +64,11 @@ public class ChatRoomMemberService {
         ChatRoom chatRoom = chatRoomService.getChatRoomById(chatRoomId);
 
         return chatRoomMemberRepository.findByChatRoom(chatRoom);
+    }
+
+    public List<UnreadCountResponse> getUnreadCounts(Long memberId) {
+        return chatRoomMemberRepository.findUnreadCountsByMemberId(memberId).stream()
+                .map(p -> new UnreadCountResponse(p.getChatroomId(), p.getUnreadCount(), p.getLastReadMessageId()))
+                .toList();
     }
 }

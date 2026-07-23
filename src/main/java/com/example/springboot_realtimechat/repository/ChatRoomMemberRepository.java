@@ -19,4 +19,19 @@ public interface ChatRoomMemberRepository extends JpaRepository<ChatRoomMember, 
     List<ChatRoomMember> findByChatRoom(@Param("room") ChatRoom room);
 
     void deleteByMember(Member member);
+
+    @Query("""
+        SELECT cm.chatRoom.id AS chatroomId,
+               cm.lastReadMessageId AS lastReadMessageId,
+               COUNT(m) AS unreadCount
+        FROM ChatRoomMember cm
+        LEFT JOIN Message m
+            ON m.chatRoom = cm.chatRoom
+           AND m.member <> cm.member
+           AND m.deleted = false
+           AND (cm.lastReadMessageId IS NULL OR m.id > cm.lastReadMessageId)
+        WHERE cm.member.id = :memberId
+        GROUP BY cm.chatRoom.id, cm.lastReadMessageId
+    """)
+    List<UnreadCountProjection> findUnreadCountsByMemberId(@Param("memberId") Long memberId);
 }
