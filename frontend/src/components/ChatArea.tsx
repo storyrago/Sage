@@ -130,7 +130,14 @@ export default function ChatArea({
     const el = scrollContainerRef.current;
     if (!el) return;
     if (scrolledChannelRef.current !== channel.id) {
-      scrollToBottom('auto');                                      // 입장/전환 → 맨 아래
+      const firstUnread = unreadFromId != null
+        ? channelMessages.find((m) => Number(m.id) > unreadFromId)
+        : undefined;
+      if (firstUnread) {
+        document.getElementById(`message-bubble-${firstUnread.id}`)?.scrollIntoView({ block: 'start' });
+      } else {
+        scrollToBottom('auto');                                    // 안읽음 없음 → 맨 아래
+      }
       if (channelMessages.length > 0) scrolledChannelRef.current = channel.id;  // 메시지 로드 완료 표시
     } else {
       const { scrollTop, scrollHeight, clientHeight } = el;
@@ -403,14 +410,25 @@ export default function ChatArea({
           </div>
         )}
 
-        {channelMessages.map((msg) => {
+        {channelMessages.map((msg, i) => {
           const isSelf = msg.userId === currentUser.id;
           const imageUrl = getEmbeddedImageUrl(msg.text);
           const parentMsg = msg.replyToId ? messages.find(m => m.id === msg.replyToId) : null;
+          const isFirstUnread =
+            unreadFromId != null &&
+            Number(msg.id) > unreadFromId &&
+            (i === 0 || Number(channelMessages[i - 1].id) <= unreadFromId);
 
           return (
-            <motion.div
-              key={msg.id}
+            <div key={msg.id}>
+              {isFirstUnread && (
+                <div className="flex items-center gap-2 my-3 select-none">
+                  <div className="flex-1 h-px bg-rose-300" />
+                  <span className="text-[11px] font-bold text-rose-500">여기부터 안 읽음</span>
+                  <div className="flex-1 h-px bg-rose-300" />
+                </div>
+              )}
+              <motion.div
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
@@ -516,7 +534,8 @@ export default function ChatArea({
                   )}
                 </div>
               )}
-            </motion.div>
+              </motion.div>
+            </div>
           );
         })}
 
