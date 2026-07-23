@@ -59,6 +59,7 @@ export default function ChatArea({
   const [showMembers, setShowMembers] = useState(false);
   const [replyMessage, setReplyMessage] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+  const [deletingMessage, setDeletingMessage] = useState<Message | null>(null);
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -119,6 +120,7 @@ export default function ChatArea({
     setParticipants(null);
     setReplyMessage(null);
     setEditingMessage(null);
+    setDeletingMessage(null);
   }, [channel.id]);
 
   // 스크롤: 방 입장/전환 시 무조건 맨 아래로, 같은 방 새 메시지는 근처에 있을 때만 따라감
@@ -502,7 +504,7 @@ export default function ChatArea({
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
                       <button
-                        onClick={() => { if (window.confirm('이 메시지를 삭제할까요?')) onDeleteMessage?.(msg.id); }}
+                        onClick={() => setDeletingMessage(msg)}
                         className="p-1.5 text-muted hover:text-rose-500 rounded-lg cursor-pointer hover:bg-surface-2"
                         title="삭제"
                       >
@@ -651,6 +653,36 @@ export default function ChatArea({
           </button>
         </form>
       </div>
+
+      {/* 삭제 확인 모달 (앱 테마) — 다른 모달들과 동일하게 조건부 마운트 */}
+      {deletingMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/55 backdrop-blur-[3px]" onClick={() => setDeletingMessage(null)} />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.15 }}
+            className="relative w-full max-w-[320px] bg-surface border border-border rounded-3xl p-5 shadow-2xl"
+          >
+            <h3 className="text-[15px] font-bold text-text">메시지 삭제</h3>
+            <p className="text-[13px] text-muted mt-1.5 leading-relaxed">이 메시지를 삭제할까요?</p>
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => setDeletingMessage(null)}
+                className="flex-1 rounded-xl py-2.5 text-[13px] font-bold border border-border text-text hover:bg-surface-2 transition-colors cursor-pointer"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => { onDeleteMessage?.(deletingMessage.id); setDeletingMessage(null); }}
+                className="flex-1 rounded-xl py-2.5 text-[13px] font-bold bg-rose-500 hover:bg-rose-600 text-white transition-colors cursor-pointer"
+              >
+                삭제
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
