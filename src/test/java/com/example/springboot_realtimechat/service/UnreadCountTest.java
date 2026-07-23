@@ -115,4 +115,17 @@ public class UnreadCountTest {
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.NOT_JOINED_ROOM);
     }
+
+    @Test
+    void 방_멤버_조회_email_접근가능() {
+        Member a = memberService.create("ma@e.com", "1234", "ma");
+        Member b = memberService.create("mb@e.com", "1234", "mb");
+        ChatRoom room = chatRoomService.create("room");
+        chatRoomMemberService.join(a.getId(), room.getId());
+        chatRoomMemberService.join(b.getId(), room.getId());
+
+        var members = chatRoomMemberRepository.findMembersByChatRoomId(room.getId());
+        assertThat(members).extracting(Member::getEmail)
+                .containsExactlyInAnyOrder("ma@e.com", "mb@e.com");
+    }
 }

@@ -34,4 +34,7 @@ public interface ChatRoomMemberRepository extends JpaRepository<ChatRoomMember, 
         GROUP BY cm.chatRoom.id, cm.lastReadMessageId
     """)
     List<UnreadCountProjection> findUnreadCountsByMemberId(@Param("memberId") Long memberId);
+
+    @Query("SELECT m FROM ChatRoomMember cm JOIN cm.member m WHERE cm.chatRoom.id = :roomId")
+    List<Member> findMembersByChatRoomId(@Param("roomId") Long roomId);
 }
