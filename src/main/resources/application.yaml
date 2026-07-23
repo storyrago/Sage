@@ -8,6 +8,10 @@ spring:
     name: springboot-realtimechat
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
+  flyway:
+    enabled: true
+    baseline-on-migrate: true   # 기존 스키마 DB는 baseline으로 편입(재실행 안 함)
+    baseline-version: 1
   servlet:
     multipart:
       max-file-size: 10MB
