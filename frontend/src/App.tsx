@@ -248,6 +248,10 @@ export default function App() {
           // 보는 중 도착한 메시지도 읽음 처리(스펙). 1초 스로틀 — 메시지마다 쓰기 금지.
           const roomId = String(backendMessage.chatroomId);
           if (roomId === selectedChannelRef.current && token) {
+            // 보는 중 도착 = 읽은 것. 다음 입장 때 낡은 구분선이 뜨지 않도록 로컬 경계도 전진시킨다.
+            // (현재 열려 있는 화면은 ChatArea가 입장 시점 스냅샷을 ref로 고정해두므로 영향 없음)
+            setRoomLastRead((prev) => ({ ...prev, [roomId]: Number(backendMessage.messageId) }));
+
             const now = Date.now();
             if (now - lastMarkReadAtRef.current >= 1000) {
               lastMarkReadAtRef.current = now;
