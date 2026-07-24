@@ -61,28 +61,25 @@ function Postmark({ count }: { count: number }) {
       viewBox="0 0 186 132"
       role="img"
       aria-label={`안 읽음 ${label}개`}
-      className="postmark-strike pointer-events-none absolute left-[9px] top-0 w-[123px] h-[87px] md:left-[12px] md:top-[1px] md:w-[168px] md:h-[119px]"
+      className="postmark-strike pointer-events-none absolute left-[9px] top-[13px] w-[123px] h-[87px] md:left-[12px] md:top-[18px] md:w-[168px] md:h-[119px]"
       style={{ transform: 'rotate(-13deg)', opacity: 0.92 }}
     >
       <g filter="url(#pm-rough)" fill="none" stroke="#C2402C" strokeLinecap="round">
-        <circle cx="56" cy="58" r="46" strokeWidth="3.2" />
-        <circle cx="56" cy="58" r="38" strokeWidth="1.3" />
+        <circle cx="56" cy="58" r="45" strokeWidth="3.4" />
+        <circle cx="56" cy="58" r="37" strokeWidth="1.2" />
         <g className="hidden md:inline">
-          <path d="M106,40 q8,-6 16,0 t16,0 t16,0 t16,0" strokeWidth="3.4" />
-          <path d="M106,50 q8,-6 16,0 t16,0 t16,0 t16,0" strokeWidth="3.4" />
-          <path d="M106,66 q8,-6 16,0 t16,0 t16,0 t16,0" strokeWidth="3.4" />
-          <path d="M106,76 q8,-6 16,0 t16,0 t16,0 t16,0" strokeWidth="3.4" />
+          <path d="M95,34 q9,-4 18,0 t18,0 t18,0 t18,0" strokeWidth="3.6" />
+          <path d="M100,45 q9,-4 18,0 t18,0 t18,0 t18,0" strokeWidth="3.6" />
+          <path d="M100,71 q9,-4 18,0 t18,0 t18,0 t18,0" strokeWidth="3.6" />
+          <path d="M95,82 q9,-4 18,0 t18,0 t18,0 t18,0" strokeWidth="3.6" />
         </g>
       </g>
       <g filter="url(#pm-rough)" fill="#C2402C">
-        <text textAnchor="middle" style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 8.4, letterSpacing: '0.16em', fontWeight: 500 }}>
-          <textPath href="#pm-arc" startOffset="50%">안 읽음</textPath>
-        </text>
         <text
           x="56"
-          y={wide ? 69 : 72}
+          y={wide ? 71 : 75}
           textAnchor="middle"
-          style={{ fontWeight: 800, fontSize: wide ? 29 : 40, letterSpacing: wide ? '-0.03em' : '-0.045em', fontVariantNumeric: 'tabular-nums' }}
+          style={{ fontWeight: 800, fontSize: wide ? 33 : 46, letterSpacing: wide ? '-0.03em' : '-0.045em', fontVariantNumeric: 'tabular-nums' }}
         >
           {label}
         </text>
@@ -189,7 +186,6 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
             <feTurbulence type="fractalNoise" baseFrequency="0.72" numOctaves="4" seed="9" result="n" />
             <feDisplacementMap in="SourceGraphic" in2="n" scale="1.5" xChannelSelector="R" yChannelSelector="G" />
           </filter>
-          <path id="pm-arc" d="M 14.5,58 A 41.5,41.5 0 0 1 97.5,58" fill="none" />
         </defs>
       </svg>
       {/* 상단 바 */}
