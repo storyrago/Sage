@@ -21,4 +21,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 
     @Query("SELECT m FROM Message m JOIN FETCH m.member WHERE m.chatRoom = :room AND m.id < :before ORDER BY m.id DESC")
     List<Message> findOlderByChatRoom(@Param("room") ChatRoom room, @Param("before") Long before, Pageable pageable);
+
+    @Query("SELECT MAX(m.id) FROM Message m WHERE m.chatRoom = :room")
+    Long findMaxIdByChatRoom(@Param("room") ChatRoom room);
 }

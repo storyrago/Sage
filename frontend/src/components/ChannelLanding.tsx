@@ -59,9 +59,10 @@ interface Props {
   onSelectChannel: (id: string) => void;
   onCreateChannel: (name: string) => Promise<void>;
   onLogout: () => void;
+  unread?: Record<string, number>;
 }
 
-export default function ChannelLanding({ channels, onSelectChannel, onCreateChannel, onLogout }: Props) {
+export default function ChannelLanding({ channels, onSelectChannel, onCreateChannel, onLogout, unread }: Props) {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
@@ -167,6 +168,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
             const p = POS[i % POS.length];
             const dim = (hoveredId !== null && hoveredId !== ch.id) || (focusedId !== null && focusedId !== ch.id);
             const hidden = focusedId === ch.id; // 확대 클론이 대신 표시되는 동안 원본 숨김
+            const count = unread?.[ch.id] ?? 0;
             return (
               <div
                 key={ch.id}
@@ -184,6 +186,11 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
                 onMouseLeave={() => setHoveredId(null)}
                 onClick={(e) => openFocus(ch, e.currentTarget)}
               >
+                {count > 0 && (
+                  <div className="absolute -top-1.5 -right-1.5 z-30 min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[11px] font-bold flex items-center justify-center shadow-md">
+                    {count > 99 ? '99+' : count}
+                  </div>
+                )}
                 <div
                   className="w-full h-full cursor-pointer hover:!rotate-0 hover:scale-105"
                   style={{

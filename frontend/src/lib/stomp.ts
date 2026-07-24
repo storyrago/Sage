@@ -12,6 +12,7 @@ interface StompClientOptions {
   onMessage: (message: BackendMessage) => void;
   onPresence?: (roomId: string, onlineMemberIds: string[]) => void;
   onTyping?: (p: { chatroomId: string; memberId: string; nickname: string; typing: boolean }) => void;
+  onUnread?: (evt: { chatroomId: number; messageId: number }) => void;
   onDisconnect: () => void;
   onError: () => void;
 }
@@ -23,8 +24,9 @@ export class SpringStompClient {
   private currentChatSubscription?: string;
   private currentTypingSubscription?: string;
   private currentRoomPresenceSubscription?: string;
+  private unreadSubscription?: string;
   // subscription id -> 종류: 들어온 MESSAGE 프레임을 알맞은 핸들러로 라우팅
-  private subscriptionKinds = new Map<string, 'chat' | 'typing' | 'roompresence'>();
+  private subscriptionKinds = new Map<string, 'chat' | 'typing' | 'roompresence' | 'unread'>();
   private options: StompClientOptions;
 
   constructor(options: StompClientOptions) {
@@ -63,6 +65,7 @@ export class SpringStompClient {
     this.currentChatSubscription = undefined;
     this.currentTypingSubscription = undefined;
     this.currentRoomPresenceSubscription = undefined;
+    this.unreadSubscription = undefined;
     this.subscriptionKinds.clear();
   }
 
@@ -132,6 +135,13 @@ export class SpringStompClient {
     parseFrames(raw).forEach((frame) => {
       if (frame.command === 'CONNECTED') {
         this.connected = true;
+        this.unreadSubscription = `sub-${++this.subscriptionId}`;
+        this.subscriptionKinds.set(this.unreadSubscription, 'unread');
+        this.write('SUBSCRIBE', {
+          id: this.unreadSubscription,
+          destination: '/user/queue/unread',
+          ack: 'auto',
+        });
         this.options.onConnect();
         return;
       }
@@ -149,6 +159,9 @@ export class SpringStompClient {
             nickname: p.nickname,
             typing: p.typing,
           });
+        } else if (kind === 'unread') {
+          const p = JSON.parse(frame.body) as { chatroomId: number; messageId: number };
+          this.options.onUnread?.(p);
         } else {
           this.options.onMessage(JSON.parse(frame.body) as BackendMessage);
         }

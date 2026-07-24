@@ -13,8 +13,10 @@ import {
   getChatRooms,
   getMe,
   getMessages,
+  getUnreadCounts,
   joinChatRoom,
   login,
+  markRoomRead,
   sendMessage,
   signup,
   toChannel,
@@ -49,12 +51,15 @@ export default function App() {
   const [warping, setWarping] = useState<boolean>(false);
   const [reconnectCount, setReconnectCount] = useState<number>(0);
   const [loadingMessage, setLoadingMessage] = useState<string>('채팅 정보를 불러오는 중입니다.');
+  const [unread, setUnread] = useState<Record<string, number>>({});
+  const [roomLastRead, setRoomLastRead] = useState<Record<string, number | null>>({});
 
   const stompRef = useRef<SpringStompClient | null>(null);
   const selectedChannelRef = useRef<string>('');
   const typingSentAtRef = useRef<number>(0);
   const typingActiveRef = useRef<boolean>(false);
   const typingExpiryRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const lastMarkReadAtRef = useRef<number>(0);
 
   const { theme, toggleTheme } = useTheme();
 
@@ -122,6 +127,15 @@ export default function App() {
         const currentUser = toUser(currentMember);
         persistSession(token, currentUser);
         await refreshRooms(token);
+
+        try {
+          const counts = await getUnreadCounts(token);
+          if (cancelled) return;
+          setUnread(Object.fromEntries(counts.map((c) => [String(c.chatroomId), c.unreadCount])));
+          setRoomLastRead(Object.fromEntries(counts.map((c) => [String(c.chatroomId), c.lastReadMessageId])));
+        } catch (unreadError) {
+          console.error('[Unread] 안읽음 개수 조회 실패(무시하고 계속):', unreadError);
+        }
       } catch (error) {
         console.error('[Auth] Saved token is invalid:', error);
         if (!cancelled) clearSession();
@@ -158,6 +172,14 @@ export default function App() {
               loading: false,
             },
           }));
+          // 입장 시 읽음 처리 → 배지 0. (구분선용 lastRead 스냅샷은 App의 roomLastRead를 갱신하지 않아 세션 동안 고정)
+          await markRoomRead(token, selectedChannelId);
+          setUnread((prev) => ({ ...prev, [selectedChannelId]: 0 }));
+          // 다음 입장 때 낡은 구분선이 뜨지 않도록 경계를 전진 (현재 화면은 ChatArea가 입장 시점 값으로 고정)
+          const newestId = page.messages.length ? page.messages[page.messages.length - 1].messageId : null;
+          if (newestId != null) {
+            setRoomLastRead((prev) => ({ ...prev, [selectedChannelId]: newestId }));
+          }
         }
       } catch (error) {
         console.error('[ChatRoom] Failed to load messages:', error);
@@ -197,6 +219,12 @@ export default function App() {
           if (selectedChannelRef.current) {
             client.subscribe(selectedChannelRef.current);
           }
+          // 재연결 중 놓쳤을 수 있는 안읽음 이벤트를 보정 (경계는 건드리지 않음)
+          getUnreadCounts(token)
+            .then((counts) => {
+              setUnread(Object.fromEntries(counts.map((c) => [String(c.chatroomId), c.unreadCount])));
+            })
+            .catch((e) => console.error('[Unread] 재연결 후 안읽음 재조회 실패:', e));
         },
         onMessage: (backendMessage) => {
           const nextMessage = toMessage(backendMessage);
@@ -216,6 +244,20 @@ export default function App() {
             if (Number(nextMessage.id) > roomMax) return [...prev, nextMessage];
             return prev;
           });
+
+          // 보는 중 도착한 메시지도 읽음 처리(스펙). 1초 스로틀 — 메시지마다 쓰기 금지.
+          const roomId = String(backendMessage.chatroomId);
+          if (roomId === selectedChannelRef.current && token) {
+            // 보는 중 도착 = 읽은 것. 다음 입장 때 낡은 구분선이 뜨지 않도록 로컬 경계도 전진시킨다.
+            // (현재 열려 있는 화면은 ChatArea가 입장 시점 스냅샷을 ref로 고정해두므로 영향 없음)
+            setRoomLastRead((prev) => ({ ...prev, [roomId]: Number(backendMessage.messageId) }));
+
+            const now = Date.now();
+            if (now - lastMarkReadAtRef.current >= 1000) {
+              lastMarkReadAtRef.current = now;
+              markRoomRead(token, roomId).catch((e) => console.error('[Unread] 읽음 처리 실패:', e));
+            }
+          }
         },
         onPresence: (roomId, ids) => {
           if (roomId === selectedChannelRef.current) {
@@ -240,6 +282,11 @@ export default function App() {
           } else {
             timers.delete(memberId);
           }
+        },
+        onUnread: ({ chatroomId }) => {
+          const roomId = String(chatroomId);
+          if (roomId === selectedChannelRef.current) return; // 지금 보는 방은 무시
+          setUnread((prev) => ({ ...prev, [roomId]: (prev[roomId] ?? 0) + 1 }));
         },
         onDisconnect: scheduleReconnect,
         onError: scheduleReconnect,
@@ -435,6 +482,7 @@ export default function App() {
               loadingOlder={pageState[selectedChannelId]?.loading ?? false}
               onEditMessage={handleEditMessage}
               onDeleteMessage={handleDeleteMessage}
+              unreadFromId={roomLastRead[selectedChannelId] ?? null}
             />
           </div>
         ) : (
@@ -448,6 +496,7 @@ export default function App() {
               setSelectedChannelId(String(room.id));
             }}
             onLogout={handleLogout}
+            unread={unread}
           />
         )}
       </div>

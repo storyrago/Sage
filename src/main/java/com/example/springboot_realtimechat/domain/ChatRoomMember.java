@@ -24,6 +24,9 @@ public class ChatRoomMember {
     @JoinColumn(name = "chatroom_id")
     private ChatRoom chatRoom;
 
+    @Column(name = "last_read_message_id")
+    private Long lastReadMessageId;
+
     public ChatRoomMember(Member member, ChatRoom chatRoom) {
         connect(member, chatRoom);
     }
@@ -34,5 +37,9 @@ public class ChatRoomMember {
 
         member.getChatRoomMembers().add(this);
         chatRoom.getChatRoomMembers().add(this);
+    }
+
+    public void updateLastRead(Long messageId) {
+        this.lastReadMessageId = messageId;
     }
 }
