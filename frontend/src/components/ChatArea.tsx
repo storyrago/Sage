@@ -72,9 +72,21 @@ export default function ChatArea({
   const scrolledChannelRef = useRef<string>('');   // 이 채널에 초기 스크롤(맨아래) 했는지
   const prevScrollHeightRef = useRef(0);
   const pendingPrependRef = useRef(false);
+  // 입장 시점 스냅샷: 경계(boundary)와 천장(ceiling = 입장 순간 로드된 최신 메시지 id)을 고정한다.
+  // 천장이 있어야 "보는 중 도착한 새 메시지" 위에 구분선이 생기지 않는다.
+  const unreadSnapshotRef = useRef<{ channelId: string; boundary: number | null; ceiling: number } | null>(null);
 
   // Filter messages for current channel only
   const channelMessages = messages.filter(m => m.channelId === channel.id);
+
+  if (channelMessages.length > 0 && unreadSnapshotRef.current?.channelId !== channel.id) {
+    unreadSnapshotRef.current = {
+      channelId: channel.id,
+      boundary: unreadFromId ?? null,
+      ceiling: channelMessages.reduce((mx, m) => Math.max(mx, Number(m.id)), 0),
+    };
+  }
+  const unreadSnap = unreadSnapshotRef.current?.channelId === channel.id ? unreadSnapshotRef.current : null;
 
   // Filter typing presence (excluding ourselves)
   const typingUsers = presences.filter(
@@ -130,8 +142,8 @@ export default function ChatArea({
     const el = scrollContainerRef.current;
     if (!el) return;
     if (scrolledChannelRef.current !== channel.id) {
-      const firstUnread = unreadFromId != null
-        ? channelMessages.find((m) => Number(m.id) > unreadFromId)
+      const firstUnread = unreadSnap?.boundary != null
+        ? channelMessages.find((m) => Number(m.id) > unreadSnap.boundary! && Number(m.id) <= unreadSnap.ceiling)
         : undefined;
       if (firstUnread) {
         document.getElementById(`message-bubble-${firstUnread.id}`)?.scrollIntoView({ block: 'start' });
@@ -415,9 +427,10 @@ export default function ChatArea({
           const imageUrl = getEmbeddedImageUrl(msg.text);
           const parentMsg = msg.replyToId ? messages.find(m => m.id === msg.replyToId) : null;
           const isFirstUnread =
-            unreadFromId != null &&
-            Number(msg.id) > unreadFromId &&
-            (i === 0 || Number(channelMessages[i - 1].id) <= unreadFromId);
+            unreadSnap?.boundary != null &&
+            Number(msg.id) > unreadSnap.boundary &&
+            Number(msg.id) <= unreadSnap.ceiling &&
+            (i === 0 || Number(channelMessages[i - 1].id) <= unreadSnap.boundary);
 
           return (
             <div key={msg.id}>
@@ -432,7 +445,7 @@ export default function ChatArea({
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-              className={`flex items-start gap-3 group relative max-w-3xl min-w-0 ${isSelf ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}
+              className={`flex items-start gap-3 group relative max-w-3xl min-w-0 scroll-mt-10 ${isSelf ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}
               id={`message-bubble-${msg.id}`}
             >
 

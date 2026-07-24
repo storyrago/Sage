@@ -59,6 +59,7 @@ export default function App() {
   const typingSentAtRef = useRef<number>(0);
   const typingActiveRef = useRef<boolean>(false);
   const typingExpiryRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const lastMarkReadAtRef = useRef<number>(0);
 
   const { theme, toggleTheme } = useTheme();
 
@@ -127,10 +128,14 @@ export default function App() {
         persistSession(token, currentUser);
         await refreshRooms(token);
 
-        const counts = await getUnreadCounts(token);
-        if (cancelled) return;
-        setUnread(Object.fromEntries(counts.map((c) => [String(c.chatroomId), c.unreadCount])));
-        setRoomLastRead(Object.fromEntries(counts.map((c) => [String(c.chatroomId), c.lastReadMessageId])));
+        try {
+          const counts = await getUnreadCounts(token);
+          if (cancelled) return;
+          setUnread(Object.fromEntries(counts.map((c) => [String(c.chatroomId), c.unreadCount])));
+          setRoomLastRead(Object.fromEntries(counts.map((c) => [String(c.chatroomId), c.lastReadMessageId])));
+        } catch (unreadError) {
+          console.error('[Unread] 안읽음 개수 조회 실패(무시하고 계속):', unreadError);
+        }
       } catch (error) {
         console.error('[Auth] Saved token is invalid:', error);
         if (!cancelled) clearSession();
@@ -170,6 +175,11 @@ export default function App() {
           // 입장 시 읽음 처리 → 배지 0. (구분선용 lastRead 스냅샷은 App의 roomLastRead를 갱신하지 않아 세션 동안 고정)
           await markRoomRead(token, selectedChannelId);
           setUnread((prev) => ({ ...prev, [selectedChannelId]: 0 }));
+          // 다음 입장 때 낡은 구분선이 뜨지 않도록 경계를 전진 (현재 화면은 ChatArea가 입장 시점 값으로 고정)
+          const newestId = page.messages.length ? page.messages[page.messages.length - 1].messageId : null;
+          if (newestId != null) {
+            setRoomLastRead((prev) => ({ ...prev, [selectedChannelId]: newestId }));
+          }
         }
       } catch (error) {
         console.error('[ChatRoom] Failed to load messages:', error);
@@ -209,6 +219,12 @@ export default function App() {
           if (selectedChannelRef.current) {
             client.subscribe(selectedChannelRef.current);
           }
+          // 재연결 중 놓쳤을 수 있는 안읽음 이벤트를 보정 (경계는 건드리지 않음)
+          getUnreadCounts(token)
+            .then((counts) => {
+              setUnread(Object.fromEntries(counts.map((c) => [String(c.chatroomId), c.unreadCount])));
+            })
+            .catch((e) => console.error('[Unread] 재연결 후 안읽음 재조회 실패:', e));
         },
         onMessage: (backendMessage) => {
           const nextMessage = toMessage(backendMessage);
@@ -228,6 +244,16 @@ export default function App() {
             if (Number(nextMessage.id) > roomMax) return [...prev, nextMessage];
             return prev;
           });
+
+          // 보는 중 도착한 메시지도 읽음 처리(스펙). 1초 스로틀 — 메시지마다 쓰기 금지.
+          const roomId = String(backendMessage.chatroomId);
+          if (roomId === selectedChannelRef.current && token) {
+            const now = Date.now();
+            if (now - lastMarkReadAtRef.current >= 1000) {
+              lastMarkReadAtRef.current = now;
+              markRoomRead(token, roomId).catch((e) => console.error('[Unread] 읽음 처리 실패:', e));
+            }
+          }
         },
         onPresence: (roomId, ids) => {
           if (roomId === selectedChannelRef.current) {
