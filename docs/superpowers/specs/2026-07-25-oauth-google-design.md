@@ -145,3 +145,8 @@
 - 브랜치 `feat/oauth-google` → develop PR.
 - 스키마 변경 → **Flyway V3/V4로 자동 적용**(수동 ALTER 금지). 배포 전 RDS 초기화는 사장님이 실행.
 - Google Console 앱 생성 + env 3개는 사장님(hands-on). 배포 순서: RDS 초기화 → env 채우기 → nginx 프록시 추가 → 머지/배포.
+
+## 9. 구현 중 보강·정정 (2026-07-26)
+
+- **쿠키 AuthorizationRequestRepository를 HMAC 서명**(§2.3 보강): 최종 보안 리뷰가 CWE-502(클라이언트가 통제하는 쿠키를 raw `ObjectInputStream`으로 역직렬화 — 콜백 permitAll·state 검증 전이라 인증 없이 도달 가능) 지적. → 쿠키 값을 `base64(HMAC-SHA256(body, jwt.secret)) + "." + base64(body)`로 저장하고, 로드 시 `MessageDigest.isEqual`(상수시간)로 서명 검증에 **통과한 뒤에만** `readObject` 실행. 공격자는 secret 없이 유효 서명을 만들 수 없어 서버가 서명한 바이트만 역직렬화됨. 왕복·위조거부·점없음 유닛 테스트 3개.
+- **후속 하드닝(이번 범위 밖, 이슈 후보)**: ① `SOCIAL_LOGIN_ONLY` 미사용 상수 제거(비번 null은 `INVALID_PASSWORD`로 — 계정유형 노출 방지 측면에서 이게 더 안전). ② `toNickname` codepoint-safe 절단(이모지 서로게이트 분리 시 utf8mb4 rare 500 방지; 한글 무관). ③ `toNickname` 폴백 분기 테스트. ④ V4 시드 명시 PK 멱등화(현재는 fresh DB 전제 — 배포 체크리스트가 RDS 초기화로 보장, 비어있지 않은 DB엔 PK 충돌로 loud fail). ⑤ `forward-headers-strategy: framework`는 X-Forwarded-* 무조건 신뢰 — 도커 네트워크 격리 + Google redirect_uri allow-list로 실질 완화.
