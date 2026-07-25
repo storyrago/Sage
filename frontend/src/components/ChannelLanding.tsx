@@ -207,7 +207,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
           <button onClick={() => setCreating(true)} className="inline-flex items-center gap-1.5 bg-accent text-accent-fg rounded-lg px-4 py-2.5 text-[14px] font-bold cursor-pointer"><Plus className="w-4 h-4" /> 첫 채널 만들기</button>
         </div>
       ) : (
-        <div className="relative h-[680px] md:h-[560px]">
+        <div className="grid grid-cols-2 justify-items-center gap-x-3 gap-y-8 px-4 pt-6 pb-12 md:block md:relative md:h-[560px] md:gap-0 md:p-0">
           {channels.map((ch, i) => {
             const p = POS[i % POS.length];
             const dim = (hoveredId !== null && hoveredId !== ch.id) || (focusedId !== null && focusedId !== ch.id);
@@ -217,7 +217,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
               <div
                 key={ch.id}
                 data-rot={p.rot}
-                className="stamp-in absolute w-[96px] h-[128px] md:w-[132px] md:h-[176px] hover:z-20"
+                className="stamp-in w-[96px] h-[128px] md:absolute md:w-[132px] md:h-[176px] hover:z-20"
                 style={{
                   left: p.left,
                   top: p.top,
