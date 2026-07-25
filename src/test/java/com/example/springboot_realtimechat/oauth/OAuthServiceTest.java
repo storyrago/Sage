@@ -4,6 +4,7 @@ import com.example.springboot_realtimechat.domain.Member;
 import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.repository.MemberRepository;
+import com.example.springboot_realtimechat.service.AuthService;
 import com.example.springboot_realtimechat.service.MemberService;
 import com.example.springboot_realtimechat.service.OAuthService;
 import org.junit.jupiter.api.Test;
@@ -20,6 +21,7 @@ class OAuthServiceTest {
     @Autowired OAuthService oAuthService;
     @Autowired MemberService memberService;
     @Autowired MemberRepository memberRepository;
+    @Autowired AuthService authService;
 
     @Test
     void 신규_구글사용자_생성() {
@@ -55,5 +57,19 @@ class OAuthServiceTest {
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.EMAIL_ALREADY_REGISTERED);
+    }
+
+    @Test
+    void 소셜전용계정_비번로그인_거부() {
+        oAuthService.upsertGoogleUser("sub-9", "social@g.com", true, "소셜", "http://p"); // password=null
+
+        var req = new com.example.springboot_realtimechat.dto.LoginRequest();
+        req.setEmail("social@g.com");      // LoginRequest는 @Getter @Setter (email/password)
+        req.setPassword("whatever");
+
+        assertThatThrownBy(() -> authService.login(req, "1.2.3.4"))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_PASSWORD);
     }
 }
