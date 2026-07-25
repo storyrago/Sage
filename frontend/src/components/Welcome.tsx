@@ -12,6 +12,7 @@ interface WelcomeProps {
   onComplete: (credentials: Credentials, mode: 'login' | 'signup') => Promise<void>;
   initialUser?: User | null;
   warping?: boolean;
+  oauthError?: string | null;
 }
 
 interface Particle {
@@ -21,7 +22,7 @@ interface Particle {
 const PARTICLE_COLORS = ['#5E9079', '#7AAE92', '#9CCBB2'];
 const LINK = 140;
 
-export default function Welcome({ onComplete, initialUser, warping }: WelcomeProps) {
+export default function Welcome({ onComplete, initialUser, warping, oauthError }: WelcomeProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const spotRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
@@ -211,6 +212,11 @@ export default function Welcome({ onComplete, initialUser, warping }: WelcomePro
     background: active ? '#7AAE92' : 'transparent', color: active ? '#12241B' : '#9AA8A0',
   });
 
+  const OAUTH_BASE = (import.meta.env.VITE_OAUTH_BASE as string | undefined) ?? '';
+  const handleGoogleLogin = () => {
+    window.location.href = `${OAUTH_BASE}/oauth2/authorization/google`;
+  };
+
   return (
     <div className="relative font-sans" style={{ background: '#141917', color: '#E6ECE8' }}>
       <canvas ref={canvasRef} className="fixed inset-0 w-full h-full" style={{ zIndex: 0 }} />
@@ -268,6 +274,9 @@ export default function Welcome({ onComplete, initialUser, warping }: WelcomePro
               <button type="button" onClick={() => { setMode('signup'); setErrorCode(''); }} style={tab(mode === 'signup')}>회원가입</button>
             </div>
 
+            {oauthError && (
+              <div style={{ marginBottom: 10, color: '#e88', fontSize: 13 }}>{oauthError}</div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-3">
               <div className="sage-stg" style={{ transitionDelay: '0.36s' }}>
                 <label htmlFor="w-email" style={labelStyle}>이메일</label>
@@ -290,6 +299,22 @@ export default function Welcome({ onComplete, initialUser, warping }: WelcomePro
                 </button>
               </div>
             </form>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0' }}>
+              <div style={{ flex: 1, height: 1, background: '#2a322d' }} />
+              <span style={{ fontSize: 12, color: '#6B7972' }}>또는</span>
+              <div style={{ flex: 1, height: 1, background: '#2a322d' }} />
+            </div>
+            <button type="button" onClick={handleGoogleLogin}
+              style={{ width: '100%', background: '#fff', color: '#1f2937', borderRadius: 13, padding: 13, fontWeight: 600, fontSize: 14, border: '1px solid #d0d7de', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+              <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+                <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.71-1.57 2.68-3.89 2.68-6.62z"/>
+                <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.83.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"/>
+                <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z"/>
+                <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.47.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/>
+              </svg>
+              Google로 로그인
+            </button>
 
             <div className="text-center sage-stg" style={{ fontSize: 12, color: '#6B7972', marginTop: 14, transitionDelay: '0.54s' }}>
               {mode === 'login' ? (
