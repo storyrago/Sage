@@ -52,6 +52,42 @@ function StampFace({ ch, big = false }: { ch: Channel; big?: boolean }) {
   );
 }
 
+// 안읽음 개수를 새기는 소인(消印) — 원형 스탬프 + 킬러바
+function Postmark({ count }: { count: number }) {
+  const label = count > 99 ? '99+' : String(count);
+  const wide = label.length >= 3;
+  return (
+    <svg
+      viewBox="0 0 186 132"
+      role="img"
+      aria-label={`안 읽음 ${label}개`}
+      className="postmark-strike pointer-events-none absolute left-[9px] top-[13px] w-[123px] h-[87px] md:left-[12px] md:top-[18px] md:w-[168px] md:h-[119px]"
+      style={{ transform: 'rotate(-13deg)', opacity: 0.92 }}
+    >
+      <g filter="url(#pm-rough)" fill="none" stroke="#C2402C" strokeLinecap="round">
+        <circle cx="56" cy="58" r="45" strokeWidth="3.4" />
+        <circle cx="56" cy="58" r="37" strokeWidth="1.2" />
+        <g className="hidden md:inline">
+          <path d="M95,34 q9,-4 18,0 t18,0 t18,0 t18,0" strokeWidth="3.6" />
+          <path d="M100,45 q9,-4 18,0 t18,0 t18,0 t18,0" strokeWidth="3.6" />
+          <path d="M100,71 q9,-4 18,0 t18,0 t18,0 t18,0" strokeWidth="3.6" />
+          <path d="M95,82 q9,-4 18,0 t18,0 t18,0 t18,0" strokeWidth="3.6" />
+        </g>
+      </g>
+      <g filter="url(#pm-rough)" fill="#C2402C">
+        <text
+          x="56"
+          y={wide ? 71 : 75}
+          textAnchor="middle"
+          style={{ fontWeight: 800, fontSize: wide ? 33 : 46, letterSpacing: wide ? '-0.03em' : '-0.045em', fontVariantNumeric: 'tabular-nums' }}
+        >
+          {label}
+        </text>
+      </g>
+    </svg>
+  );
+}
+
 interface Origin { cx: number; cy: number; scale: number; rot: number; }
 
 interface Props {
@@ -144,6 +180,14 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
 
   return (
     <div className="relative h-full w-full overflow-auto" style={{ background: '#141917' }}>
+      <svg width="0" height="0" className="absolute" aria-hidden="true">
+        <defs>
+          <filter id="pm-rough" x="-20%" y="-20%" width="140%" height="140%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.72" numOctaves="4" seed="9" result="n" />
+            <feDisplacementMap in="SourceGraphic" in2="n" scale="1.5" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+        </defs>
+      </svg>
       {/* 상단 바 */}
       <div className="sticky top-0 z-10 flex items-center justify-between px-6 h-14" style={{ background: '#141917' }}>
         <span className="text-[16px] font-bold text-[#e6ece8]">Sage</span>
@@ -186,11 +230,6 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
                 onMouseLeave={() => setHoveredId(null)}
                 onClick={(e) => openFocus(ch, e.currentTarget)}
               >
-                {count > 0 && (
-                  <div className="absolute -top-1.5 -right-1.5 z-30 min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[11px] font-bold flex items-center justify-center shadow-md">
-                    {count > 99 ? '99+' : count}
-                  </div>
-                )}
                 <div
                   className="w-full h-full cursor-pointer hover:!rotate-0 hover:scale-105"
                   style={{
@@ -200,6 +239,11 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
                   }}
                 >
                   <StampFace ch={ch} />
+                  {count > 0 && (
+                    <span key={count} className="contents">
+                      <Postmark count={count} />
+                    </span>
+                  )}
                 </div>
               </div>
             );

@@ -111,7 +111,12 @@ body {
   background: rgba(148, 163, 184, 0.4);
 }
 
+/* 우표 종이결: 큰 얼룩(톤 불균일) 한 층. feTurbulence로 생성 — 이미지 에셋 없음. */
 .stamp-paper {
+  position: relative;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='m'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.011' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.52 0 0 0 0 0.48 0 0 0 0 0.38 1.0 0.8 0 0 -0.63'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23m)'/%3E%3C/svg%3E");
+  background-size: 260px 260px;
+  box-shadow: inset 0 0 14px rgba(94, 88, 70, 0.16);
   -webkit-mask:
     linear-gradient(#000 0 0) 50%/calc(100% - 11px) calc(100% - 11px) no-repeat,
     radial-gradient(circle 5px, #000 96%, #0000) 0 0/12px 12px round;
@@ -122,6 +127,19 @@ body {
   mask-composite: add;
 }
 
+/* 잔결(섬유 반점)은 인쇄면 위까지 덮어야 한 장의 종이로 읽힌다. */
+.stamp-paper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.45' numOctaves='5' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-size: 140px 140px;
+  mix-blend-mode: multiply;
+  opacity: 0.3;
+}
+
 /* 채널 랜딩 우표 "다다닥" 등장 (index 순서로 stagger) */
 @keyframes stampIn {
   0%   { opacity: 0; transform: scale(1.5) translateY(-14px); }
@@ -129,7 +147,15 @@ body {
   100% { transform: scale(1); }
 }
 .stamp-in { animation: stampIn 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) backwards; }
+
+/* 안읽음 소인 "쿵" 찍히는 등장 (count 변경 시 key로 리플레이) */
+@keyframes postmarkStrike {
+  from { opacity: 0; transform: rotate(-13deg) scale(1.24); }
+  to   { opacity: 0.92; transform: rotate(-13deg) scale(1); }
+}
+.postmark-strike { animation: postmarkStrike 0.5s cubic-bezier(0.2, 1.5, 0.4, 1) both; }
 @media (prefers-reduced-motion: reduce) {
   .stamp-in { animation: none; }
+  .postmark-strike { animation: none; }
 }
 
