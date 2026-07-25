@@ -28,6 +28,8 @@ public class CustomOidcUserService extends OidcUserService {
         } catch (CustomException e) {
             // 실패 핸들러가 #oauth_error=<코드>로 안내
             throw new OAuth2AuthenticationException(new OAuth2Error(e.getErrorCode().name()), e.getMessage(), e);
+        } catch (RuntimeException e) {
+            throw new OAuth2AuthenticationException(new OAuth2Error("oauth_failed"), e.getMessage(), e);
         }
         return oidcUser;
     }
