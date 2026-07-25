@@ -40,6 +40,9 @@ dependencies {
 	//spring security
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 
+	//oauth2 client (Google 로그인)
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+
 	//valid
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 
