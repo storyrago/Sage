@@ -16,6 +16,17 @@ spring:
       enabled: true
   flyway:
     enabled: false   # 테스트는 H2 create-drop로 스키마 생성, Flyway 미개입
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: test-client-id
+            client-secret: test-client-secret
+            scope:
+              - openid
+              - email
+              - profile
 
 jwt:
   secret: test-secret-key-for-jwt-authentication-1234567890
@@ -25,3 +36,6 @@ aws:
   s3:
     bucket: test-bucket
     region: ap-northeast-2
+
+app:
+  frontend-url: http://localhost:5173
