@@ -9,6 +9,8 @@ import org.springframework.security.web.authentication.AuthenticationFailureHand
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 @Component
 public class OAuth2FailureHandler implements AuthenticationFailureHandler {
@@ -24,6 +26,7 @@ public class OAuth2FailureHandler implements AuthenticationFailureHandler {
                 && oae.getError() != null && oae.getError().getErrorCode() != null) {
             code = oae.getError().getErrorCode();
         }
-        response.sendRedirect(frontendUrl + "/#oauth_error=" + code);
+        String encoded = URLEncoder.encode(code, StandardCharsets.UTF_8);
+        response.sendRedirect(frontendUrl + "/#oauth_error=" + encoded);
     }
 }
