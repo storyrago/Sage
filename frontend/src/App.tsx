@@ -53,6 +53,7 @@ export default function App() {
   const [loadingMessage, setLoadingMessage] = useState<string>('채팅 정보를 불러오는 중입니다.');
   const [unread, setUnread] = useState<Record<string, number>>({});
   const [roomLastRead, setRoomLastRead] = useState<Record<string, number | null>>({});
+  const [oauthError, setOauthError] = useState<string | null>(null);
 
   const stompRef = useRef<SpringStompClient | null>(null);
   const selectedChannelRef = useRef<string>('');
@@ -106,6 +107,36 @@ export default function App() {
       localStorage.removeItem(SESSION_KEY);
     }
   }, []);
+
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (!hash) return;
+    const params = new URLSearchParams(hash.slice(1));
+    const oauthToken = params.get('token');
+    const errCode = params.get('oauth_error');
+    // 해시 즉시 제거(토큰이 URL/히스토리에 남지 않게)
+    if (oauthToken || errCode) {
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+    if (errCode) {
+      setOauthError(
+        errCode === 'EMAIL_ALREADY_REGISTERED'
+          ? '이미 가입된 이메일이에요. 이메일/비밀번호로 로그인해 주세요.'
+          : '구글 로그인에 실패했어요. 다시 시도해 주세요.',
+      );
+      return;
+    }
+    if (!oauthToken) return;
+    (async () => {
+      try {
+        const member = await getMe(oauthToken);
+        persistSession(oauthToken, toUser(member));
+      } catch (e) {
+        console.error('[OAuth] 핸드오프 실패:', e);
+        setOauthError('로그인 처리에 실패했어요. 다시 시도해 주세요.');
+      }
+    })();
+  }, [persistSession]);
 
   const refreshRooms = useCallback(async (authToken: string) => {
     const rooms = await getChatRooms(authToken);
@@ -438,6 +469,7 @@ export default function App() {
         onComplete={handleSetupComplete}
         initialUser={user}
         warping={warping}
+        oauthError={oauthError}
       />
     );
   }
