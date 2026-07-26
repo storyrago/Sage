@@ -27,7 +27,7 @@
 
 | 주요 기능 | 설명 |
 |---|---|
-| **회원 / 인증** | 회원가입, 로그인 시 **JWT 발급**. REST는 필터로, WebSocket은 **STOMP CONNECT 시** 토큰 검증 |
+| **회원 / 인증** | 로그인 시 **JWT 발급** (이메일 · Google OAuth). REST는 필터로, WebSocket은 **STOMP CONNECT 시** 토큰 검증 |
 | **채팅방** | 생성 · 조회 · 입장 · 나가기 · 참여자 목록. 미참여자의 메시지 전송 차단 |
 | **실시간 채팅** | **WebSocket(STOMP)** 송수신. **Redis Pub/Sub** 경유로 **모든 서버의 구독자**에게 브로드캐스트 |
 | **이미지** | **S3** 업로드 후 공개 URL 발급 → **프로필 이미지 / 채팅 이미지**로 첨부 |
@@ -76,7 +76,6 @@
 | Method | Path | 인증 | 설명 |
 |:---:|---|:---:|---|
 | `POST` | `/api/auth/login` | — | 로그인 → `{ tokenType, accessToken }` |
-| `POST` | `/api/members` | — | 회원가입 |
 | `GET` | `/api/members` | ✅ | 회원 목록 |
 | `GET` | `/api/members/me` | ✅ | 내 정보 |
 | `GET` | `/api/members/{id}` | ✅ | 회원 단건 조회 |

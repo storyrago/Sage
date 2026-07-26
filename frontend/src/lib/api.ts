@@ -8,10 +8,6 @@ export interface AuthPayload {
   password: string;
 }
 
-export interface SignupPayload extends AuthPayload {
-  nickname: string;
-}
-
 export interface BackendMember {
   id: number;
   email: string;
@@ -74,13 +70,6 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
   }
 
   return response.json() as Promise<T>;
-}
-
-export async function signup(payload: SignupPayload) {
-  return request<BackendMember>('/api/members', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
 }
 
 export async function login(payload: AuthPayload) {

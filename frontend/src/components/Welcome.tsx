@@ -5,11 +5,10 @@ import { MessagesSquare } from 'lucide-react';
 interface Credentials {
   email: string;
   password: string;
-  nickname?: string;
 }
 
 interface WelcomeProps {
-  onComplete: (credentials: Credentials, mode: 'login' | 'signup') => Promise<void>;
+  onComplete: (credentials: Credentials) => Promise<void>;
   initialUser?: User | null;
   warping?: boolean;
   oauthError?: string | null;
@@ -33,10 +32,8 @@ export default function Welcome({ onComplete, initialUser, warping, oauthError }
   const auraRef = useRef<HTMLDivElement>(null);
   const warpRef = useRef(false);
 
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState(initialUser?.email || '');
   const [password, setPassword] = useState('');
-  const [nickname, setNickname] = useState(initialUser?.displayName || '');
   const [errorCode, setErrorCode] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -183,17 +180,9 @@ export default function Welcome({ onComplete, initialUser, warping, oauthError }
       setErrorCode('이메일과 비밀번호를 입력해 주세요.');
       return;
     }
-    if (mode === 'signup' && !nickname.trim()) {
-      setErrorCode('회원가입에는 닉네임이 필요합니다.');
-      return;
-    }
-    if (mode === 'signup' && nickname.trim().length > 10) {
-      setErrorCode('백엔드 정책상 닉네임은 최대 10자까지 가능합니다.');
-      return;
-    }
     try {
       setIsSubmitting(true);
-      await onComplete({ email: email.trim(), password, nickname: nickname.trim() }, mode);
+      await onComplete({ email: email.trim(), password });
     } catch (error) {
       setErrorCode(error instanceof Error ? error.message : '인증 요청에 실패했습니다.');
     } finally {
@@ -207,10 +196,6 @@ export default function Welcome({ onComplete, initialUser, warping, oauthError }
     padding: '12px 14px', fontSize: 13, color: '#E6ECE8', outline: 'none', width: '100%',
   };
   const labelStyle: CSSProperties = { display: 'block', fontSize: 12, fontWeight: 600, color: '#C7D2CB', marginBottom: 5 };
-  const tab = (active: boolean): CSSProperties => ({
-    padding: '8px', borderRadius: 10, fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer',
-    background: active ? '#7AAE92' : 'transparent', color: active ? '#12241B' : '#9AA8A0',
-  });
 
   const OAUTH_BASE = (import.meta.env.VITE_OAUTH_BASE as string | undefined) ?? '';
   const handleGoogleLogin = () => {
@@ -269,11 +254,6 @@ export default function Welcome({ onComplete, initialUser, warping, oauthError }
             </div>
             <h2 className="text-center sage-stg" style={{ fontWeight: 800, fontSize: 23, color: '#E6ECE8', margin: '0 0 18px', transitionDelay: '0.19s' }}>Sage</h2>
 
-            <div className="grid grid-cols-2 gap-1.5 mb-4 sage-stg" style={{ background: '#252E28', border: '1px solid #2D362F', borderRadius: 13, padding: 4, transitionDelay: '0.3s' }}>
-              <button type="button" onClick={() => { setMode('login'); setErrorCode(''); }} style={tab(mode === 'login')}>로그인</button>
-              <button type="button" onClick={() => { setMode('signup'); setErrorCode(''); }} style={tab(mode === 'signup')}>회원가입</button>
-            </div>
-
             {oauthError && (
               <div style={{ marginBottom: 10, color: '#e88', fontSize: 13 }}>{oauthError}</div>
             )}
@@ -286,18 +266,15 @@ export default function Welcome({ onComplete, initialUser, warping, oauthError }
                 <label htmlFor="w-password" style={labelStyle}>비밀번호</label>
                 <input id="w-password" className="sage-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} />
               </div>
-              {mode === 'signup' && (
-                <div className="sage-stg" style={{ transitionDelay: '0.44s' }}>
-                  <label htmlFor="w-nickname" style={labelStyle}>닉네임 (최대 10자)</label>
-                  <input id="w-nickname" className="sage-input" type="text" placeholder="예: 민준" value={nickname} onChange={(e) => setNickname(e.target.value)} style={inputStyle} />
-                </div>
-              )}
               {errorCode && <p style={{ fontSize: 12, color: '#f0a5a5', textAlign: 'center', fontWeight: 500, margin: 0 }}>{errorCode}</p>}
               <div className="sage-stg" style={{ transitionDelay: '0.48s' }}>
                 <button type="submit" disabled={isSubmitting} className="sage-cta" style={{ width: '100%', background: '#7AAE92', color: '#12241B', borderRadius: 13, padding: 14, fontWeight: 600, fontSize: 14, border: 'none', cursor: 'pointer', opacity: isSubmitting ? 0.6 : 1 }} id="join-chat-btn">
-                  {isSubmitting ? '처리 중...' : mode === 'login' ? '로그인' : '회원가입 후 입장'}
+                  {isSubmitting ? '처리 중...' : '로그인'}
                 </button>
               </div>
+              <p className="sage-stg" style={{ transitionDelay: '0.5s', fontSize: 11, color: '#5C6A62', textAlign: 'center', margin: 0 }}>
+                데모: demo@demo.com / demo1234
+              </p>
             </form>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0' }}>
@@ -315,18 +292,6 @@ export default function Welcome({ onComplete, initialUser, warping, oauthError }
               </svg>
               Google로 로그인
             </button>
-
-            <div className="text-center sage-stg" style={{ fontSize: 12, color: '#6B7972', marginTop: 14, transitionDelay: '0.54s' }}>
-              {mode === 'login' ? (
-                <>계정이 없으신가요?{' '}
-                  <button type="button" onClick={() => { setMode('signup'); setErrorCode(''); }} style={{ color: '#9CCBB2', background: 'none', border: 'none', cursor: 'pointer', padding: 0, font: 'inherit' }}>회원가입</button>
-                </>
-              ) : (
-                <>이미 계정이 있으신가요?{' '}
-                  <button type="button" onClick={() => { setMode('login'); setErrorCode(''); }} style={{ color: '#9CCBB2', background: 'none', border: 'none', cursor: 'pointer', padding: 0, font: 'inherit' }}>로그인</button>
-                </>
-              )}
-            </div>
           </div>
         </div>
       </section>
