@@ -12,6 +12,8 @@ PR 본문은 항상 `.github/pull_request_template.md`의 섹션을 **그대로,
   안 한 검증은 안 했다고 명시한다.
 - `gh pr create --body-file`은 GitHub 템플릿을 **우회**하므로, 그 경로로 만들 때도
   이 규칙이 유일한 강제 수단이다. 반드시 위 템플릿 구조로 본문을 작성할 것.
+- PR 본문·커밋 메시지·코드 주석은 변경의 목적("무엇을·왜")만 쓴다.
+  "누락/핫픽스/이미 배포됨/그래서 깨져 있었다" 같은 배경 서사·회고는 넣지 않는다.
 
 ## 브랜치·머지
 
@@ -28,3 +30,13 @@ PR 본문은 항상 `.github/pull_request_template.md`의 섹션을 **그대로,
 
 - 백엔드: `./gradlew test`
 - 프론트: `cd frontend && npm run lint && npm run build` (유닛 테스트 러너 없음)
+
+## 환경변수 / 배포
+
+- 새 환경변수는 EC2 `.env`(값) + `docker-compose.yml` 해당 서비스의 `environment`(전달)
+  **양쪽**에 넣는다. compose `environment`는 명시 목록이라 `.env`에만 두면 컨테이너로 전달되지 않는다.
+
+## 작업 방식
+
+- 계획·설계·리뷰는 **Opus 4.8 이상**(또는 Fable 5), 구현은 **Sonnet 서브에이전트**로 진행한다.
+  시니어 백엔드(10년차) 관점으로 판단한다.
