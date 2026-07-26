@@ -18,7 +18,6 @@ import {
   login,
   markRoomRead,
   sendMessage,
-  signup,
   toChannel,
   toMessage,
   toUser,
@@ -385,18 +384,7 @@ export default function App() {
     clearSession();
   };
 
-  const handleSetupComplete = async (
-    credentials: { email: string; password: string; nickname?: string },
-    mode: 'login' | 'signup',
-  ) => {
-    if (mode === 'signup') {
-      await signup({
-        email: credentials.email,
-        password: credentials.password,
-        nickname: credentials.nickname ?? '',
-      });
-    }
-
+  const handleSetupComplete = async (credentials: { email: string; password: string }) => {
     const nextToken = await login({
       email: credentials.email,
       password: credentials.password,

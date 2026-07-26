@@ -1,7 +1,6 @@
 package com.example.springboot_realtimechat.controller;
 
 import com.example.springboot_realtimechat.domain.Member;
-import com.example.springboot_realtimechat.dto.MemberRequest;
 import com.example.springboot_realtimechat.dto.MemberResponse;
 import com.example.springboot_realtimechat.dto.ProfileImageRequest;
 import com.example.springboot_realtimechat.security.CustomUserDetails;
@@ -37,17 +36,6 @@ public class MemberController {
     @GetMapping("/{id}")
     public MemberResponse getMemberById(@PathVariable Long id){
         Member member = memberService.getMemberById(id);
-        return MemberResponse.from(member);
-    }
-
-    @PostMapping
-    public MemberResponse create(@Valid @RequestBody MemberRequest memberRequest){
-       Member member = memberService.create(
-               memberRequest.getEmail(),
-               memberRequest.getPassword(),
-               memberRequest.getNickname()
-       );
-
         return MemberResponse.from(member);
     }
 
