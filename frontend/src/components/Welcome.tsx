@@ -272,9 +272,6 @@ export default function Welcome({ onComplete, initialUser, warping, oauthError }
                   {isSubmitting ? '처리 중...' : '로그인'}
                 </button>
               </div>
-              <p className="sage-stg" style={{ transitionDelay: '0.5s', fontSize: 11, color: '#5C6A62', textAlign: 'center', margin: 0 }}>
-                데모: demo@demo.com / demo1234
-              </p>
             </form>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0' }}>
