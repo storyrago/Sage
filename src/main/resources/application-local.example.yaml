@@ -11,7 +11,18 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: your-google-client-id
+            client-secret: your-google-client-secret
+            scope: [openid, email, profile]
 
 jwt:
   secret: your-jwt-secret-key-at-least-32-bytes
   access-token-expiration-ms: 3600000
+
+app:
+  frontend-url: http://localhost:5173

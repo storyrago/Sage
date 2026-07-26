@@ -21,8 +21,14 @@ public class Member {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(nullable = false)
+    @Column
     private String password;
+
+    @Column(nullable = false, length = 20)
+    private String provider = "LOCAL";
+
+    @Column(name = "google_sub", length = 255, unique = true)
+    private String googleSub;
 
     @Column(length=10)
     private String nickname;
@@ -48,6 +54,25 @@ public class Member {
 
     public void updateProfileImageUrl(String profileImageUrl){
         this.profileImageUrl = profileImageUrl;
+    }
+
+    public static Member ofGoogle(String email, String nickname, String profileImageUrl, String googleSub) {
+        Member m = new Member();
+        m.email = email;
+        m.password = null;
+        m.nickname = nickname;
+        m.profileImageUrl = profileImageUrl;
+        m.provider = "GOOGLE";
+        m.googleSub = googleSub;
+        return m;
+    }
+
+    public void linkGoogle(String googleSub) {
+        this.googleSub = googleSub;
+    }
+
+    public void updateEmail(String email) {
+        this.email = email;
     }
 }
 

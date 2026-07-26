@@ -24,7 +24,8 @@ public class AuthService {
             throw new CustomException(ErrorCode.TOO_MANY_LOGIN_ATTEMPTS);
         }
         Member member = memberRepository.findByEmail(loginRequest.getEmail()).orElse(null);
-        if (member == null || !passwordEncoder.matches(loginRequest.getPassword(), member.getPassword())) {
+        if (member == null || member.getPassword() == null
+                || !passwordEncoder.matches(loginRequest.getPassword(), member.getPassword())) {
             loginRateLimiter.recordFailure(clientIp);
             throw new CustomException(member == null ? ErrorCode.MEMBER_NOT_FOUND : ErrorCode.INVALID_PASSWORD);
         }
