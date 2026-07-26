@@ -18,6 +18,8 @@ PR 본문은 항상 `.github/pull_request_template.md`의 섹션을 **그대로,
 ## 브랜치·머지
 
 - feature 브랜치 → **develop** 으로 PR. main 직접 타겟 금지.
+- **간단·저위험 변경**(문서·주석·설정 한두 줄 등)은 develop에 **직접 커밋·푸시** 가능(브랜치·PR 생략).
+  단 develop push는 CD 자동 배포를 즉시 트리거하므로, 스키마 변경·기능 추가·불확실한 변경은 반드시 feature 브랜치 → PR.
 - 머지는 사용자가 한다. PR을 쌓지 않는다(스택하면 자동 close됨).
 
 ## 스키마 변경
