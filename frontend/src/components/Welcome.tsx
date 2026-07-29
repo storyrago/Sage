@@ -1,15 +1,7 @@
-import { useState, useRef, useEffect, FormEvent, CSSProperties } from 'react';
-import { User } from '../types';
+import { useRef, useEffect } from 'react';
 import { MessagesSquare } from 'lucide-react';
 
-interface Credentials {
-  email: string;
-  password: string;
-}
-
 interface WelcomeProps {
-  onComplete: (credentials: Credentials) => Promise<void>;
-  initialUser?: User | null;
   warping?: boolean;
   oauthError?: string | null;
 }
@@ -21,7 +13,7 @@ interface Particle {
 const PARTICLE_COLORS = ['#5E9079', '#7AAE92', '#9CCBB2'];
 const LINK = 140;
 
-export default function Welcome({ onComplete, initialUser, warping, oauthError }: WelcomeProps) {
+export default function Welcome({ warping, oauthError }: WelcomeProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const spotRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
@@ -31,11 +23,6 @@ export default function Welcome({ onComplete, initialUser, warping, oauthError }
   const contentRef = useRef<HTMLDivElement>(null);
   const auraRef = useRef<HTMLDivElement>(null);
   const warpRef = useRef(false);
-
-  const [email, setEmail] = useState(initialUser?.email || '');
-  const [password, setPassword] = useState('');
-  const [errorCode, setErrorCode] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Canvas particle network + spotlight + scroll parallax
   useEffect(() => {
@@ -173,29 +160,7 @@ export default function Welcome({ onComplete, initialUser, warping, oauthError }
     if (contentRef.current) contentRef.current.style.opacity = warping ? '0' : '1';
   }, [warping]);
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setErrorCode('');
-    if (!email.trim() || !password.trim()) {
-      setErrorCode('이메일과 비밀번호를 입력해 주세요.');
-      return;
-    }
-    try {
-      setIsSubmitting(true);
-      await onComplete({ email: email.trim(), password });
-    } catch (error) {
-      setErrorCode(error instanceof Error ? error.message : '인증 요청에 실패했습니다.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const scrollToLogin = () => loginRef.current?.scrollIntoView({ behavior: 'smooth' });
-  const inputStyle: CSSProperties = {
-    background: '#252E28', border: '1px solid #2D362F', borderRadius: 12,
-    padding: '12px 14px', fontSize: 13, color: '#E6ECE8', outline: 'none', width: '100%',
-  };
-  const labelStyle: CSSProperties = { display: 'block', fontSize: 12, fontWeight: 600, color: '#C7D2CB', marginBottom: 5 };
 
   const OAUTH_BASE = (import.meta.env.VITE_OAUTH_BASE as string | undefined) ?? '';
   const handleGoogleLogin = () => {
@@ -252,43 +217,26 @@ export default function Welcome({ onComplete, initialUser, warping, oauthError }
             <div className="flex items-center justify-center sage-stg" style={{ width: 52, height: 52, borderRadius: 16, background: '#29392F', color: '#9CCBB2', margin: '0 auto 12px', transitionDelay: '0.14s' }}>
               <MessagesSquare className="w-6 h-6" />
             </div>
-            <h2 className="text-center sage-stg" style={{ fontWeight: 800, fontSize: 23, color: '#E6ECE8', margin: '0 0 18px', transitionDelay: '0.19s' }}>Sage</h2>
+            <h2 className="text-center sage-stg" style={{ fontWeight: 800, fontSize: 23, color: '#E6ECE8', margin: '0 0 6px', transitionDelay: '0.19s' }}>Sage</h2>
+            <p className="text-center sage-stg" style={{ fontSize: 13, color: '#9AA8A0', margin: '0 0 24px', transitionDelay: '0.26s' }}>소셜 계정으로 간편하게 로그인하세요</p>
 
             {oauthError && (
-              <div style={{ marginBottom: 10, color: '#e88', fontSize: 13 }}>{oauthError}</div>
+              <div className="sage-stg" style={{ marginBottom: 14, color: '#e88', fontSize: 13, textAlign: 'center', transitionDelay: '0.3s' }}>{oauthError}</div>
             )}
-            <form onSubmit={handleSubmit} className="space-y-3">
-              <div className="sage-stg" style={{ transitionDelay: '0.36s' }}>
-                <label htmlFor="w-email" style={labelStyle}>이메일</label>
-                <input id="w-email" className="sage-input" type="email" autoFocus placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
-              </div>
-              <div className="sage-stg" style={{ transitionDelay: '0.42s' }}>
-                <label htmlFor="w-password" style={labelStyle}>비밀번호</label>
-                <input id="w-password" className="sage-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} />
-              </div>
-              {errorCode && <p style={{ fontSize: 12, color: '#f0a5a5', textAlign: 'center', fontWeight: 500, margin: 0 }}>{errorCode}</p>}
-              <div className="sage-stg" style={{ transitionDelay: '0.48s' }}>
-                <button type="submit" disabled={isSubmitting} className="sage-cta" style={{ width: '100%', background: '#7AAE92', color: '#12241B', borderRadius: 13, padding: 14, fontWeight: 600, fontSize: 14, border: 'none', cursor: 'pointer', opacity: isSubmitting ? 0.6 : 1 }} id="join-chat-btn">
-                  {isSubmitting ? '처리 중...' : '로그인'}
-                </button>
-              </div>
-            </form>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0' }}>
-              <div style={{ flex: 1, height: 1, background: '#2a322d' }} />
-              <span style={{ fontSize: 12, color: '#6B7972' }}>또는</span>
-              <div style={{ flex: 1, height: 1, background: '#2a322d' }} />
+            {/* 소셜 로그인 버튼 영역 — 카카오 등 다른 소셜 버튼을 이 아래에 이어서 추가 */}
+            <div className="flex flex-col gap-3 sage-stg" style={{ transitionDelay: '0.36s' }}>
+              <button type="button" onClick={handleGoogleLogin} className="sage-cta"
+                style={{ width: '100%', background: '#fff', color: '#1f2937', borderRadius: 13, padding: 13, fontWeight: 600, fontSize: 14, border: '1px solid #d0d7de', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+                  <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.71-1.57 2.68-3.89 2.68-6.62z"/>
+                  <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.83.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"/>
+                  <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z"/>
+                  <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.47.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/>
+                </svg>
+                Google로 로그인
+              </button>
             </div>
-            <button type="button" onClick={handleGoogleLogin}
-              style={{ width: '100%', background: '#fff', color: '#1f2937', borderRadius: 13, padding: 13, fontWeight: 600, fontSize: 14, border: '1px solid #d0d7de', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-              <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-                <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.71-1.57 2.68-3.89 2.68-6.62z"/>
-                <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.83.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"/>
-                <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z"/>
-                <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.47.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/>
-              </svg>
-              Google로 로그인
-            </button>
           </div>
         </div>
       </section>
