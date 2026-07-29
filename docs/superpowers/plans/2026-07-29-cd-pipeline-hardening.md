@@ -277,11 +277,11 @@ git commit -m "feat(cd): 이미지 태그 파라미터화와 app 컨테이너 �
             docker compose pull                     # 해당 SHA 태그만 받기 (실패 시 여기서 중단, 기존 컨테이너 유지)
             docker compose up -d --remove-orphans   # 빌드 없이 새 이미지로 교체
 
-            # app이 healthy가 될 때까지 대기 (5초 간격 30회 = 최대 2분 30초)
+            # app이 healthy가 될 때까지 대기 (5초 간격 35회 = 최대 2분 55초)
             CID=$(docker compose ps -q app)
             STATUS=""
-            for i in $(seq 1 30); do
-              STATUS=$(docker inspect -f '{{.State.Health.Status}}' "$CID")
+            for i in $(seq 1 35); do
+              STATUS=$(docker inspect -f '{{.State.Health.Status}}' "$CID" 2>&1) || STATUS="inspect_failed"
               if [ "$STATUS" = healthy ]; then break; fi
               if [ "$STATUS" = unhealthy ]; then
                 echo "기동 실패: app 컨테이너가 unhealthy"
@@ -358,6 +358,9 @@ git commit -m "feat(cd): 배포 대상 SHA 고정과 기동 검증"
   # 관리 엔드포인트는 외부에 열지 않는다.
   # 프록시 규칙이 없으면 SPA 폴백이 걸려 200 HTML이 나가고, 앱이 죽어도 살아있는 것처럼 보인다.
   location /actuator/ {
+    return 404;
+  }
+  location = /actuator {
     return 404;
   }
 ```
