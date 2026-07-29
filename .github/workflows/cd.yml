@@ -4,6 +4,14 @@ on:
   push:
     branches: [ develop ]      # develop에 머지되면 자동 배포
 
+# 같은 브랜치의 CD는 한 번에 하나만 돌린다.
+# 두 실행이 겹치면 각자 :latest 태그에 push하고 같은 컨테이너를 동시에 교체하려 해서,
+# 늦게 끝난 쪽(= 더 오래된 커밋일 수 있음)의 이미지가 배포되고 컨테이너 교체가 실패한다.
+# 새 실행이 뜨면 진행 중인 오래된 실행을 취소해 항상 최신 커밋이 배포되게 한다.
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   IMAGE_APP: ghcr.io/storyrago/realtimechat-backend-app
   IMAGE_WEB: ghcr.io/storyrago/realtimechat-backend-web
