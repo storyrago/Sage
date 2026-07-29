@@ -87,14 +87,19 @@
 
 단, 이미 `(provider, providerId)`로 신원이 확인된 **기존 회원**의 로그인 시점 이메일 갱신은 이 거부 대상이 아니다. 새 이메일이 다른 회원 소유와 충돌하면 갱신만 건너뛰고 기존 이메일을 유지한 채 로그인을 허용한다 — 이미 인증된 사용자를 자신이 통제할 수 없는 이메일 값 때문에 자기 계정에서 잠그지 않기 위함이다.
 
-**D2. 카카오 이메일은 요청하되, 없으면 `null`로 진행한다.**
-`account_email`을 scope에 포함해 요청한다. 저장은 §4의 이메일 저장 규칙을 따른다 — **검증된 이메일만** 저장하고, 미동의·미제공·미검증이면 이메일 없이 계정을 만든다. §2에서 이메일을 선택 속성으로 바꾸었으므로 가능하다.
+**D2. 카카오 회원은 이메일 없이 생성한다.**
+`account_email`은 **비즈니스 인증을 받은 앱에만 열리는 동의항목**이다. 개인 개발자 앱에서는 콘솔에 "권한 없음"으로 표시되어 활성화할 수 없고, 설정하지 않은 동의항목을 요청하면 카카오가 인가 요청 자체를 `KOE205`로 거부한다. 따라서 scope에서 제외하고, 카카오 회원은 `email = null`로 만든다.
+
+신원은 `(provider, provider_id)`이므로 이메일이 없어도 로그인·재로그인 매칭에 영향이 없다. 저장 규칙 자체는 §4 그대로다 — 검증된 이메일만 저장하고, 없으면 `null`. 구글은 종전대로 이메일을 받는다.
+
+향후 비즈니스 인증을 거쳐 `account_email`이 열리면 scope에 추가하는 것만으로 동작한다.
 
 ## 6. 카카오 설정
 
 `application.yaml`:
 
-- `registration.kakao`: `client-id`(REST API 키), `client-secret`, `scope: [openid, profile_nickname, profile_image, account_email]`, `authorization-grant-type: authorization_code`
+- `registration.kakao`: `client-id`(REST API 키), `client-secret`, `scope: [openid, profile_nickname, profile_image]`(§5 D2), `authorization-grant-type: authorization_code`, `client-authentication-method: client_secret_post`, `redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"`
+  - `redirect-uri`를 명시하는 이유: 기본 템플릿은 `CommonOAuth2Provider`(google 등)에만 적용된다. 카카오는 커스텀 provider라 값이 비면 `ClientRegistration` 생성 시점에 예외가 나 애플리케이션 컨텍스트가 뜨지 않는다
 - `provider.kakao`: `authorization-uri`, `token-uri`, `user-info-uri`, `jwk-set-uri`, `user-name-attribute: sub`를 명시한다. `issuer-uri`는 쓰지 않는다 — `issuer-uri`를 쓰면 Spring이 부팅 시 OIDC discovery 문서를 네트워크로 가져오는데, 이는 CI와 오프라인 테스트 환경의 컨텍스트 로딩을 막는다. 엔드포인트를 명시하면 네트워크 호출 없이 부팅된다
 - 구글과 동일하게 더미 기본값(`${KAKAO_CLIENT_ID:dummy-client-id}`)을 두어 로컬/테스트 컨텍스트가 로드되게 한다
 
