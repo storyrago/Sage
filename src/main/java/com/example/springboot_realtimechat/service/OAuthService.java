@@ -15,39 +15,42 @@ public class OAuthService {
     private final MemberRepository memberRepository;
 
     @Transactional
-    public Member upsertGoogleUser(String sub, String email, boolean emailVerified, String name, String picture) {
-        // 1) sub 우선 — 이메일이 바뀌었어도 동일인
-        Member bySub = memberRepository.findByGoogleSub(sub).orElse(null);
-        if (bySub != null) {
-            if (email != null && !email.equals(bySub.getEmail())) {
-                bySub.updateEmail(email);
+    public Member upsertOidcUser(String provider, String providerId, String email,
+                                 boolean emailVerified, String nickname, String picture) {
+        // 1) provider + providerId가 신원. 이메일이 바뀌어도 동일인
+        Member existing = memberRepository.findByProviderAndProviderId(provider, providerId).orElse(null);
+        if (existing != null) {
+            if (emailVerified && email != null && !email.equals(existing.getEmail())
+                    && memberRepository.findByEmail(email).isEmpty()) {
+                existing.updateEmail(email);
             }
-            return bySub;
+            return existing;
         }
-        // 2) 이메일로 기존 회원 — 검증된 이메일에 한해 연결
-        Member byEmail = (email != null) ? memberRepository.findByEmail(email).orElse(null) : null;
-        if (byEmail != null) {
-            if (!emailVerified) {
+
+        // 2) 검증된 이메일만 저장한다. 미검증 값이 UNIQUE 슬롯을 선점하지 못하게 한다
+        String emailToStore = null;
+        if (emailVerified && email != null) {
+            if (memberRepository.findByEmail(email).isPresent()) {
                 throw new CustomException(ErrorCode.EMAIL_ALREADY_REGISTERED);
             }
-            byEmail.linkGoogle(sub);
-            return byEmail;
+            emailToStore = email;
         }
-        // 3) 신규 생성
-        Member created = Member.ofGoogle(email, toNickname(name, email), picture, sub);
+
+        Member created = Member.ofSocial(provider, providerId, emailToStore, toNickname(nickname, email), picture);
         return memberRepository.save(created);
     }
 
-    private String toNickname(String name, String email) {
+    private String toNickname(String nickname, String email) {
         String base;
-        if (name != null && !name.isBlank()) {
-            base = name.trim();
+        if (nickname != null && !nickname.isBlank()) {
+            base = nickname.trim();
         } else if (email != null && email.contains("@")) {
             base = email.substring(0, email.indexOf('@'));
         } else {
             base = "user";
         }
         String cut = base.length() > 10 ? base.substring(0, 10) : base;
-        return cut.trim();   // "Alexander Longname" → 앞 10자 "Alexander " → trim → "Alexander"
+        String trimmed = cut.trim();
+        return trimmed.isEmpty() ? "user" : trimmed;   // nickname 컬럼은 10자 제한
     }
 }
