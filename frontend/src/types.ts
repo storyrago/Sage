@@ -4,6 +4,7 @@ export interface User {
   displayName: string;
   avatar: string; // Tailored color index, gradient, or icon abbreviation
   photoUrl?: string;
+  onboarded: boolean;
 }
 
 export interface Message {
