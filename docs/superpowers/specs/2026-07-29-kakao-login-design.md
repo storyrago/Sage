@@ -101,6 +101,19 @@
 - `registration.kakao`: `client-id`(REST API 키), `client-secret`, `scope: [openid, profile_nickname, profile_image]`(§5 D2), `authorization-grant-type: authorization_code`, `client-authentication-method: client_secret_post`, `redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"`
   - `redirect-uri`를 명시하는 이유: 기본 템플릿은 `CommonOAuth2Provider`(google 등)에만 적용된다. 카카오는 커스텀 provider라 값이 비면 `ClientRegistration` 생성 시점에 예외가 나 애플리케이션 컨텍스트가 뜨지 않는다
 - `provider.kakao`: `authorization-uri`, `token-uri`, `user-info-uri`, `jwk-set-uri`, `user-name-attribute: sub`를 명시한다. `issuer-uri`는 쓰지 않는다 — `issuer-uri`를 쓰면 Spring이 부팅 시 OIDC discovery 문서를 네트워크로 가져오는데, 이는 CI와 오프라인 테스트 환경의 컨텍스트 로딩을 막는다. 엔드포인트를 명시하면 네트워크 호출 없이 부팅된다
+
+  엔드포인트 값은 `https://kauth.kakao.com/.well-known/openid-configuration`을 기준으로 한다.
+
+  | 항목 | 값 |
+  |---|---|
+  | `authorization-uri` | `https://kauth.kakao.com/oauth/authorize` |
+  | `token-uri` | `https://kauth.kakao.com/oauth/token` |
+  | `user-info-uri` | `https://kapi.kakao.com/v1/oidc/userinfo` |
+  | `jwk-set-uri` | `https://kauth.kakao.com/.well-known/jwks.json` |
+
+  `user-info-uri`는 **OIDC 표준 UserInfo**여야 한다. 카카오 REST API의 `https://kapi.kakao.com/v2/user/me`는 응답이 `{ id, kakao_account, properties }` 형식이라 `sub` 클레임이 없고, Spring이 `user-name-attribute: sub`를 찾지 못해 `Attribute value for 'sub' cannot be null`로 인증이 중단된다. `/v1/oidc/userinfo`는 discovery의 `claims_supported`대로 `sub`·`nickname`·`picture`·`email`을 표준 클레임으로 반환한다.
+
+  **엔드포인트를 손으로 적는 것이 `issuer-uri`를 피한 대가다.** provider 설정을 바꿀 때는 discovery 문서와 대조한다.
 - 구글과 동일하게 더미 기본값(`${KAKAO_CLIENT_ID:dummy-client-id}`)을 두어 로컬/테스트 컨텍스트가 로드되게 한다
 
 **구현 시 확인**: 카카오 토큰 엔드포인트는 client secret을 POST 파라미터로 받는다. Spring 기본값(`client_secret_basic`)으로 실패하면 `client-authentication-method: client_secret_post`를 지정한다.

@@ -55,7 +55,8 @@ spring:
             # issuer-uri는 부팅 시 discovery를 네트워크로 가져와 CI/테스트 컨텍스트 로드를 막는다. 엔드포인트를 명시한다
             authorization-uri: https://kauth.kakao.com/oauth/authorize
             token-uri: https://kauth.kakao.com/oauth/token
-            user-info-uri: https://kapi.kakao.com/v2/user/me
+            # OIDC 표준 UserInfo. /v2/user/me는 카카오 REST API 응답 형식이라 sub 클레임이 없다
+            user-info-uri: https://kapi.kakao.com/v1/oidc/userinfo
             jwk-set-uri: https://kauth.kakao.com/.well-known/jwks.json
             user-name-attribute: sub
 jwt:
