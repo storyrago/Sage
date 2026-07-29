@@ -240,7 +240,7 @@ export default function Welcome({ warping, oauthError }: WelcomeProps) {
                 Google로 로그인
               </button>
               <button type="button" onClick={handleKakaoLogin} className="sage-cta"
-                style={{ width: '100%', background: '#FEE500', color: 'rgba(0,0,0,0.85)', borderRadius: 13, padding: 13, fontWeight: 600, fontSize: 14, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                style={{ width: '100%', background: '#FEE500', color: 'rgba(0,0,0,0.85)', borderRadius: 13, padding: 13, fontWeight: 600, fontSize: 14, border: '1px solid transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
                 <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
                   <path fill="rgba(0,0,0,0.85)" d="M9 1.8c-4.03 0-7.3 2.57-7.3 5.74 0 2.02 1.33 3.79 3.34 4.81l-.85 3.1c-.07.26.22.47.45.32l3.7-2.44c.22.02.44.03.66.03 4.03 0 7.3-2.57 7.3-5.74S13.03 1.8 9 1.8z"/>
                 </svg>
