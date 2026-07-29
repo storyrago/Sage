@@ -49,6 +49,24 @@ public class MemberService {
     }
 
     @Transactional
+    public Member updateNickname(Long memberId, String nickname) {
+        Member member = getMemberById(memberId);
+        String trimmed = (nickname == null) ? "" : nickname.trim();
+        if (trimmed.isEmpty() || trimmed.length() > 20) {
+            throw new CustomException(ErrorCode.INVALID_NICKNAME);
+        }
+        member.updateNickname(trimmed);
+        return member;
+    }
+
+    @Transactional
+    public Member completeOnboarding(Long memberId) {
+        Member member = getMemberById(memberId);
+        member.markOnboarded();
+        return member;
+    }
+
+    @Transactional
     public void delete(Long id){
         Member member = memberRepository.findById(id)
                 .orElseThrow(()-> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
