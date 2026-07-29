@@ -5,9 +5,11 @@ import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -15,39 +17,48 @@ public class OAuthService {
     private final MemberRepository memberRepository;
 
     @Transactional
-    public Member upsertGoogleUser(String sub, String email, boolean emailVerified, String name, String picture) {
-        // 1) sub 우선 — 이메일이 바뀌었어도 동일인
-        Member bySub = memberRepository.findByGoogleSub(sub).orElse(null);
-        if (bySub != null) {
-            if (email != null && !email.equals(bySub.getEmail())) {
-                bySub.updateEmail(email);
+    public Member upsertOidcUser(String provider, String providerId, String email,
+                                 boolean emailVerified, String nickname, String picture) {
+        // 1) provider + providerId가 신원. 이메일이 바뀌어도 동일인
+        Member existing = memberRepository.findByProviderAndProviderId(provider, providerId).orElse(null);
+        if (existing != null) {
+            if (emailVerified && email != null && !email.equals(existing.getEmail())) {
+                Member emailOwner = memberRepository.findByEmail(email).orElse(null);
+                if (emailOwner == null) {
+                    existing.updateEmail(email);
+                } else {
+                    // 이미 인증된 사용자를 남의 이메일 소유권 문제로 잠그지 않기 위해 갱신만 건너뛰고 로그인은 유지한다
+                    log.warn("소셜 로그인 이메일 갱신 건너뜀: 다른 회원이 이미 보유한 이메일 (provider={}, existingMemberId={})",
+                            provider, existing.getId());
+                }
             }
-            return bySub;
+            return existing;
         }
-        // 2) 이메일로 기존 회원 — 검증된 이메일에 한해 연결
-        Member byEmail = (email != null) ? memberRepository.findByEmail(email).orElse(null) : null;
-        if (byEmail != null) {
-            if (!emailVerified) {
+
+        // 2) 검증된 이메일만 저장한다. 미검증 값이 UNIQUE 슬롯을 선점하지 못하게 한다
+        String emailToStore = null;
+        if (emailVerified && email != null) {
+            if (memberRepository.findByEmail(email).isPresent()) {
                 throw new CustomException(ErrorCode.EMAIL_ALREADY_REGISTERED);
             }
-            byEmail.linkGoogle(sub);
-            return byEmail;
+            emailToStore = email;
         }
-        // 3) 신규 생성
-        Member created = Member.ofGoogle(email, toNickname(name, email), picture, sub);
+
+        Member created = Member.ofSocial(provider, providerId, emailToStore, toNickname(nickname, email), picture);
         return memberRepository.save(created);
     }
 
-    private String toNickname(String name, String email) {
+    private String toNickname(String nickname, String email) {
         String base;
-        if (name != null && !name.isBlank()) {
-            base = name.trim();
+        if (nickname != null && !nickname.isBlank()) {
+            base = nickname.trim();
         } else if (email != null && email.contains("@")) {
             base = email.substring(0, email.indexOf('@'));
         } else {
             base = "user";
         }
         String cut = base.length() > 10 ? base.substring(0, 10) : base;
-        return cut.trim();   // "Alexander Longname" → 앞 10자 "Alexander " → trim → "Alexander"
+        String trimmed = cut.trim();
+        return trimmed.isEmpty() ? "user" : trimmed;   // nickname 컬럼은 10자 제한
     }
 }

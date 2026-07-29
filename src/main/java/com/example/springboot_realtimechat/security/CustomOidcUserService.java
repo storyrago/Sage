@@ -18,13 +18,21 @@ public class CustomOidcUserService extends OidcUserService {
     @Override
     public OidcUser loadUser(OidcUserRequest userRequest) throws OAuth2AuthenticationException {
         OidcUser oidcUser = super.loadUser(userRequest);
-        String sub = oidcUser.getSubject();
+
+        String provider = userRequest.getClientRegistration().getRegistrationId().toUpperCase();
+        String providerId = oidcUser.getSubject();
         String email = oidcUser.getEmail();
         boolean emailVerified = Boolean.TRUE.equals(oidcUser.getEmailVerified());
-        String name = oidcUser.getFullName();
+
+        // 카카오는 표준 name 클레임을 주지 않고 nickname을 준다
+        String nickname = oidcUser.getClaimAsString("nickname");
+        if (nickname == null || nickname.isBlank()) {
+            nickname = oidcUser.getFullName();
+        }
         String picture = oidcUser.getPicture();
+
         try {
-            oAuthService.upsertGoogleUser(sub, email, emailVerified, name, picture);
+            oAuthService.upsertOidcUser(provider, providerId, email, emailVerified, nickname, picture);
         } catch (CustomException e) {
             // 실패 핸들러가 #oauth_error=<코드>로 안내
             throw new OAuth2AuthenticationException(new OAuth2Error(e.getErrorCode().name()), e.getMessage(), e);

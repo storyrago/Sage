@@ -19,6 +19,9 @@ spring:
             client-id: your-google-client-id
             client-secret: your-google-client-secret
             scope: [openid, email, profile]
+          kakao:
+            client-id: your-kakao-rest-api-key
+            client-secret: your-kakao-client-secret
 
 jwt:
   secret: your-jwt-secret-key-at-least-32-bytes

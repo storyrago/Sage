@@ -12,13 +12,19 @@ import java.util.List;
 @Entity
 @Getter
 @NoArgsConstructor
-@Table(name = "members")
+@Table(
+        name = "members",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_members_provider",
+                columnNames = {"provider", "provider_id"}
+        )
+)
 public class Member {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(unique = true)
     private String email;
 
     @Column
@@ -27,8 +33,8 @@ public class Member {
     @Column(nullable = false, length = 20)
     private String provider = "LOCAL";
 
-    @Column(name = "google_sub", length = 255, unique = true)
-    private String googleSub;
+    @Column(name = "provider_id", length = 255)
+    private String providerId;
 
     @Column(length=10)
     private String nickname;
@@ -56,19 +62,16 @@ public class Member {
         this.profileImageUrl = profileImageUrl;
     }
 
-    public static Member ofGoogle(String email, String nickname, String profileImageUrl, String googleSub) {
+    public static Member ofSocial(String provider, String providerId, String email,
+                                  String nickname, String profileImageUrl) {
         Member m = new Member();
+        m.provider = provider;
+        m.providerId = providerId;
         m.email = email;
         m.password = null;
         m.nickname = nickname;
         m.profileImageUrl = profileImageUrl;
-        m.provider = "GOOGLE";
-        m.googleSub = googleSub;
         return m;
-    }
-
-    public void linkGoogle(String googleSub) {
-        this.googleSub = googleSub;
     }
 
     public void updateEmail(String email) {

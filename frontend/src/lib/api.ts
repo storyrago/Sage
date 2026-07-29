@@ -5,7 +5,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
 export interface BackendMember {
   id: number;
-  email: string;
+  email: string | null;
   nickname: string;
   profileImageUrl?: string | null;
   createdAt?: string;

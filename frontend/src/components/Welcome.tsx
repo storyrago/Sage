@@ -166,6 +166,9 @@ export default function Welcome({ warping, oauthError }: WelcomeProps) {
   const handleGoogleLogin = () => {
     window.location.href = `${OAUTH_BASE}/oauth2/authorization/google`;
   };
+  const handleKakaoLogin = () => {
+    window.location.href = `${OAUTH_BASE}/oauth2/authorization/kakao`;
+  };
 
   return (
     <div className="relative font-sans" style={{ background: '#141917', color: '#E6ECE8' }}>
@@ -235,6 +238,13 @@ export default function Welcome({ warping, oauthError }: WelcomeProps) {
                   <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.47.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/>
                 </svg>
                 Google로 로그인
+              </button>
+              <button type="button" onClick={handleKakaoLogin} className="sage-cta"
+                style={{ width: '100%', background: '#FEE500', color: 'rgba(0,0,0,0.85)', borderRadius: 13, padding: 13, fontWeight: 600, fontSize: 14, border: '1px solid transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+                  <path fill="rgba(0,0,0,0.85)" d="M9 1.8c-4.03 0-7.3 2.57-7.3 5.74 0 2.02 1.33 3.79 3.34 4.81l-.85 3.1c-.07.26.22.47.45.32l3.7-2.44c.22.02.44.03.66.03 4.03 0 7.3-2.57 7.3-5.74S13.03 1.8 9 1.8z"/>
+                </svg>
+                카카오 로그인
               </button>
             </div>
           </div>

@@ -9,7 +9,7 @@ public enum ErrorCode {
     DUPLICATE_EMAIL(409, "이미 사용 중인 이메일입니다."),
     INVALID_PASSWORD(401, "비밀번호가 일치하지 않습니다."),
     TOO_MANY_LOGIN_ATTEMPTS(429, "로그인 시도가 너무 많습니다. 잠시 후 다시 시도해 주세요."),
-    EMAIL_ALREADY_REGISTERED(409, "이미 가입된 이메일입니다. 이메일/비밀번호로 로그인해 주세요."),
+    EMAIL_ALREADY_REGISTERED(409, "이미 등록된 이메일입니다. 기존에 사용하던 소셜 계정으로 로그인해 주세요."),
     SOCIAL_LOGIN_ONLY(401, "소셜 로그인으로 가입된 계정입니다. 소셜 로그인을 이용해 주세요."),
 
     // ChatRoom
