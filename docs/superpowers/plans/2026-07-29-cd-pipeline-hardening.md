@@ -27,8 +27,9 @@
 | `config/SecurityConfig.java` | `/actuator/health` 비인증 허용 | 수정 |
 | `src/test/java/.../health/HealthEndpointTest.java` | 헬스가 인증 없이 UP을 반환하는지 | 생성 |
 | `Dockerfile` | 컨테이너 헬스체크용 curl | 수정 |
-| `docker-compose.yml` | 이미지 태그 파라미터화, app healthcheck | 수정 |
-| `.github/workflows/cd.yml` | SHA 가드·SHA 체크아웃·IMAGE_TAG·헬스 대기 | 수정 |
+| `frontend/Dockerfile` | 컨테이너 헬스체크용 curl | 수정 |
+| `docker-compose.yml` | 이미지 태그 필수화, app·web healthcheck | 수정 |
+| `.github/workflows/cd.yml` | SHA 가드·SHA 체크아웃·IMAGE_TAG·`.env` 원자적 기록·이미지 정리·app·web 헬스 대기·배포 후 스모크 테스트 | 수정 |
 | `frontend/nginx.conf` | `/actuator` SPA 폴백 차단 | 수정 |
 
 ---
@@ -135,13 +136,14 @@ git commit -m "feat(cd): 배포 기동 검증용 헬스 엔드포인트 공개"
 
 **Files:**
 - Modify: `Dockerfile`
-- Modify: `docker-compose.yml:3`, `docker-compose.yml:25`, `docker-compose.yml` app 서비스 블록
+- Modify: `frontend/Dockerfile`
+- Modify: `docker-compose.yml:3`, `docker-compose.yml:31`, `docker-compose.yml` app·web 서비스 블록
 
 **Interfaces:**
 - Consumes: Task 1의 `GET /actuator/health`
 - Produces:
-  - compose 변수 `IMAGE_TAG` — 미설정 시 `latest`로 대체된다. Task 3의 배포 스크립트가 이 변수를 export한다.
-  - `app` 서비스의 컨테이너 헬스 상태(`docker inspect -f '{{.State.Health.Status}}'` → `starting` | `healthy` | `unhealthy`). Task 3이 이 값을 폴링한다.
+  - compose 변수 `IMAGE_TAG` — 미설정 시 `docker compose`가 즉시 실패한다. Task 3의 배포 스크립트가 이 변수를 export하고 `.env`에 기록한다.
+  - `app`·`web` 서비스의 컨테이너 헬스 상태(`docker inspect -f '{{.State.Health.Status}}'` → `starting` | `healthy` | `unhealthy`). Task 3이 이 값을 폴링한다.
 
 - [ ] **Step 1: 앱 이미지에 curl을 넣는다**
 
@@ -157,13 +159,25 @@ COPY build/libs/*.jar app.jar
 ENTRYPOINT ["java", "-jar", "app.jar"]
 ```
 
-- [ ] **Step 2: compose의 이미지 태그를 파라미터화하고 healthcheck를 단다**
+`frontend/Dockerfile`의 nginx 스테이지에도 curl을 넣는다. `nginx:1.27-alpine`에도 curl이 없다. `COPY` 지시문들보다 앞에 둬서 레이어 캐시가 유지되게 한다:
+
+```dockerfile
+# 2단계: nginx로 서빙 (실제 배포 이미지 — 가벼움)
+FROM nginx:1.27-alpine
+# 컨테이너 헬스체크(compose healthcheck)가 쓸 curl
+RUN apk add --no-cache curl
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist /usr/share/nginx/html
+EXPOSE 80 443
+```
+
+- [ ] **Step 2: compose의 이미지 태그를 필수화하고 `app`·`web` 모두에 healthcheck를 단다**
 
 `docker-compose.yml`의 `app` 서비스를 아래로 교체한다. `environment` 블록은 기존 내용을 그대로 두고, `image:` 한 줄과 `healthcheck:` 블록만 바뀐다:
 
 ```yaml
   app:
-    image: ghcr.io/storyrago/realtimechat-backend-app:${IMAGE_TAG:-latest}
+    image: ghcr.io/storyrago/realtimechat-backend-app:${IMAGE_TAG:?IMAGE_TAG required}
     build: .
     restart: unless-stopped
     expose:
@@ -191,18 +205,34 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
       - redis
 ```
 
-`web` 서비스의 `image:` 줄도 바꾼다:
+`web` 서비스는 `image:` 줄을 필수화하고 healthcheck를 추가한다. `80`포트는 https로 301 리다이렉트하는데 `curl -f`는 3xx를 실패로 보지 않으므로 이 체크는 "nginx가 살아서 응답한다"만 판정한다. `-L`은 붙이지 않는다(공개 도메인으로 나가버린다):
 
 ```yaml
-    image: ghcr.io/storyrago/realtimechat-backend-web:${IMAGE_TAG:-latest}
+  web:
+    image: ghcr.io/storyrago/realtimechat-backend-web:${IMAGE_TAG:?IMAGE_TAG required}
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "-o", "/dev/null", "http://localhost/"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 5s
+    depends_on:
+      - app
 ```
 
 `web`의 `depends_on: - app`은 건드리지 않는다. `condition: service_healthy`로 바꾸면 앱이 죽었을 때 사이트가 통째로 안 뜬다.
 
 - [ ] **Step 3: 태그 치환을 확인한다**
 
-Run: `docker compose config 2>/dev/null | grep "image:"`
-Expected: `IMAGE_TAG`가 없으므로 `...-app:latest`, `...-web:latest`, `redis:7` 세 줄.
+Run: `docker compose config`
+Expected: `IMAGE_TAG`가 없으므로 실패. `required variable IMAGE_TAG is missing a value` 류의 에러가 출력된다.
 
 Run: `IMAGE_TAG=deadbeef docker compose config 2>/dev/null | grep "image:"`
 Expected: `...-app:deadbeef`, `...-web:deadbeef`, `redis:7`.
@@ -220,11 +250,17 @@ Expected: 성공.
 Run: `docker run --rm --entrypoint curl rtc-app-local --version`
 Expected: `curl 8.x.x ...` 버전 문자열 출력.
 
+Run: `docker build -t rtc-web-local ./frontend`
+Expected: 성공.
+
+Run: `docker run --rm --entrypoint curl rtc-web-local --version`
+Expected: `curl 8.x.x ...` 버전 문자열 출력.
+
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Dockerfile docker-compose.yml
-git commit -m "feat(cd): 이미지 태그 파라미터화와 app 컨테이너 헬스체크"
+git add Dockerfile frontend/Dockerfile docker-compose.yml
+git commit -m "feat(cd): 이미지 태그 필수화와 app·web 컨테이너 헬스체크"
 ```
 
 ---
@@ -235,7 +271,7 @@ git commit -m "feat(cd): 이미지 태그 파라미터화와 app 컨테이너 �
 - Modify: `.github/workflows/cd.yml:68-87` (deploy 잡 전체)
 
 **Interfaces:**
-- Consumes: Task 2의 `IMAGE_TAG` 변수와 `app` 컨테이너 헬스 상태
+- Consumes: Task 2의 `IMAGE_TAG` 변수와 `app`·`web` 컨테이너 헬스 상태
 - Produces: 없음 (파이프라인 종단)
 
 - [ ] **Step 1: deploy 잡을 교체한다**
@@ -274,31 +310,58 @@ git commit -m "feat(cd): 이미지 태그 파라미터화와 app 컨테이너 �
             git reset --hard "$DEPLOY_SHA"          # compose 파일도 배포 대상 커밋에서 가져온다
             export IMAGE_TAG="$DEPLOY_SHA"          # 이 실행이 빌드한 이미지만 받는다
 
+            # 배포된 태그를 호스트에 남긴다 — 사람이 친 docker compose 명령도 같은 이미지를 쓴다
+            grep -v '^IMAGE_TAG=' .env > .env.tmp || true
+            echo "IMAGE_TAG=$DEPLOY_SHA" >> .env.tmp
+            mv .env.tmp .env
+
             docker compose pull                     # 해당 SHA 태그만 받기 (실패 시 여기서 중단, 기존 컨테이너 유지)
             docker compose up -d --remove-orphans   # 빌드 없이 새 이미지로 교체
 
-            # app이 healthy가 될 때까지 대기 (5초 간격 35회 = 최대 2분 55초)
-            CID=$(docker compose ps -q app)
-            STATUS=""
-            for i in $(seq 1 35); do
-              STATUS=$(docker inspect -f '{{.State.Health.Status}}' "$CID" 2>&1) || STATUS="inspect_failed"
-              if [ "$STATUS" = healthy ]; then break; fi
-              if [ "$STATUS" = unhealthy ]; then
-                echo "기동 실패: app 컨테이너가 unhealthy"
-                docker compose logs --tail=50 app
+            # SHA 태그를 쓰면 옛 이미지가 태그를 계속 들고 있어 dangling이 되지 않는다.
+            # 사용 중 이미지는 -a여도 보호된다.
+            docker image prune -af --filter "until=72h"
+
+            # app·web이 healthy 될 때까지 대기 (서비스당 5초 간격 35회 = 최대 175초)
+            for SVC in app web; do
+              CID=$(docker compose ps -q "$SVC")
+              if [ -z "$CID" ]; then
+                echo "기동 실패: $SVC 컨테이너가 없다"
+                docker compose logs --tail=50 "$SVC"
                 exit 1
               fi
-              sleep 5
+              STATUS=""
+              for i in $(seq 1 35); do
+                STATUS=$(docker inspect -f '{{.State.Health.Status}}' "$CID" 2>&1) || STATUS="inspect_failed"
+                if [ "$STATUS" = healthy ]; then break; fi
+                if [ "$STATUS" = unhealthy ]; then
+                  echo "기동 실패: $SVC 컨테이너가 unhealthy"
+                  docker compose logs --tail=50 "$SVC"
+                  exit 1
+                fi
+                sleep 5
+              done
+              if [ "$STATUS" != healthy ]; then
+                echo "기동 검증 타임아웃: $SVC 상태=$STATUS"
+                docker compose logs --tail=50 "$SVC"
+                exit 1
+              fi
             done
-            if [ "$STATUS" != healthy ]; then
-              echo "기동 검증 타임아웃: app 상태=$STATUS"
-              docker compose logs --tail=50 app
-              exit 1
-            fi
 
-            docker image prune -f                   # 안 쓰는 옛 이미지 정리 (디스크 확보)
+      - name: Smoke test (공개 URL)
+        run: |
+          set -e
+          code=$(curl -s -o /dev/null -w '%{http_code}' --retry 5 --retry-delay 5 --retry-all-errors https://sagertc.duckdns.org/)
+          [ "$code" = 200 ] || { echo "루트 응답 $code"; exit 1; }
+          api=$(curl -s -o /dev/null -w '%{http_code}' https://sagertc.duckdns.org/api/chatrooms)
+          [ "$api" = 302 ] || { echo "API 응답 $api"; exit 1; }
+          actuator=$(curl -s -o /dev/null -w '%{http_code}' https://sagertc.duckdns.org/actuator/health)
+          [ "$actuator" = 404 ] || { echo "actuator 응답 $actuator"; exit 1; }
+          echo "스모크 통과: / =$code, /api/chatrooms=$api, /actuator/health=$actuator"
 ```
 
+`.env`는 시크릿 파일이다. 반드시 임시 파일에 쓰고 `mv`로 원자 교체한다. 직접 `sed -i`하지 않는다.
+이미지 정리는 헬스 게이트 **앞**(컨테이너 교체 직후)에 둔다. 게이트 뒤에 두면 게이트가 실패할 때 정리가 아예 돌지 않아, 디스크가 차서 헬스가 DOWN이 되는 악순환을 스스로 벗어나지 못한다.
 `[ "$STATUS" = healthy ] && break`로 줄이지 말 것. `set -e` 아래에서 조건이 거짓이면 AND-OR 리스트 전체가 non-zero가 되어 셸이 종료된다.
 
 - [ ] **Step 2: YAML이 유효한지 확인한다**
@@ -321,6 +384,21 @@ print('script extracted')
 
 Expected: `script extracted` / `bash syntax ok`
 
+스모크 테스트 스텝의 셸 블록도 이름으로 찾아 따로 뽑아 `bash -n`으로 검사한다(스텝 인덱스가 바뀔 수 있다):
+
+```bash
+python3 -c "
+import yaml
+d = yaml.safe_load(open('.github/workflows/cd.yml'))
+steps = d['jobs']['deploy']['steps']
+smoke = [s for s in steps if s.get('name','').startswith('Smoke test')][0]
+open('/tmp/cd-smoke.sh','w').write(smoke['run'])
+print('smoke extracted')
+" && bash -n /tmp/cd-smoke.sh && echo "smoke bash syntax ok"
+```
+
+Expected: `smoke extracted` / `smoke bash syntax ok`
+
 - [ ] **Step 4: 가드 로직을 로컬에서 한 번 돌려본다**
 
 실제 배포 없이 조건 분기만 검증한다:
@@ -332,11 +410,13 @@ TIP=abc123; DEPLOY_SHA=old999; if [ "$TIP" != "$DEPLOY_SHA" ]; then echo "중단
 
 Expected: 첫 줄 `진행`, 둘째 줄 `중단`
 
+`.env` 원자적 기록 로직도 임시 디렉터리에서 시험해 둔다 — `IMAGE_TAG` 줄이 있는 경우와 없는 경우 둘 다, 다른 줄이 보존되는지 확인한다.
+
 - [ ] **Step 5: Commit**
 
 ```bash
 git add .github/workflows/cd.yml
-git commit -m "feat(cd): 배포 대상 SHA 고정과 기동 검증"
+git commit -m "feat(cd): 배포 대상 SHA 고정과 기동 검증, 배포 후 스모크 테스트"
 ```
 
 ---
@@ -414,10 +494,12 @@ git push -u origin chore/cd-pin-image-sha
 ## 변경 내용
 
 **인프라**
-- compose의 `image:`를 `${IMAGE_TAG:-latest}`로 파라미터화. 배포 스크립트가 `github.sha`를 넣어, 배포 잡이 자기가 빌드한 이미지만 받는다.
+- compose의 `image:`를 `${IMAGE_TAG:?IMAGE_TAG required}`로 필수화. 배포 스크립트가 `github.sha`를 넣어, 배포 잡이 자기가 빌드한 이미지만 받는다. 배포 스크립트가 매 배포마다 호스트 `.env`에 배포된 태그를 원자적으로 기록해 두므로, EC2에서 수동으로 `docker compose up -d`를 실행해도 태그 없이 그대로 동작한다.
 - EC2에서 compose 파일을 `origin/develop`이 아니라 배포 대상 SHA로 체크아웃한다.
 - 배포 대상이 develop 끝이 아니면 배포를 중단한다.
-- `app` 컨테이너에 `healthcheck`를 달고, 배포 스크립트가 `healthy`를 기다린다. `unhealthy`·타임아웃이면 앱 로그 50줄을 남기고 잡을 실패시킨다.
+- `app`·`web` 컨테이너 모두에 `healthcheck`를 달고, 배포 스크립트가 둘 다 `healthy`를 기다린다. 컨테이너 없음·`unhealthy`·타임아웃이면 해당 서비스 로그 50줄을 남기고 잡을 실패시킨다.
+- 이미지 정리(`docker image prune -af --filter "until=72h"`)를 헬스 게이트 앞으로 옮겼다.
+- 배포 후 별도 스텝에서 공개 URL(`/`, `/api/chatrooms`, `/actuator/health`)을 스모크 테스트한다. 컨테이너 헬스가 못 잡는 DNS·TLS·포트 바인딩 문제를 잡는다.
 - nginx가 `/actuator/`에 404를 반환한다. 프록시 규칙이 없으면 SPA 폴백으로 200 HTML이 나간다.
 
 **백엔드**
@@ -426,22 +508,23 @@ git push -u origin chore/cd-pin-image-sha
 ## 검증
 
 - `./gradlew test` — N/N 통과
-- `docker compose config` — `IMAGE_TAG` 미설정 시 `:latest`, `IMAGE_TAG=deadbeef` 시 `:deadbeef`로 치환됨을 확인
-- `docker build` 후 `docker run --rm --entrypoint curl` — 앱 이미지에 curl 존재 확인
-- 워크플로 YAML 파싱 + 원격 스크립트 `bash -n` 통과
+- `docker compose config` — `IMAGE_TAG` 미설정 시 실패, `IMAGE_TAG=deadbeef` 시 `:deadbeef`로 치환됨을 확인
+- `docker build` 후 `docker run --rm --entrypoint curl` — app·web 이미지 둘 다 curl 존재 확인
+- 워크플로 YAML 파싱 + 원격 스크립트·스모크 테스트 스크립트 `bash -n` 통과
+- `.env` 원자적 기록 로직을 임시 디렉터리에서 시험 — 기존 줄 보존, `IMAGE_TAG` 갱신 확인
 - 실배포 검증(머지 후 수행) — 아래 "배포 영향" 참고
 
 ## 배포 영향
 
 - 스키마 변경 없음. 환경변수 추가 없음.
 - 이 PR이 머지되는 배포부터 새 파이프라인이 적용된다.
-- EC2에서 수동으로 `docker compose up -d`를 실행할 때는 `IMAGE_TAG=<sha>`를 명시해야 한다. 생략하면 `:latest`로 뜬다.
+- EC2에서 수동으로 `docker compose up -d`를 실행할 때는 태그를 생략해도 된다 — 배포 스크립트가 매번 `.env`에 마지막 배포 SHA를 기록해 둔다. 특정 버전을 강제하려면 `IMAGE_TAG=<sha>`를 명시한다.
 
 ## 구현 노트 / 알려진 한계
 
-- 자동 롤백은 넣지 않았다. 스키마가 앞서 나간 배포에서 코드만 되돌리면 기동 실패가 재현된다. SHA 태그가 고정되어 있으므로 복구는 이전 SHA를 지정해 재배포한다.
+- 자동 롤백은 넣지 않았다. 스키마가 앞서 나간 배포에서 코드만 되돌리면 기동 실패가 재현된다. SHA 태그가 고정되어 있으므로 복구는 이전 SHA를 지정해 재배포한다. 단, 이 브랜치 이전 SHA의 이미지에는 curl이 없어 healthcheck가 영구 `unhealthy`로 잡힌다(앱 자체는 정상 동작). D3 가드로는 CD가 옛 SHA를 재배포할 수 없으므로, 복구는 develop에 revert 커밋을 넣거나 EC2에서 `IMAGE_TAG=<sha> docker compose up -d`를 직접 실행한다.
 - 짧은 간격으로 두 번 푸시하면 뒤처진 실행은 SHA 가드에 막혀 실패한다. "배포하지 않았다"는 신호로 의도한 동작이다.
-- 헬스 대기 상한은 2분 30초. 앱 기동이 더 느려지면 조정이 필요하다.
+- 헬스 대기 상한: 컨테이너 쪽 실질 상한은 app 기준 150초(`start_period 30s` + `interval 10s` × `retries 12`), 배포 스크립트의 서비스당 175초는 그 위의 여유다. 앱 기동이 더 느려지면 조정이 필요하다.
 ```
 
 Run: `gh pr create --base develop --head chore/cd-pin-image-sha --title "feat(cd): 배포 단위 SHA 고정과 기동 검증" --body-file <작성한 본문 파일>`
@@ -462,37 +545,43 @@ EC2에서 실행:
 ```bash
 docker compose ps
 docker inspect --format '{{.Config.Image}}' $(docker compose ps -q app)
+docker inspect --format '{{.Config.Image}}' $(docker compose ps -q web)
 ```
 
-Expected: `app`의 상태가 `healthy`. 이미지 태그가 `:latest`가 아니라 머지 커밋 SHA.
+Expected: `app`·`web` 둘 다 상태가 `healthy`. 이미지 태그가 `:latest`가 아니라 머지 커밋 SHA.
 
 - [ ] **Step 7: 외부에서 동작을 확인한다**
 
+CD의 스모크 테스트 스텝이 이미 이 확인을 자동으로 수행한다(잡 로그에서 확인). 수동으로 재확인하려면:
+
 ```bash
-curl -s -o /dev/null -w "%{http_code}\n" https://sagertc.duckdns.org/actuator/health
+curl -s -o /dev/null -w "%{http_code}\n" https://sagertc.duckdns.org/
 curl -s -o /dev/null -w "%{http_code}\n" https://sagertc.duckdns.org/api/chatrooms
+curl -s -o /dev/null -w "%{http_code}\n" https://sagertc.duckdns.org/actuator/health
 ```
 
-Expected: 첫 줄 `404`(폴백 차단됨), 둘째 줄 `302`(앱 정상).
+Expected: `200`(루트), `302`(앱 정상), `404`(폴백 차단됨).
 
 - [ ] **Step 8: 가드가 실제로 막는지 확인한다 (음성 검증)**
 
-옛 커밋 실행의 **deploy 잡만** 재실행한다. 잡 ID를 먼저 찾는다:
+옛 실행을 재실행하지 않는다. GitHub Actions의 재실행은 **그 실행이 처음 트리거됐을 때 커밋에 있던 워크플로 파일**을 쓰므로, 사고를 낸 옛 실행(`30418077779`) 시점의 `cd.yml`에는 D3 가드가 없다 — 재실행하면 옛 스크립트가 `IMAGE_TAG` 없이 `docker compose pull`을 돌려 `:latest`로 컨테이너를 교체하고, 헬스 대기가 없어 초록으로 끝난다. 검증도 안 되고 실제로 위험하다.
+
+대신 이 브랜치의 머지 실행(M1)을 이용한다. M1이 성공한 뒤 develop에 다음 커밋(M2)이 들어가 그 배포까지 끝나면, M1의 `deploy` 잡만 재실행한다. 잡 ID를 먼저 찾는다:
 
 ```bash
-gh run view 30418077779 --json jobs --jq '.jobs[] | "\(.databaseId) \(.name)"'
+gh run view <M1 실행 ID> --json jobs --jq '.jobs[] | "\(.databaseId) \(.name)"'
 ```
 
 deploy 잡 ID로 재실행한다:
 
 ```bash
-gh run rerun 30418077779 --job <deploy 잡 ID>
+gh run rerun <M1 실행 ID> --job <deploy 잡 ID>
 ```
 
-Expected: 실패. 로그에 `배포 중단: 이 실행의 커밋 ... 는 develop 최신 ... 이 아니다.` 가드는 `docker compose pull` 이전에 동작하므로 실제 배포에 영향이 없다.
+Expected: 실패. 로그에 `배포 중단: 이 실행의 커밋 ... 는 develop 최신 ... 이 아니다.` M1은 이번에 강화된 워크플로 파일(D3 가드 포함)을 그대로 쓰고, M1의 SHA는 이제 `origin/develop` 끝(M2)이 아니므로 `docker compose pull` 이전에 가드가 막는다.
 
 `--job` 없이 실행 전체를 재실행하지 말 것. `build-and-push`가 함께 돌아 옛 커밋 이미지가 `:latest`를 다시 덮어쓴다. 배포 경로는 더 이상 `:latest`를 보지 않지만, 수동 조작의 기본값이 옛 코드가 된다.
 
 - [ ] **Step 9: 결과를 PR에 남긴다**
 
-Step 5~8의 실제 결과(헬스 상태, 배포된 이미지 태그, 두 curl의 상태 코드, 가드 실패 로그 한 줄)를 PR 코멘트로 남긴다. 실행하지 않은 검증은 쓰지 않는다.
+Step 5~8의 실제 결과(헬스 상태, 배포된 이미지 태그, 스모크 테스트 로그 또는 수동 curl의 상태 코드, 가드 실패 로그 한 줄)를 PR 코멘트로 남긴다. 실행하지 않은 검증은 쓰지 않는다.
