@@ -150,6 +150,8 @@ JWT_SECRET={32바이트 이상 랜덤 문자열}
 ```bash
 docker compose up -d        # GHCR 이미지 pull → 기동
 ```
+- `image:`의 `IMAGE_TAG`는 필수 값이라 미설정 시 즉시 실패합니다. 배포 스크립트가 매 배포마다 `.env`에 `IMAGE_TAG=<배포된 SHA>`를 기록해 두므로, EC2에서는 위 명령이 그대로 동작합니다.
+- 특정 버전으로 띄우려면 태그를 직접 지정합니다: `IMAGE_TAG=<sha> docker compose up -d`
 - 외부 의존: **MySQL(RDS)**, **S3**
 - 접속: **https://sagertc.duckdns.org**
 - ⚠️ `web`(nginx)은 TLS 인증서(`/etc/letsencrypt`)가 필요합니다. 인증서 없는 **로컬에선 아래 4번(`bootRun`) + 프론트 `npm --prefix frontend run dev`** 로 개발하세요.
