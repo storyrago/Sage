@@ -95,7 +95,7 @@
 `application.yaml`:
 
 - `registration.kakao`: `client-id`(REST API 키), `client-secret`, `scope: [openid, profile_nickname, profile_image, account_email]`, `authorization-grant-type: authorization_code`
-- `provider.kakao`: `issuer-uri: https://kauth.kakao.com` — OIDC를 활성화했으므로 Spring이 discovery로 엔드포인트를 발견한다
+- `provider.kakao`: `authorization-uri`, `token-uri`, `user-info-uri`, `jwk-set-uri`, `user-name-attribute: sub`를 명시한다. `issuer-uri`는 쓰지 않는다 — `issuer-uri`를 쓰면 Spring이 부팅 시 OIDC discovery 문서를 네트워크로 가져오는데, 이는 CI와 오프라인 테스트 환경의 컨텍스트 로딩을 막는다. 엔드포인트를 명시하면 네트워크 호출 없이 부팅된다
 - 구글과 동일하게 더미 기본값(`${KAKAO_CLIENT_ID:dummy-client-id}`)을 두어 로컬/테스트 컨텍스트가 로드되게 한다
 
 **구현 시 확인**: 카카오 토큰 엔드포인트는 client secret을 POST 파라미터로 받는다. Spring 기본값(`client_secret_basic`)으로 실패하면 `client-authentication-method: client_secret_post`를 지정한다.
