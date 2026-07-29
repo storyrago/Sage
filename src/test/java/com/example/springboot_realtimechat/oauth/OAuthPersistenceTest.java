@@ -15,13 +15,25 @@ class OAuthPersistenceTest {
     @Autowired MemberRepository memberRepository;
 
     @Test
-    void 구글회원_저장하고_sub로_조회() {
-        Member saved = memberRepository.save(
-                Member.ofGoogle("g@e.com", "구글이", "http://img", "sub-123"));
+    void 소셜회원_저장_후_provider와_providerId로_조회된다() {
+        memberRepository.save(
+                Member.ofSocial("GOOGLE", "sub-123", "g@e.com", "구글이", "http://img"));
 
-        Member found = memberRepository.findByGoogleSub("sub-123").orElseThrow();
-        assertThat(found.getId()).isEqualTo(saved.getId());
+        Member found = memberRepository.findByProviderAndProviderId("GOOGLE", "sub-123").orElseThrow();
+
+        assertThat(found.getEmail()).isEqualTo("g@e.com");
         assertThat(found.getPassword()).isNull();
         assertThat(found.getProvider()).isEqualTo("GOOGLE");
+        assertThat(found.getProviderId()).isEqualTo("sub-123");
+    }
+
+    @Test
+    void 이메일_없이도_소셜회원을_저장할_수_있다() {
+        memberRepository.save(
+                Member.ofSocial("KAKAO", "kakao-1", null, "카카오", null));
+
+        Member found = memberRepository.findByProviderAndProviderId("KAKAO", "kakao-1").orElseThrow();
+
+        assertThat(found.getEmail()).isNull();
     }
 }
