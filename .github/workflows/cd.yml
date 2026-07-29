@@ -71,17 +71,84 @@ jobs:
     steps:
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v1
+        env:
+          DEPLOY_SHA: ${{ github.sha }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           command_timeout: 10m
+          envs: DEPLOY_SHA                          # 러너의 DEPLOY_SHA를 원격 셸로 전달
           script: |
             set -e                                  # 한 명령이라도 실패하면 즉시 중단 → 잡 실패로 표면화
             cd ~/realtimechat-backend
             git fetch origin
-            git checkout develop
-            git reset --hard origin/develop         # compose 파일 최신화용 (빌드는 안 함)
-            docker compose pull                     # GHCR에서 새 이미지 받기 (실패 시 여기서 중단, 기존 컨테이너 유지)
+
+            # 배포 대상이 develop 끝이 아니면 배포하지 않는다.
+            # 큐 대기·재실행으로 완료 순서가 뒤집혀도 옛 커밋이 배포되지 못한다.
+            TIP=$(git rev-parse origin/develop)
+            if [ "$TIP" != "$DEPLOY_SHA" ]; then
+              echo "배포 중단: 이 실행의 커밋 $DEPLOY_SHA 는 develop 최신 $TIP 이 아니다."
+              exit 1
+            fi
+
+            git reset --hard "$DEPLOY_SHA"          # compose 파일도 배포 대상 커밋에서 가져온다
+            export IMAGE_TAG="$DEPLOY_SHA"          # 이 실행이 빌드한 이미지만 받는다
+
+            # 배포된 태그를 호스트에 남긴다 — 사람이 친 docker compose 명령도 같은 이미지를 쓴다.
+            # 시크릿 파일이므로 임시 파일에 쓰고 권한을 맞춘 뒤 원자 교체한다.
+            rc=0
+            grep -v '^IMAGE_TAG=' .env > .env.tmp || rc=$?
+            if [ "$rc" -gt 1 ]; then
+              echo ".env 갱신 실패: grep 종료 코드 $rc"
+              rm -f .env.tmp
+              exit 1
+            fi
+            echo "IMAGE_TAG=$DEPLOY_SHA" >> .env.tmp
+            chmod 600 .env.tmp
+            mv .env.tmp .env
+
+            docker compose pull                     # 해당 SHA 태그만 받기 (실패 시 여기서 중단, 기존 컨테이너 유지)
             docker compose up -d --remove-orphans   # 빌드 없이 새 이미지로 교체
-            docker image prune -f                   # 안 쓰는 옛 이미지 정리 (디스크 확보)
+
+            # SHA 태그를 쓰면 옛 이미지가 태그를 계속 들고 있어 dangling이 되지 않는다.
+            # 사용 중 이미지는 -a여도 보호된다.
+            docker image prune -af --filter "until=72h" || echo "이미지 정리 실패 — 배포 검증은 계속한다"
+
+            # app·web이 healthy 될 때까지 대기 (서비스당 5초 간격 35회 = 최대 175초)
+            for SVC in app web; do
+              CID=$(docker compose ps -q "$SVC")
+              if [ -z "$CID" ]; then
+                echo "기동 실패: $SVC 컨테이너가 없다"
+                docker compose logs --tail=50 "$SVC"
+                exit 1
+              fi
+              STATUS=""
+              for i in $(seq 1 35); do
+                STATUS=$(docker inspect -f '{{.State.Health.Status}}' "$CID" 2>&1) || STATUS="inspect_failed"
+                if [ "$STATUS" = healthy ]; then break; fi
+                if [ "$STATUS" = unhealthy ]; then
+                  echo "기동 실패: $SVC 컨테이너가 unhealthy"
+                  docker compose logs --tail=50 "$SVC"
+                  exit 1
+                fi
+                sleep 5
+              done
+              if [ "$STATUS" != healthy ]; then
+                echo "기동 검증 타임아웃: $SVC 상태=$STATUS"
+                docker compose logs --tail=50 "$SVC"
+                exit 1
+              fi
+            done
+
+      - name: Smoke test (공개 URL)
+        run: |
+          set -e
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --retry 5 --retry-delay 5 --retry-all-errors https://sagertc.duckdns.org/)
+          [ "$code" = 200 ] || { echo "루트 응답 $code"; exit 1; }
+          api=$(curl -sS -o /dev/null -w '%{http_code}' https://sagertc.duckdns.org/api/chatrooms)
+          # 미인증 API 호출: 현재는 302(로그인 리다이렉트). /api/**에 401 엔트리포인트를 넣으면 401이 된다.
+          [ "$api" = 302 ] || [ "$api" = 401 ] || { echo "API 응답 $api"; exit 1; }
+          actuator=$(curl -sS -o /dev/null -w '%{http_code}' https://sagertc.duckdns.org/actuator/health)
+          [ "$actuator" = 404 ] || { echo "actuator 응답 $actuator"; exit 1; }
+          echo "스모크 통과: / =$code, /api/chatrooms=$api, /actuator/health=$actuator"

@@ -46,7 +46,8 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
                                 "/oauth2/**",        // OAuth 진입
-                                "/login/oauth2/**"  // OAuth 콜백
+                                "/login/oauth2/**",  // OAuth 콜백
+                                "/actuator/health"   // 배포 기동 검증 (health만, 다른 actuator 경로는 인증 필요)
                         ).permitAll()
                         .anyRequest().authenticated() // 나머지는 인증 필요
                 )

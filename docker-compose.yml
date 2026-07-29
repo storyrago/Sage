@@ -1,6 +1,6 @@
 services:
   app:
-    image: ghcr.io/storyrago/realtimechat-backend-app:latest
+    image: ghcr.io/storyrago/realtimechat-backend-app:${IMAGE_TAG:?IMAGE_TAG required}
     build: .
     restart: unless-stopped
     expose:
@@ -18,11 +18,17 @@ services:
       KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID}           # OAuth: Kakao REST API 키 (값은 .env)
       KAKAO_CLIENT_SECRET: ${KAKAO_CLIENT_SECRET}
       FRONTEND_URL: ${FRONTEND_URL}                 # OAuth 성공 후 JWT 핸드오프 대상 프론트 주소
+    healthcheck:                                    # 배포 스크립트가 이 상태로 기동 성공을 판정한다
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 30s
     depends_on:
       - redis
 
   web:
-    image: ghcr.io/storyrago/realtimechat-backend-web:latest
+    image: ghcr.io/storyrago/realtimechat-backend-web:${IMAGE_TAG:?IMAGE_TAG required}
     build: ./frontend
     restart: unless-stopped
     ports:
@@ -30,6 +36,12 @@ services:
       - "443:443"
     volumes:
       - /etc/letsencrypt:/etc/letsencrypt:ro   # 인증서를 컨테이너에 읽기전용 마운트
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "-o", "/dev/null", "http://localhost/"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 5s
     depends_on:
       - app
 
