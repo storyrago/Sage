@@ -3,11 +3,6 @@ import { Channel, Message, User } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
-export interface AuthPayload {
-  email: string;
-  password: string;
-}
-
 export interface BackendMember {
   id: number;
   email: string;
@@ -33,11 +28,6 @@ export interface BackendMessage {
   imageUrl?: string | null;
   editedAt?: string | null;
   deleted?: boolean;
-}
-
-interface LoginResponse {
-  tokenType: string;
-  accessToken: string;
 }
 
 async function request<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
@@ -70,14 +60,6 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
   }
 
   return response.json() as Promise<T>;
-}
-
-export async function login(payload: AuthPayload) {
-  const response = await request<LoginResponse>('/api/auth/login', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
-  return response.accessToken;
 }
 
 export async function getMe(token: string) {

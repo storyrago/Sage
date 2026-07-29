@@ -15,7 +15,6 @@ import {
   getMessages,
   getUnreadCounts,
   joinChatRoom,
-  login,
   markRoomRead,
   sendMessage,
   toChannel,
@@ -120,8 +119,8 @@ export default function App() {
     if (errCode) {
       setOauthError(
         errCode === 'EMAIL_ALREADY_REGISTERED'
-          ? '이미 가입된 이메일이에요. 이메일/비밀번호로 로그인해 주세요.'
-          : '구글 로그인에 실패했어요. 다시 시도해 주세요.',
+          ? '이미 등록된 이메일이에요. 기존에 사용하던 소셜 계정으로 로그인해 주세요.'
+          : '소셜 로그인에 실패했어요. 다시 시도해 주세요.',
       );
       return;
     }
@@ -384,19 +383,6 @@ export default function App() {
     clearSession();
   };
 
-  const handleSetupComplete = async (credentials: { email: string; password: string }) => {
-    const nextToken = await login({
-      email: credentials.email,
-      password: credentials.password,
-    });
-    const currentMember = await getMe(nextToken);
-    // 로그인 성공 → warp 전환 재생 후 채팅으로 진입
-    setWarping(true);
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-    persistSession(nextToken, toUser(currentMember));
-    setWarping(false);
-  };
-
   const loadOlderMessages = useCallback(async (roomId: string) => {
     const st = pageStateRef.current[roomId];
     if (!token || !st || !st.hasMore || st.loading || st.oldestId == null) return;
@@ -454,8 +440,6 @@ export default function App() {
   if (!user) {
     return (
       <Welcome
-        onComplete={handleSetupComplete}
-        initialUser={user}
         warping={warping}
         oauthError={oauthError}
       />
