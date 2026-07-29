@@ -542,19 +542,25 @@ git commit -m "feat(oauth): OIDC 배선에서 registrationId로 provider 판별"
             client-id: ${KAKAO_CLIENT_ID:dummy-client-id}
             client-secret: ${KAKAO_CLIENT_SECRET:dummy-client-secret}
             client-name: Kakao
+            # redirect-uri 기본 템플릿은 CommonOAuth2Provider(google 등)에만 적용된다.
+            # 카카오는 커스텀 provider라 비워두면 ClientRegistration 생성 시점에 예외가 나 컨텍스트가 뜨지 않는다
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
             authorization-grant-type: authorization_code
             client-authentication-method: client_secret_post
+            # account_email은 비즈니스 인증을 받은 앱에만 열리는 동의항목이다.
+            # 설정하지 않은 동의항목을 요청하면 카카오가 인가 요청을 KOE205로 거부한다
             scope:
               - openid
               - profile_nickname
               - profile_image
-              - account_email
         provider:
           kakao:
-            # issuer-uri는 부팅 시 discovery를 네트워크로 가져와 CI/테스트 컨텍스트 로드를 막는다. 엔드포인트를 명시한다
+            # issuer-uri는 부팅 시 discovery를 네트워크로 가져와 CI/테스트 컨텍스트 로드를 막는다. 엔드포인트를 명시한다.
+            # 값은 https://kauth.kakao.com/.well-known/openid-configuration 기준
             authorization-uri: https://kauth.kakao.com/oauth/authorize
             token-uri: https://kauth.kakao.com/oauth/token
-            user-info-uri: https://kapi.kakao.com/v2/user/me
+            # OIDC 표준 UserInfo. /v2/user/me는 카카오 REST API 응답 형식이라 sub 클레임이 없다
+            user-info-uri: https://kapi.kakao.com/v1/oidc/userinfo
             jwk-set-uri: https://kauth.kakao.com/.well-known/jwks.json
             user-name-attribute: sub
 ```

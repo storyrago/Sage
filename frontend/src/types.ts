@@ -1,6 +1,6 @@
 export interface User {
   id: string;
-  email: string;
+  email: string | null;   // 소셜 제공자가 이메일을 주지 않을 수 있다
   displayName: string;
   avatar: string; // Tailored color index, gradient, or icon abbreviation
   photoUrl?: string;
