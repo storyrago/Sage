@@ -310,9 +310,17 @@ git commit -m "feat(cd): 이미지 태그 필수화와 app·web 컨테이너 헬
             git reset --hard "$DEPLOY_SHA"          # compose 파일도 배포 대상 커밋에서 가져온다
             export IMAGE_TAG="$DEPLOY_SHA"          # 이 실행이 빌드한 이미지만 받는다
 
-            # 배포된 태그를 호스트에 남긴다 — 사람이 친 docker compose 명령도 같은 이미지를 쓴다
-            grep -v '^IMAGE_TAG=' .env > .env.tmp || true
+            # 배포된 태그를 호스트에 남긴다 — 사람이 친 docker compose 명령도 같은 이미지를 쓴다.
+            # 시크릿 파일이므로 임시 파일에 쓰고 권한을 맞춘 뒤 원자 교체한다.
+            rc=0
+            grep -v '^IMAGE_TAG=' .env > .env.tmp || rc=$?
+            if [ "$rc" -gt 1 ]; then
+              echo ".env 갱신 실패: grep 종료 코드 $rc"
+              rm -f .env.tmp
+              exit 1
+            fi
             echo "IMAGE_TAG=$DEPLOY_SHA" >> .env.tmp
+            chmod 600 .env.tmp
             mv .env.tmp .env
 
             docker compose pull                     # 해당 SHA 태그만 받기 (실패 시 여기서 중단, 기존 컨테이너 유지)
@@ -320,7 +328,7 @@ git commit -m "feat(cd): 이미지 태그 필수화와 app·web 컨테이너 헬
 
             # SHA 태그를 쓰면 옛 이미지가 태그를 계속 들고 있어 dangling이 되지 않는다.
             # 사용 중 이미지는 -a여도 보호된다.
-            docker image prune -af --filter "until=72h"
+            docker image prune -af --filter "until=72h" || echo "이미지 정리 실패 — 배포 검증은 계속한다"
 
             # app·web이 healthy 될 때까지 대기 (서비스당 5초 간격 35회 = 최대 175초)
             for SVC in app web; do
@@ -351,16 +359,17 @@ git commit -m "feat(cd): 이미지 태그 필수화와 app·web 컨테이너 헬
       - name: Smoke test (공개 URL)
         run: |
           set -e
-          code=$(curl -s -o /dev/null -w '%{http_code}' --retry 5 --retry-delay 5 --retry-all-errors https://sagertc.duckdns.org/)
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --retry 5 --retry-delay 5 --retry-all-errors https://sagertc.duckdns.org/)
           [ "$code" = 200 ] || { echo "루트 응답 $code"; exit 1; }
-          api=$(curl -s -o /dev/null -w '%{http_code}' https://sagertc.duckdns.org/api/chatrooms)
-          [ "$api" = 302 ] || { echo "API 응답 $api"; exit 1; }
-          actuator=$(curl -s -o /dev/null -w '%{http_code}' https://sagertc.duckdns.org/actuator/health)
+          api=$(curl -sS -o /dev/null -w '%{http_code}' https://sagertc.duckdns.org/api/chatrooms)
+          # 미인증 API 호출: 현재는 302(로그인 리다이렉트). /api/**에 401 엔트리포인트를 넣으면 401이 된다.
+          [ "$api" = 302 ] || [ "$api" = 401 ] || { echo "API 응답 $api"; exit 1; }
+          actuator=$(curl -sS -o /dev/null -w '%{http_code}' https://sagertc.duckdns.org/actuator/health)
           [ "$actuator" = 404 ] || { echo "actuator 응답 $actuator"; exit 1; }
           echo "스모크 통과: / =$code, /api/chatrooms=$api, /actuator/health=$actuator"
 ```
 
-`.env`는 시크릿 파일이다. 반드시 임시 파일에 쓰고 `mv`로 원자 교체한다. 직접 `sed -i`하지 않는다.
+`.env`는 시크릿 파일이다. 반드시 임시 파일에 쓰고 `chmod 600`으로 권한을 맞춘 뒤 `mv`로 원자 교체한다. 직접 `sed -i`하지 않는다. `grep`의 종료 코드는 매치 없음(1, 정상)과 그 외 오류(2 이상 — `.env` 없음, 읽기/쓰기 실패)를 구분해서 처리한다: `rc=$?`로 받아 1 초과일 때만 실패시킨다. `|| true`로 뭉개면 쓰기 실패로 잘린 임시 파일이 `mv`에 의해 원본을 덮어써 시크릿이 유실된다.
 이미지 정리는 헬스 게이트 **앞**(컨테이너 교체 직후)에 둔다. 게이트 뒤에 두면 게이트가 실패할 때 정리가 아예 돌지 않아, 디스크가 차서 헬스가 DOWN이 되는 악순환을 스스로 벗어나지 못한다.
 `[ "$STATUS" = healthy ] && break`로 줄이지 말 것. `set -e` 아래에서 조건이 거짓이면 AND-OR 리스트 전체가 non-zero가 되어 셸이 종료된다.
 
@@ -410,7 +419,7 @@ TIP=abc123; DEPLOY_SHA=old999; if [ "$TIP" != "$DEPLOY_SHA" ]; then echo "중단
 
 Expected: 첫 줄 `진행`, 둘째 줄 `중단`
 
-`.env` 원자적 기록 로직도 임시 디렉터리에서 시험해 둔다 — `IMAGE_TAG` 줄이 있는 경우와 없는 경우 둘 다, 다른 줄이 보존되는지 확인한다.
+`.env` 원자적 기록 로직도 임시 디렉터리에서 시험해 둔다(진짜 `.env`는 건드리지 않는다) — 세 경우 모두 확인한다: ① `IMAGE_TAG` 줄이 있는 `.env`(`chmod 600`) → 다른 줄 보존 + `IMAGE_TAG` 갱신, 최종 모드 600. ② `IMAGE_TAG` 줄이 없는 `.env`(`chmod 600`) → 모든 줄 보존 + 새 줄 추가, 모드 600. ③ `.env`가 없는 경우 → grep 종료 코드 2로 `.env 갱신 실패` 출력 후 종료 코드 1.
 
 - [ ] **Step 5: Commit**
 
@@ -511,7 +520,7 @@ git push -u origin chore/cd-pin-image-sha
 - `docker compose config` — `IMAGE_TAG` 미설정 시 실패, `IMAGE_TAG=deadbeef` 시 `:deadbeef`로 치환됨을 확인
 - `docker build` 후 `docker run --rm --entrypoint curl` — app·web 이미지 둘 다 curl 존재 확인
 - 워크플로 YAML 파싱 + 원격 스크립트·스모크 테스트 스크립트 `bash -n` 통과
-- `.env` 원자적 기록 로직을 임시 디렉터리에서 시험 — 기존 줄 보존, `IMAGE_TAG` 갱신 확인
+- `.env` 원자적 기록 로직을 임시 디렉터리에서 시험 — `IMAGE_TAG` 줄 있음/없음/`.env` 없음 세 경우 모두, 기존 줄 보존·`IMAGE_TAG` 갱신·최종 권한 600 확인
 - 실배포 검증(머지 후 수행) — 아래 "배포 영향" 참고
 
 ## 배포 영향
@@ -555,12 +564,12 @@ Expected: `app`·`web` 둘 다 상태가 `healthy`. 이미지 태그가 `:latest
 CD의 스모크 테스트 스텝이 이미 이 확인을 자동으로 수행한다(잡 로그에서 확인). 수동으로 재확인하려면:
 
 ```bash
-curl -s -o /dev/null -w "%{http_code}\n" https://sagertc.duckdns.org/
-curl -s -o /dev/null -w "%{http_code}\n" https://sagertc.duckdns.org/api/chatrooms
-curl -s -o /dev/null -w "%{http_code}\n" https://sagertc.duckdns.org/actuator/health
+curl -sS -o /dev/null -w "%{http_code}\n" https://sagertc.duckdns.org/
+curl -sS -o /dev/null -w "%{http_code}\n" https://sagertc.duckdns.org/api/chatrooms
+curl -sS -o /dev/null -w "%{http_code}\n" https://sagertc.duckdns.org/actuator/health
 ```
 
-Expected: `200`(루트), `302`(앱 정상), `404`(폴백 차단됨).
+Expected: `200`(루트), `302` 또는 `401`(앱 정상), `404`(폴백 차단됨).
 
 - [ ] **Step 8: 가드가 실제로 막는지 확인한다 (음성 검증)**
 
