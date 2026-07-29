@@ -37,7 +37,7 @@
 이 쪽이 결과적으로 더 낫다: D3 가드에 막혀 배포가 중단된 상태에서 EC2에 로그인해 `git status`를 보면 로컬 `develop`이 `origin/develop`보다 뒤처져 있다고 나와, 밀린 배포가 있다는 사실이 바로 드러난다.
 
 **D3. 배포 대상이 develop 최신이 아니면 중단한다.**
-EC2 스크립트가 `git fetch` 직후 `git rev-parse origin/develop`과 `$GITHUB_SHA`를 비교하고, 다르면 사유를 출력하고 종료 코드 1로 끝낸다.
+EC2 스크립트가 `git fetch` 직후 `git rev-parse origin/develop`과 `$DEPLOY_SHA`를 비교하고, 다르면 사유를 출력하고 종료 코드 1로 끝낸다.
 
 "조상인가"가 아니라 "끝과 같은가"로 검사한다. 사고를 낸 `b6d331d`는 develop의 조상이었으므로 조상 검사로는 걸러지지 않는다.
 
