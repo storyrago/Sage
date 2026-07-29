@@ -71,17 +71,50 @@ jobs:
     steps:
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v1
+        env:
+          DEPLOY_SHA: ${{ github.sha }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           command_timeout: 10m
+          envs: DEPLOY_SHA                          # 러너의 DEPLOY_SHA를 원격 셸로 전달
           script: |
             set -e                                  # 한 명령이라도 실패하면 즉시 중단 → 잡 실패로 표면화
             cd ~/realtimechat-backend
             git fetch origin
-            git checkout develop
-            git reset --hard origin/develop         # compose 파일 최신화용 (빌드는 안 함)
-            docker compose pull                     # GHCR에서 새 이미지 받기 (실패 시 여기서 중단, 기존 컨테이너 유지)
+
+            # 배포 대상이 develop 끝이 아니면 배포하지 않는다.
+            # 큐 대기·재실행으로 완료 순서가 뒤집혀도 옛 커밋이 배포되지 못한다.
+            TIP=$(git rev-parse origin/develop)
+            if [ "$TIP" != "$DEPLOY_SHA" ]; then
+              echo "배포 중단: 이 실행의 커밋 $DEPLOY_SHA 는 develop 최신 $TIP 이 아니다."
+              exit 1
+            fi
+
+            git reset --hard "$DEPLOY_SHA"          # compose 파일도 배포 대상 커밋에서 가져온다
+            export IMAGE_TAG="$DEPLOY_SHA"          # 이 실행이 빌드한 이미지만 받는다
+
+            docker compose pull                     # 해당 SHA 태그만 받기 (실패 시 여기서 중단, 기존 컨테이너 유지)
             docker compose up -d --remove-orphans   # 빌드 없이 새 이미지로 교체
+
+            # app이 healthy가 될 때까지 대기 (5초 간격 30회 = 최대 2분 30초)
+            CID=$(docker compose ps -q app)
+            STATUS=""
+            for i in $(seq 1 30); do
+              STATUS=$(docker inspect -f '{{.State.Health.Status}}' "$CID")
+              if [ "$STATUS" = healthy ]; then break; fi
+              if [ "$STATUS" = unhealthy ]; then
+                echo "기동 실패: app 컨테이너가 unhealthy"
+                docker compose logs --tail=50 app
+                exit 1
+              fi
+              sleep 5
+            done
+            if [ "$STATUS" != healthy ]; then
+              echo "기동 검증 타임아웃: app 상태=$STATUS"
+              docker compose logs --tail=50 app
+              exit 1
+            fi
+
             docker image prune -f                   # 안 쓰는 옛 이미지 정리 (디스크 확보)
