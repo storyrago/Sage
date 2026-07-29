@@ -42,9 +42,9 @@ public class RedisSubscriber implements MessageListener {
                 for (Member member : members) {
                     if (member.getId().equals(messageResponse.getMemberId())) continue; // 보낸 사람 제외
                     try {
-                        messagingTemplate.convertAndSendToUser(member.getEmail(), "/queue/unread", event);
+                        messagingTemplate.convertAndSendToUser(String.valueOf(member.getId()), "/queue/unread", event);
                     } catch (Exception e) {
-                        log.warn("안읽음 전송 실패 (memberId={}, email={})", member.getId(), member.getEmail(), e);
+                        log.warn("안읽음 전송 실패 (memberId={})", member.getId(), e);
                     }
                 }
             } catch (Exception e) {
