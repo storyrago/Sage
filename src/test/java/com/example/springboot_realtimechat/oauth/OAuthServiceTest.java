@@ -87,4 +87,16 @@ class OAuthServiceTest {
 
         assertThat(m.getNickname()).isEqualTo("user");
     }
+
+    @Test
+    void 기존회원의_새_이메일이_다른회원과_충돌하면_갱신만_건너뛴다() {
+        Member other = oAuthService.upsertOidcUser("KAKAO", "kakao-9", "taken@x.com", true, "다른사람", null);
+        Member mine = oAuthService.upsertOidcUser("GOOGLE", "sub-9", "mine@x.com", true, "나", null);
+
+        Member again = oAuthService.upsertOidcUser("GOOGLE", "sub-9", "taken@x.com", true, "나", null);
+
+        assertThat(again.getId()).isEqualTo(mine.getId());        // 로그인 유지
+        assertThat(again.getEmail()).isEqualTo("mine@x.com");     // 기존 이메일 보존
+        assertThat(other.getEmail()).isEqualTo("taken@x.com");    // 다른 회원 이메일 불변
+    }
 }
