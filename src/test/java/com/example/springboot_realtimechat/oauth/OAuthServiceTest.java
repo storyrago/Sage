@@ -21,14 +21,14 @@ class OAuthServiceTest {
 
     @Test
     void 신규_소셜사용자_생성() {
-        Member m = oAuthService.upsertOidcUser("GOOGLE", "sub-1", "new@g.com", true, "Alexander Longname", "http://p");
+        Member m = oAuthService.upsertOidcUser("GOOGLE", "sub-1", "new@g.com", true, "Alexander LongnicknameXYZ", "http://p");
 
         assertThat(m.getId()).isNotNull();
         assertThat(m.getPassword()).isNull();
         assertThat(m.getProvider()).isEqualTo("GOOGLE");
         assertThat(m.getProviderId()).isEqualTo("sub-1");
         assertThat(m.getEmail()).isEqualTo("new@g.com");
-        assertThat(m.getNickname()).isEqualTo("Alexander");   // 10자 절단 후 trim
+        assertThat(m.getNickname()).isEqualTo("Alexander Longnickna");   // 20자 절단 후 trim
     }
 
     @Test

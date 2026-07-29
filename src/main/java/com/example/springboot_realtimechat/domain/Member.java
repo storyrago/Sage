@@ -36,7 +36,7 @@ public class Member {
     @Column(name = "provider_id", length = 255)
     private String providerId;
 
-    @Column(length=10)
+    @Column(length = 20)
     private String nickname;
 
     @Column(name = "profile_image_url", length = 500)
@@ -45,6 +45,9 @@ public class Member {
     @Column(name = "created_at", nullable = false, updatable = false)
     @CreationTimestamp
     private LocalDateTime createdAt;
+
+    @Column(name = "onboarded_at")
+    private LocalDateTime onboardedAt;
 
     @OneToMany(mappedBy = "member")
     private List<Message> messages = new ArrayList<>();
@@ -60,6 +63,20 @@ public class Member {
 
     public void updateProfileImageUrl(String profileImageUrl){
         this.profileImageUrl = profileImageUrl;
+    }
+
+    public void updateNickname(String nickname) {
+        this.nickname = nickname;
+    }
+
+    public void markOnboarded() {
+        if (this.onboardedAt == null) {
+            this.onboardedAt = LocalDateTime.now();
+        }
+    }
+
+    public boolean isOnboarded() {
+        return this.onboardedAt != null;
     }
 
     public static Member ofSocial(String provider, String providerId, String email,

@@ -57,8 +57,8 @@ public class OAuthService {
         } else {
             base = "user";
         }
-        String cut = base.length() > 10 ? base.substring(0, 10) : base;
+        String cut = base.length() > 20 ? base.substring(0, 20) : base;
         String trimmed = cut.trim();
-        return trimmed.isEmpty() ? "user" : trimmed;   // nickname 컬럼은 10자 제한
+        return trimmed.isEmpty() ? "user" : trimmed;   // nickname 컬럼은 20자 제한
     }
 }
