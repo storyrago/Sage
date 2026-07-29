@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Channel, Message, Presence, User } from './types';
 import Welcome from './components/Welcome';
+import Onboarding from './components/Onboarding';
 import SettingsModal from './components/SettingsModal';
 import ProfileModal from './components/ProfileModal';
 import ChatArea from './components/ChatArea';
@@ -442,6 +443,18 @@ export default function App() {
       <Welcome
         warping={warping}
         oauthError={oauthError}
+      />
+    );
+  }
+
+  if (!user.onboarded) {
+    return (
+      <Onboarding
+        user={user}
+        token={token ?? ''}
+        onDone={(updated) => {
+          if (token) persistSession(token, updated);
+        }}
       />
     );
   }
