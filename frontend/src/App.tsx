@@ -513,6 +513,7 @@ export default function App() {
               token={token ?? ''}
               onSendMessage={handleSendMessage}
               onSendImage={(url) => handleSendMessage('', undefined, url)}
+              onNotify={notify}
               onTypeStateChange={handleTypeStateChange}
               onOpenProfile={(id) => setProfileMemberId(id)}
               onlineMemberIds={onlineMemberIds}

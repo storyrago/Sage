@@ -16,8 +16,9 @@ interface ChatAreaProps {
   presences: Presence[];
   currentUser: User;
   token: string;
-  onSendMessage: (text: string, replyToId?: string) => void;
-  onSendImage: (imageUrl: string) => void;
+  onSendMessage: (text: string, replyToId?: string) => Promise<void>;
+  onSendImage: (imageUrl: string) => Promise<void>;
+  onNotify: (text: string) => void;
   onTypeStateChange: (isTyping: boolean) => void;
   onOpenProfile: (userId: string) => void;
   onlineMemberIds: Set<string>;
@@ -41,6 +42,7 @@ export default function ChatArea({
   token,
   onSendMessage,
   onSendImage,
+  onNotify,
   onTypeStateChange,
   onOpenProfile,
   onlineMemberIds,
@@ -56,6 +58,7 @@ export default function ChatArea({
   unreadFromId
 }: ChatAreaProps) {
   const [inputText, setInputText] = useState('');
+  const [sendError, setSendError] = useState('');
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
   const [participants, setParticipants] = useState<RoomMemberProfile[] | null>(null);
   const [showMembers, setShowMembers] = useState(false);
@@ -180,24 +183,35 @@ export default function ChatArea({
     }
   };
 
-  const handleSend = (e: FormEvent) => {
+  const handleSend = async (e: FormEvent) => {
     e.preventDefault();
     const cleanText = inputText.trim();
     if (!cleanText) return;
 
-    if (editingMessage) {
-      onEditMessage?.(editingMessage.id, cleanText);
-      setEditingMessage(null);
-    } else {
-      onSendMessage(cleanText, replyMessage?.id);
-      setReplyMessage(null);
-    }
+    setSendError('');
     setInputText('');
 
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
     onTypeStateChange(false);
+
+    if (editingMessage) {
+      onEditMessage?.(editingMessage.id, cleanText);
+      setEditingMessage(null);
+      return;
+    }
+
+    const replyToId = replyMessage?.id;
+    setReplyMessage(null);
+    try {
+      await onSendMessage(cleanText, replyToId);
+    } catch (err) {
+      // 전송은 낙관적 렌더가 아니라 실패하면 화면에 아무것도 남지 않는다.
+      // 입력 내용을 되돌려 사용자가 그대로 다시 보낼 수 있게 한다.
+      setInputText(cleanText);
+      setSendError(err instanceof Error ? err.message : '메시지를 보내지 못했어요. 다시 시도해 주세요.');
+    }
   };
 
   const handleUpload = async (file: File) => {
@@ -205,9 +219,9 @@ export default function ChatArea({
     setUploading(true);
     try {
       const url = await uploadImage(token, file);
-      onSendImage(url);
+      await onSendImage(url);
     } catch (err) {
-      console.error('이미지 업로드 실패', err);
+      onNotify(err instanceof Error ? err.message : '이미지를 보내지 못했어요.');
     } finally {
       setUploading(false);
     }
@@ -643,6 +657,9 @@ export default function ChatArea({
         </AnimatePresence>
 
         <form onSubmit={handleSend} className="flex gap-2 items-stretch">
+          {sendError && (
+            <p className="mb-2 text-[12px] text-rose-400">{sendError}</p>
+          )}
 
           <input
             ref={imageInputRef}
