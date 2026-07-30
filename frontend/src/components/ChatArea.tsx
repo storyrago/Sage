@@ -61,6 +61,7 @@ export default function ChatArea({
   const [sendError, setSendError] = useState('');
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
   const [participants, setParticipants] = useState<RoomMemberProfile[] | null>(null);
+  const [membersError, setMembersError] = useState('');
   const [showMembers, setShowMembers] = useState(false);
   const [replyMessage, setReplyMessage] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
@@ -175,11 +176,13 @@ export default function ChatArea({
   const openMembers = async () => {
     setShowMembers(true);
     setParticipants(null);
+    setMembersError('');
     try {
       const list = await getRoomMemberProfiles(token, channel.id);
       setParticipants(list);
-    } catch {
-      setParticipants([]);
+    } catch (err) {
+      // 빈 배열로 두면 "참가자가 없습니다"로 위장된다.
+      setMembersError(err instanceof Error ? err.message : '참가자를 불러오지 못했어요.');
     }
   };
 
@@ -368,44 +371,58 @@ export default function ChatArea({
                 </button>
               </div>
 
-              {participants === null && (
-                <div className="py-6 text-center text-xs text-muted select-none">불러오는 중…</div>
-              )}
+              {membersError ? (
+                <div className="px-3 py-4 text-center">
+                  <p className="text-[12px] text-rose-400">{membersError}</p>
+                  <button
+                    onClick={openMembers}
+                    className="mt-2 text-[12px] font-semibold text-accent-text hover:underline cursor-pointer"
+                  >
+                    다시 시도
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {participants === null && (
+                    <div className="py-6 text-center text-xs text-muted select-none">불러오는 중…</div>
+                  )}
 
-              {participants !== null && participants.length === 0 && (
-                <div className="py-6 text-center text-xs text-muted select-none">참가자가 없습니다.</div>
-              )}
+                  {participants !== null && participants.length === 0 && (
+                    <div className="py-6 text-center text-xs text-muted select-none">참가자가 없습니다.</div>
+                  )}
 
-              {participants !== null && participants.length > 0 && (
-                <ul className="space-y-1">
-                  {participants.map((member) => (
-                    <li key={member.id}>
-                      <button
-                        onClick={() => {
-                          onOpenProfile(String(member.id));
-                          setShowMembers(false);
-                        }}
-                        className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-surface-2 transition-colors cursor-pointer text-left"
-                      >
-                        <div className="relative flex-shrink-0">
-                          <Avatar
-                            photoUrl={member.profileImageUrl ?? undefined}
-                            gradient={avatarForId(member.id)}
-                            name={member.nickname}
-                            className="w-8 h-8 rounded-lg text-xs"
-                          />
-                          {onlineMemberIds.has(String(member.id)) && (
-                            <span
-                              className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-surface"
-                              title="온라인"
-                            />
-                          )}
-                        </div>
-                        <span className="text-sm font-medium text-text truncate">{member.nickname}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                  {participants !== null && participants.length > 0 && (
+                    <ul className="space-y-1">
+                      {participants.map((member) => (
+                        <li key={member.id}>
+                          <button
+                            onClick={() => {
+                              onOpenProfile(String(member.id));
+                              setShowMembers(false);
+                            }}
+                            className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-surface-2 transition-colors cursor-pointer text-left"
+                          >
+                            <div className="relative flex-shrink-0">
+                              <Avatar
+                                photoUrl={member.profileImageUrl ?? undefined}
+                                gradient={avatarForId(member.id)}
+                                name={member.nickname}
+                                className="w-8 h-8 rounded-lg text-xs"
+                              />
+                              {onlineMemberIds.has(String(member.id)) && (
+                                <span
+                                  className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-surface"
+                                  title="온라인"
+                                />
+                              )}
+                            </div>
+                            <span className="text-sm font-medium text-text truncate">{member.nickname}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
               )}
             </motion.div>
           )}
