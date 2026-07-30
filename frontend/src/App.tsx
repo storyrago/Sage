@@ -91,6 +91,7 @@ export default function App() {
     typingSentAtRef.current = 0;
     setSelectedChannelId('');
     setConnected(false);
+    setWarping(false);   // Welcome이 다시 뜰 때 워프가 켜진 채 시작하면 콘텐츠가 숨겨진다
   }, []);
 
   useEffect(() => {
