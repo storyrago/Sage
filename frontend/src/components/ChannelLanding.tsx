@@ -198,7 +198,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
           <button
             onClick={onOpenSettings}
             aria-label="프로필 설정"
-            className="flex items-center gap-2 rounded-lg border border-border pl-1.5 pr-3 py-1.5 text-[13px] font-semibold text-text hover:border-accent transition-all cursor-pointer"
+            className="flex items-center gap-2 rounded-lg border border-[#2d362f] pl-1.5 pr-3 py-1.5 text-[13px] font-semibold text-[#e6ece8] hover:border-[#4a5a50] transition-colors cursor-pointer"
           >
             <Avatar
               photoUrl={currentUser.photoUrl}
