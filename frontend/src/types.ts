@@ -14,6 +14,7 @@ export interface Message {
   userId: string;
   userName: string;
   userAvatar: string;
+  userPhotoUrl?: string;
   createdAt: number; // unix epoch ms
   replyToId?: string; // 답장 대상 메시지 ID
   imageUrl?: string; // 업로드된 이미지 URL
