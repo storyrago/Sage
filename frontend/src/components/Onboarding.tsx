@@ -161,7 +161,7 @@ export default function Onboarding({ user, token, onDone }: OnboardingProps) {
 
           {hasDraft && (
             <p style={{ fontSize: 11, color: '#6B7972', textAlign: 'center', margin: '8px 0 0' }}>
-              고른 사진은 저장되지 않아요
+              '나중에 하기'를 누르면 고른 사진은 저장되지 않아요
             </p>
           )}
 

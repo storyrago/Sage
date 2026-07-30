@@ -13,38 +13,8 @@ interface SettingsModalProps {
   onUpdatePhoto: (url: string) => void;
 }
 
-interface Notif {
-  desktop: boolean;
-  sound: boolean;
-  mentionOnly: boolean;
-}
-
-function loadNotif(): Notif {
-  try {
-    const raw = localStorage.getItem('sage-notif');
-    if (raw) return JSON.parse(raw) as Notif;
-  } catch {
-    /* ignore */
-  }
-  return { desktop: true, sound: false, mentionOnly: false };
-}
-
-const NOTIF_ROWS: { k: keyof Notif; t: string; d: string }[] = [
-  { k: 'desktop', t: '데스크톱 알림', d: '새 메시지를 바탕 화면에 표시' },
-  { k: 'sound', t: '소리', d: '메시지 수신 시 효과음 재생' },
-  { k: 'mentionOnly', t: '멘션만 알림', d: '@내가 언급된 메시지만' },
-];
-
 export default function SettingsModal({ open, onClose, currentUser, token, onUpdateName, onUpdatePhoto }: SettingsModalProps) {
   const [name, setName] = useState(currentUser.displayName);
-  const [status, setStatus] = useState(() => {
-    try {
-      return localStorage.getItem('sage-status') || '';
-    } catch {
-      return '';
-    }
-  });
-  const [notif, setNotif] = useState<Notif>(loadNotif);
   const [saved, setSaved] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
@@ -85,8 +55,6 @@ export default function SettingsModal({ open, onClose, currentUser, token, onUpd
 
   if (!open) return null;
 
-  const toggleNotif = (k: keyof Notif) => setNotif((n) => ({ ...n, [k]: !n[k] }));
-
   const handleSave = async () => {
     setNameError('');
     setSaving(true);
@@ -103,12 +71,6 @@ export default function SettingsModal({ open, onClose, currentUser, token, onUpd
       setNameError(err instanceof Error ? err.message : '닉네임 저장에 실패했어요. 다시 시도해 주세요.');
       setSaving(false);
       return;
-    }
-    try {
-      localStorage.setItem('sage-status', status);
-      localStorage.setItem('sage-notif', JSON.stringify(notif));
-    } catch {
-      /* ignore */
     }
     setSaving(false);
     setSaved(true);
@@ -158,34 +120,6 @@ export default function SettingsModal({ open, onClose, currentUser, token, onUpd
             <input className={inputCls} value={name} maxLength={20} onChange={(e) => setName(e.target.value)} />
             {nameError && <p className="text-[12px] text-red-300 mt-1.5">{nameError}</p>}
           </div>
-          <div>
-            <div className="text-[13px] font-semibold text-text mb-1.5">상태 메시지</div>
-            <input className={inputCls} value={status} maxLength={40} placeholder="예: 집중 모드" onChange={(e) => setStatus(e.target.value)} />
-          </div>
-        </div>
-
-        <div className="px-5 py-4">
-          <div className="text-[11px] font-bold tracking-wider uppercase text-muted mb-3">알림</div>
-          {NOTIF_ROWS.map((row) => (
-            <div key={row.k} className="flex items-center justify-between gap-3 py-2">
-              <div>
-                <div className="text-[14px] font-semibold text-text">{row.t}</div>
-                <div className="text-[12px] text-muted mt-0.5">{row.d}</div>
-              </div>
-              <button
-                onClick={() => toggleNotif(row.k)}
-                role="switch"
-                aria-checked={notif[row.k]}
-                aria-label={row.t}
-                className={`relative w-[42px] h-6 rounded-full border transition-all cursor-pointer flex-shrink-0 ${notif[row.k] ? 'bg-accent border-accent' : 'bg-surface-2 border-border'}`}
-              >
-                <span
-                  className="absolute top-0.5 left-0.5 w-[18px] h-[18px] rounded-full transition-transform"
-                  style={{ transform: notif[row.k] ? 'translateX(18px)' : 'none', background: notif[row.k] ? 'var(--accent-fg)' : 'var(--text-muted)' }}
-                />
-              </button>
-            </div>
-          ))}
         </div>
 
         <div className="px-5 py-4 flex gap-2.5 border-t border-border">
