@@ -131,9 +131,14 @@ export default function App() {
     (async () => {
       // 워프 연출이 눈에 보이도록 최소 노출 시간을 둔다.
       // 요청이 이미 그보다 오래 걸리면 추가로 기다리지 않는다.
-      const WARP_MIN_MS = 900;
+      // 모션 최소화를 켠 사용자는 연출을 보지 못하므로 기다리게 하지 않는다
+      const WARP_MIN_MS = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 900;
       const startedAt = Date.now();
       setWarping(true);
+      const guard = setTimeout(() => {
+        setWarping(false);
+        setOauthError('로그인 처리가 지연되고 있어요. 다시 시도해 주세요.');
+      }, 10000);
       try {
         const member = await getMe(oauthToken);
         const elapsed = Date.now() - startedAt;
@@ -145,6 +150,8 @@ export default function App() {
         console.error('[OAuth] 핸드오프 실패:', e);
         setWarping(false);
         setOauthError('로그인 처리에 실패했어요. 다시 시도해 주세요.');
+      } finally {
+        clearTimeout(guard);
       }
     })();
   }, [persistSession]);

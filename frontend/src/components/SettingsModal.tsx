@@ -115,14 +115,14 @@ export default function SettingsModal({ open, onClose, currentUser, token, onUpd
               {photoError && <p className="text-[12px] text-red-300 mt-1.5">{photoError}</p>}
             </div>
           </div>
-          <div className="mb-3">
+          <div>
             <div className="text-[13px] font-semibold text-text mb-1.5">표시 이름</div>
             <input className={inputCls} value={name} maxLength={20} onChange={(e) => setName(e.target.value)} />
             {nameError && <p className="text-[12px] text-red-300 mt-1.5">{nameError}</p>}
           </div>
         </div>
 
-        <div className="px-5 py-4 flex gap-2.5 border-t border-border">
+        <div className="px-5 py-4 flex gap-2.5">
           <button
             onClick={handleSave}
             disabled={saving}
