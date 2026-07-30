@@ -22,6 +22,7 @@ import {
   toMessage,
   toUser,
   updateMessage,
+  updateNickname,
 } from './lib/api';
 import { SpringStompClient } from './lib/stomp';
 import { useTheme } from './lib/useTheme';
@@ -523,7 +524,11 @@ export default function App() {
         onClose={() => setSettingsOpen(false)}
         currentUser={user}
         token={token ?? ''}
-        onUpdateName={(displayName) => setUser((u) => (u ? { ...u, displayName } : u))}
+        onUpdateName={async (displayName) => {
+          if (!token) return;
+          const member = await updateNickname(token, displayName);
+          persistSession(token, toUser(member));
+        }}
         onUpdatePhoto={(url) => {
           setUser((prev) => {
             if (!prev) return prev;
