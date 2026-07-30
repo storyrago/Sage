@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 
 import { Plus, Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell, X, LogOut } from 'lucide-react';
 import { Channel, User } from '../types';
 import Avatar from './Avatar';
+import { toUserMessage } from '../lib/errors';
 
 const ICONS = [Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell];
 
@@ -144,7 +145,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
       setCreating(false);
     } catch (err) {
       // 다이얼로그를 열어둔 채 입력값을 유지해 그대로 다시 시도할 수 있게 한다.
-      setCreateError(err instanceof Error ? err.message : '채널을 만들지 못했어요.');
+      setCreateError(toUserMessage(err, '채널을 만들지 못했어요.'));
     } finally {
       setBusy(false);
     }

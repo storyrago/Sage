@@ -27,6 +27,7 @@ import {
 } from './lib/api';
 import { SpringStompClient } from './lib/stomp';
 import { useTheme } from './lib/useTheme';
+import { toUserMessage } from './lib/errors';
 
 interface StoredSession {
   token: string;
@@ -76,6 +77,10 @@ export default function App() {
     toastIdRef.current += 1;
     setToast({ id: toastIdRef.current, text });
   }, []);
+
+  // Toast에 안정적인 참조로 넘긴다. 매 렌더 새 함수를 넘기면 Toast의 자동 닫힘 타이머가
+  // 매번 리셋되어, 3초마다 리렌더되는 재연결 중에는 타이머가 만료될 틈이 없어진다.
+  const closeToast = useCallback(() => setToast(null), []);
 
   const persistSession = useCallback((nextToken: string, nextUser: User) => {
     const session: StoredSession = { token: nextToken, user: nextUser };
@@ -219,7 +224,7 @@ export default function App() {
       } catch (error) {
         // 방에 못 들어갔으므로 채팅 화면에 남을 이유가 없다. 랜딩으로 되돌린다.
         if (!cancelled) {
-          notify(error instanceof Error ? error.message : '채널에 입장하지 못했어요.');
+          notify(toUserMessage(error, '채널에 입장하지 못했어요.'));
           setSelectedChannelId('');
         }
         return;
@@ -259,7 +264,7 @@ export default function App() {
       } catch (error) {
         // 입장은 성공했으므로 채팅 화면에 남는다.
         if (!cancelled) {
-          notify(error instanceof Error ? error.message : '메시지를 불러오지 못했어요.');
+          notify(toUserMessage(error, '메시지를 불러오지 못했어요.'));
         }
       }
     }
@@ -449,20 +454,18 @@ export default function App() {
         },
       }));
     } catch (error) {
-      notify(error instanceof Error ? error.message : '이전 메시지를 불러오지 못했어요.');
+      notify(toUserMessage(error, '이전 메시지를 불러오지 못했어요.'));
       setPageState((prev) => ({ ...prev, [roomId]: { ...prev[roomId], loading: false } }));
     }
   }, [token, notify]);
 
+  // 실패를 ChatArea로 전파한다(전송과 동일한 방식) — 실패 시 입력·수정 상태 복원은
+  // ChatArea가 담당하므로 여기서 삼키면 안 된다.
   const handleEditMessage = async (messageId: string, content: string) => {
     if (!token || !selectedChannelId) return;
-    try {
-      const updated = await updateMessage(token, selectedChannelId, messageId, content);
-      const mapped = toMessage(updated);
-      setMessages((prev) => prev.map((m) => (m.id === mapped.id ? mapped : m)));
-    } catch (error) {
-      notify(error instanceof Error ? error.message : '메시지 수정에 실패했어요.');
-    }
+    const updated = await updateMessage(token, selectedChannelId, messageId, content);
+    const mapped = toMessage(updated);
+    setMessages((prev) => prev.map((m) => (m.id === mapped.id ? mapped : m)));
   };
 
   const handleDeleteMessage = async (messageId: string) => {
@@ -472,7 +475,7 @@ export default function App() {
       const mapped = toMessage(deleted);
       setMessages((prev) => prev.map((m) => (m.id === mapped.id ? mapped : m)));
     } catch (error) {
-      notify(error instanceof Error ? error.message : '메시지 삭제에 실패했어요.');
+      notify(toUserMessage(error, '메시지 삭제에 실패했어요.'));
     }
   };
 
@@ -556,7 +559,13 @@ export default function App() {
             onCreateChannel={async (name) => {
               if (!token) return;
               const room = await createChatRoom(token, name);
-              await refreshRooms(token);
+              // 방은 이미 생성됐다. 목록 갱신 실패로 "만들지 못했어요"를 띄우면
+              // 사용자가 재시도해 이름이 중복된 방을 하나 더 만들게 된다.
+              try {
+                await refreshRooms(token);
+              } catch (refreshError) {
+                console.error('[Channel] 생성 후 목록 갱신 실패(무시하고 계속):', refreshError);
+              }
               setSelectedChannelId(String(room.id));
             }}
             onLogout={handleLogout}
@@ -594,7 +603,7 @@ export default function App() {
         onClose={() => setProfileMemberId(null)}
       />
 
-      <Toast toast={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={closeToast} />
     </div>
   );
 }

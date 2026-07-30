@@ -4,6 +4,7 @@ import { Channel, Message, Presence, User } from '../types';
 import Avatar from './Avatar';
 import { getRoomMemberProfiles, RoomMemberProfile, uploadImage } from '../lib/api';
 import { avatarForId } from '../lib/avatar';
+import { toUserMessage } from '../lib/errors';
 import {
   Send, CornerUpLeft, ArrowDown,
   MessageCircle, Hash, Info, Users, X,
@@ -29,7 +30,7 @@ interface ChatAreaProps {
   onLoadOlder?: () => void;
   hasMoreOlder?: boolean;
   loadingOlder?: boolean;
-  onEditMessage?: (messageId: string, content: string) => void;
+  onEditMessage?: (messageId: string, content: string) => Promise<void>;
   onDeleteMessage?: (messageId: string) => void;
   unreadFromId?: number | null;
 }
@@ -58,6 +59,7 @@ export default function ChatArea({
   unreadFromId
 }: ChatAreaProps) {
   const [inputText, setInputText] = useState('');
+  const inputTextRef = useRef('');
   const [sendError, setSendError] = useState('');
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
   const [participants, setParticipants] = useState<RoomMemberProfile[] | null>(null);
@@ -131,6 +133,12 @@ export default function ChatArea({
     }
   };
 
+  // 전송/수정 실패 콜백은 async 대기 중 사용자가 새로 입력한 내용을 알아야 한다.
+  // state는 콜백 클로저에 옛 값으로 갇히므로 ref로 최신값을 따로 추적한다.
+  useEffect(() => {
+    inputTextRef.current = inputText;
+  }, [inputText]);
+
   // 채널 전환 시 입력/모달 상태 초기화 (스크롤은 아래 통합 이펙트가 처리)
   useEffect(() => {
     setInputText('');
@@ -182,7 +190,7 @@ export default function ChatArea({
       setParticipants(list);
     } catch (err) {
       // 빈 배열로 두면 "참가자가 없습니다"로 위장된다.
-      setMembersError(err instanceof Error ? err.message : '참가자를 불러오지 못했어요.');
+      setMembersError(toUserMessage(err, '참가자를 불러오지 못했어요.'));
     }
   };
 
@@ -200,20 +208,41 @@ export default function ChatArea({
     onTypeStateChange(false);
 
     if (editingMessage) {
-      onEditMessage?.(editingMessage.id, cleanText);
+      const editing = editingMessage;
       setEditingMessage(null);
+      try {
+        await onEditMessage?.(editing.id, cleanText);
+      } catch (err) {
+        // 대기 중 사용자가 새로 입력을 시작했다면 그 내용을 덮지 않는다.
+        // 대신 보내지 못한 수정 내용을 오류 메시지에 실어 보존한다.
+        if (inputTextRef.current.trim()) {
+          setSendError(`보내지 못했어요: "${cleanText}"`);
+        } else {
+          setEditingMessage(editing);
+          setInputText(cleanText);
+          setSendError(toUserMessage(err, '메시지 수정에 실패했어요.'));
+        }
+      }
       return;
     }
 
     const replyToId = replyMessage?.id;
+    const previousReply = replyMessage;
     setReplyMessage(null);
     try {
       await onSendMessage(cleanText, replyToId);
     } catch (err) {
       // 전송은 낙관적 렌더가 아니라 실패하면 화면에 아무것도 남지 않는다.
-      // 입력 내용을 되돌려 사용자가 그대로 다시 보낼 수 있게 한다.
-      setInputText(cleanText);
-      setSendError(err instanceof Error ? err.message : '메시지를 보내지 못했어요. 다시 시도해 주세요.');
+      // 답장 대상은 항상 복원해 다음 재전송이 조용히 일반 메시지로 바뀌지 않게 한다.
+      setReplyMessage(previousReply);
+      // 대기 중 사용자가 새로 입력을 시작했다면 그 내용을 덮지 않는다.
+      // 대신 보내지 못한 내용을 오류 메시지에 실어 보존한다.
+      if (inputTextRef.current.trim()) {
+        setSendError(`보내지 못했어요: "${cleanText}"`);
+      } else {
+        setInputText(cleanText);
+        setSendError(toUserMessage(err, '메시지를 보내지 못했어요. 다시 시도해 주세요.'));
+      }
     }
   };
 
@@ -224,7 +253,7 @@ export default function ChatArea({
       const url = await uploadImage(token, file);
       await onSendImage(url);
     } catch (err) {
-      onNotify(err instanceof Error ? err.message : '이미지를 보내지 못했어요.');
+      onNotify(toUserMessage(err, '이미지를 보내지 못했어요.'));
     } finally {
       setUploading(false);
     }
@@ -673,11 +702,11 @@ export default function ChatArea({
           )}
         </AnimatePresence>
 
-        <form onSubmit={handleSend} className="flex gap-2 items-stretch">
-          {sendError && (
-            <p className="mb-2 text-[12px] text-rose-400">{sendError}</p>
-          )}
+        {sendError && (
+          <p className="mb-2 text-[12px] text-rose-400">{sendError}</p>
+        )}
 
+        <form onSubmit={handleSend} className="flex gap-2 items-stretch">
           <input
             ref={imageInputRef}
             type="file"
