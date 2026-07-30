@@ -451,7 +451,7 @@ export default function ChatArea({
 
               {/* User Avatar Badge */}
               <button onClick={() => onOpenProfile(msg.userId)} className="cursor-pointer self-start flex-shrink-0" aria-label={`${msg.userName} 프로필`}>
-                <Avatar gradient={msg.userAvatar} name={msg.userName} className="w-9 h-9 rounded-xl text-xs font-sans shadow-md" />
+                <Avatar photoUrl={msg.userPhotoUrl} gradient={msg.userAvatar} name={msg.userName} className="w-9 h-9 rounded-xl text-xs font-sans shadow-md" />
               </button>
 
               {/* Chat Bubble Body Container */}

@@ -25,6 +25,7 @@ export interface BackendMessage {
   content: string;
   memberId: number;
   nickname: string;
+  profileImageUrl?: string | null;
   chatroomId: number;
   createdAt?: string;
   replyToId?: number | null;
@@ -236,6 +237,7 @@ export function toMessage(message: BackendMessage): Message {
     userId: String(message.memberId),
     userName: message.nickname,
     userAvatar: avatarForId(message.memberId),
+    userPhotoUrl: message.profileImageUrl ?? undefined,
     createdAt: message.createdAt ? Date.parse(message.createdAt) : Date.now(),
     replyToId: message.replyToId != null ? String(message.replyToId) : undefined,
     imageUrl: message.imageUrl ?? undefined,

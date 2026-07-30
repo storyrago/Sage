@@ -14,18 +14,20 @@ public class MessageResponse {
     String imageUrl;
     Long memberId;
     String nickname;
+    String profileImageUrl;
     Long chatroomId;
     LocalDateTime createdAt;
     Long replyToId;
     LocalDateTime editedAt;
     boolean deleted;
 
-    public MessageResponse(Long messageId, String content, String imageUrl, Long memberId, String nickname, Long chatroomId, LocalDateTime createdAt, Long replyToId, LocalDateTime editedAt, boolean deleted) {
+    public MessageResponse(Long messageId, String content, String imageUrl, Long memberId, String nickname, String profileImageUrl, Long chatroomId, LocalDateTime createdAt, Long replyToId, LocalDateTime editedAt, boolean deleted) {
         this.messageId = messageId;
         this.content = content;
         this.imageUrl = imageUrl;
         this.memberId = memberId;
         this.nickname = nickname;
+        this.profileImageUrl = profileImageUrl;
         this.chatroomId = chatroomId;
         this.createdAt = createdAt;
         this.replyToId = replyToId;
@@ -40,6 +42,7 @@ public class MessageResponse {
                 message.getImageUrl(),
                 message.getMember().getId(),
                 message.getMember().getNickname(),
+                message.getMember().getProfileImageUrl(),
                 message.getChatRoom().getId(),
                 message.getCreatedAt(),
                 message.getReplyTo() != null ? message.getReplyTo().getId() : null,
