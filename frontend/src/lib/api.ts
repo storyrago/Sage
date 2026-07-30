@@ -55,6 +55,27 @@ export interface BackendMessage {
   deleted?: boolean;
 }
 
+// 응답 본문에서 code·message를 뽑아 ApiError로 던진다. 401이면 등록된 처리기를 먼저 부른다.
+// 코드가 UNAUTHORIZED(또는 없음 — 프록시가 준 코드 없는 401)일 때만 처리기를 부른다.
+// INVALID_PASSWORD·SOCIAL_LOGIN_ONLY 같은 다른 401 코드는 세션을 지우면 안 된다.
+// multipart 업로드는 request()를 쓸 수 없어(Content-Type을 브라우저가 정해야 한다) 이 헬퍼를 공유한다.
+async function throwApiError(response: Response): Promise<never> {
+  const text = await response.text();
+  let message = text || `요청 실패: ${response.status}`;
+  let code: string | undefined;
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed.message === 'string') message = parsed.message;
+    if (parsed && typeof parsed.code === 'string') code = parsed.code;
+  } catch {
+    /* JSON 아님 — 원문 유지 */
+  }
+  if (response.status === 401 && (code === undefined || code === 'UNAUTHORIZED')) {
+    unauthorizedHandler?.();
+  }
+  throw new ApiError(message, response.status, code);
+}
+
 async function request<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
   const headers = new Headers(options.headers);
   headers.set('Content-Type', 'application/json');
@@ -69,18 +90,7 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    let message = text || `요청 실패: ${response.status}`;
-    let code: string | undefined;
-    try {
-      const parsed = JSON.parse(text);
-      if (parsed && typeof parsed.message === 'string') message = parsed.message;
-      if (parsed && typeof parsed.code === 'string') code = parsed.code;
-    } catch {
-      /* JSON 아님 — 원문 유지 */
-    }
-    if (response.status === 401) unauthorizedHandler?.();
-    throw new ApiError(message, response.status, code);
+    await throwApiError(response);
   }
 
   if (response.status === 204) {
@@ -202,10 +212,7 @@ export async function uploadImage(token: string, file: File): Promise<string> {
     body: form,
   });
   if (!res.ok) {
-    const text = await res.text();
-    let message = text || `업로드 실패: ${res.status}`;
-    try { const p = JSON.parse(text); if (p?.message) message = p.message; } catch { /* keep */ }
-    throw new Error(message);
+    await throwApiError(res);
   }
   const data = (await res.json()) as { url: string };
   return data.url;

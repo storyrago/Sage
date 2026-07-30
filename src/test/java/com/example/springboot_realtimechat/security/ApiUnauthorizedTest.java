@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -31,5 +32,12 @@ class ApiUnauthorizedTest {
     void 소셜_로그인_진입은_리다이렉트를_유지한다() throws Exception {
         mockMvc.perform(get("/oauth2/authorization/google"))
                 .andExpect(status().is3xxRedirection());
+    }
+
+    @Test
+    void 브라우저처럼_HTML을_요청해도_API는_401을_받는다() throws Exception {
+        mockMvc.perform(get("/api/chatrooms").accept(MediaType.TEXT_HTML))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
     }
 }

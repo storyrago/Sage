@@ -74,6 +74,7 @@ export default function App() {
     localStorage.setItem(SESSION_KEY, JSON.stringify(session));
     setToken(nextToken);
     setUser(nextUser);
+    setNotice(null);
   }, []);
 
   const clearSession = useCallback(() => {
@@ -93,6 +94,7 @@ export default function App() {
     setSelectedChannelId('');
     setConnected(false);
     setWarping(false);   // Welcome이 다시 뜰 때 워프가 켜진 채 시작하면 콘텐츠가 숨겨진다
+    setNotice(null);
   }, []);
 
   // 401은 어느 요청에서든 올 수 있다. 한 곳에서 받아 세션을 정리하고 이유를 알린다.
