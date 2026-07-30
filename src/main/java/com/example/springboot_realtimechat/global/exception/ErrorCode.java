@@ -26,6 +26,7 @@ public enum ErrorCode {
     EMPTY_MESSAGE(400, "내용 또는 이미지가 필요합니다."),
 
     // Global
+    UNAUTHORIZED(401, "세션이 만료되었어요. 다시 로그인해 주세요."),
     INVALID_INPUT_VALUE(400, "잘못된 입력값입니다."),
     DATA_INTEGRITY_VIOLATION(409, "데이터 무결성 제약 조건을 위반했습니다."),
     METHOD_NOT_ALLOWED(405, "허용되지 않은 HTTP 메서드입니다."),

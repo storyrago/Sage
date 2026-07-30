@@ -1,5 +1,6 @@
 package com.example.springboot_realtimechat.config;
 
+import com.example.springboot_realtimechat.global.exception.ApiAuthenticationEntryPoint;
 import com.example.springboot_realtimechat.security.CustomOidcUserService;
 import com.example.springboot_realtimechat.security.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.example.springboot_realtimechat.security.JwtAuthenticationFilter;
@@ -15,6 +16,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 
 @Configuration
 @EnableWebSecurity
@@ -25,6 +27,7 @@ public class SecurityConfig {
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
     private final OAuth2FailureHandler oAuth2FailureHandler;
     private final HttpCookieOAuth2AuthorizationRequestRepository cookieAuthorizationRequestRepository;
+    private final ApiAuthenticationEntryPoint apiAuthenticationEntryPoint;
 
     @Bean
     public PasswordEncoder passwordEncoder(){
@@ -51,6 +54,14 @@ public class SecurityConfig {
                         ).permitAll()
                         .anyRequest().authenticated() // 나머지는 인증 필요
                 )
+                // defaultAuthenticationEntryPointFor는 DelegatingAuthenticationEntryPoint에 순서대로 쌓이고,
+                // 명시적 default가 없으면 가장 먼저 등록된 것이 fallback이 된다. oauth2Login의 로그인 리다이렉트
+                // 엔트리포인트는 이 DSL 실행 이후(http.build())에 등록되므로, 지금은 이 블록의 apiAuthenticationEntryPoint가
+                // fallback이다 — 이 블록 위에 defaultAuthenticationEntryPointFor를 추가하면 fallback이 조용히 그쪽으로 넘어간다.
+                .exceptionHandling(ex -> ex.defaultAuthenticationEntryPointFor(
+                        apiAuthenticationEntryPoint,
+                        PathPatternRequestMatcher.withDefaults().matcher("/api/**")
+                ))
                 .oauth2Login(oauth -> oauth
                         .authorizationEndpoint(a -> a
                                 .authorizationRequestRepository(cookieAuthorizationRequestRepository))

@@ -3,7 +3,7 @@ import { MessagesSquare } from 'lucide-react';
 
 interface WelcomeProps {
   warping?: boolean;
-  oauthError?: string | null;
+  notice?: string | null;
 }
 
 interface Particle {
@@ -13,7 +13,7 @@ interface Particle {
 const PARTICLE_COLORS = ['#5E9079', '#7AAE92', '#9CCBB2'];
 const LINK = 140;
 
-export default function Welcome({ warping, oauthError }: WelcomeProps) {
+export default function Welcome({ warping, notice }: WelcomeProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const spotRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
@@ -226,8 +226,8 @@ export default function Welcome({ warping, oauthError }: WelcomeProps) {
             <h2 className="text-center sage-stg" style={{ fontWeight: 800, fontSize: 23, color: '#E6ECE8', margin: '0 0 6px', transitionDelay: '0.19s' }}>Sage</h2>
             <p className="text-center sage-stg" style={{ fontSize: 13, color: '#9AA8A0', margin: '0 0 24px', transitionDelay: '0.26s' }}>소셜 계정으로 간편하게 로그인하세요</p>
 
-            {oauthError && (
-              <div className="sage-stg" style={{ marginBottom: 14, color: '#e88', fontSize: 13, textAlign: 'center', transitionDelay: '0.3s' }}>{oauthError}</div>
+            {notice && (
+              <div className="sage-stg" style={{ marginBottom: 14, color: '#e88', fontSize: 13, textAlign: 'center', transitionDelay: '0.3s' }}>{notice}</div>
             )}
 
             {/* 소셜 로그인 버튼 영역 — 카카오 등 다른 소셜 버튼을 이 아래에 이어서 추가 */}

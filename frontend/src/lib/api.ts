@@ -3,6 +3,27 @@ import { Channel, Message, User } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
+// 서버가 내려주는 오류 코드를 그대로 들고 다닌다. 문구가 바뀌어도 분기가 깨지지 않게 하려는 것이다.
+export class ApiError extends Error {
+  readonly status: number;
+  readonly code?: string;
+
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.code = code;
+  }
+}
+
+// 401은 호출 지점이 많아 각자 확인하면 반드시 빠뜨린다. 한 곳에서 처리기를 받아 둔다.
+// 등록은 App이 마운트 시 한 번만 한다.
+let unauthorizedHandler: (() => void) | null = null;
+
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  unauthorizedHandler = handler;
+}
+
 export interface BackendMember {
   id: number;
   email: string | null;
@@ -34,6 +55,27 @@ export interface BackendMessage {
   deleted?: boolean;
 }
 
+// 응답 본문에서 code·message를 뽑아 ApiError로 던진다. 401이면 등록된 처리기를 먼저 부른다.
+// 코드가 UNAUTHORIZED(또는 없음 — 프록시가 준 코드 없는 401)일 때만 처리기를 부른다.
+// INVALID_PASSWORD·SOCIAL_LOGIN_ONLY 같은 다른 401 코드는 세션을 지우면 안 된다.
+// multipart 업로드는 request()를 쓸 수 없어(Content-Type을 브라우저가 정해야 한다) 이 헬퍼를 공유한다.
+async function throwApiError(response: Response): Promise<never> {
+  const text = await response.text();
+  let message = text || `요청 실패: ${response.status}`;
+  let code: string | undefined;
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed.message === 'string') message = parsed.message;
+    if (parsed && typeof parsed.code === 'string') code = parsed.code;
+  } catch {
+    /* JSON 아님 — 원문 유지 */
+  }
+  if (response.status === 401 && (code === undefined || code === 'UNAUTHORIZED')) {
+    unauthorizedHandler?.();
+  }
+  throw new ApiError(message, response.status, code);
+}
+
 async function request<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
   const headers = new Headers(options.headers);
   headers.set('Content-Type', 'application/json');
@@ -48,15 +90,7 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    let message = text || `요청 실패: ${response.status}`;
-    try {
-      const parsed = JSON.parse(text);
-      if (parsed && typeof parsed.message === 'string') message = parsed.message;
-    } catch {
-      /* JSON 아님 — 원문 유지 */
-    }
-    throw new Error(message);
+    await throwApiError(response);
   }
 
   if (response.status === 204) {
@@ -85,10 +119,9 @@ export async function joinChatRoom(token: string, chatroomId: string) {
   try {
     await request(`/api/chatrooms/${chatroomId}/members`, { method: 'POST' }, token);
   } catch (error) {
-    const message = error instanceof Error ? error.message : '';
-    if (!message.includes('ALREADY_JOINED_ROOM') && !message.includes('already') && !message.includes('이미 참여')) {
-      throw error;
-    }
+    // 이미 참여 중인 방에 다시 들어가는 것은 실패가 아니다.
+    if (error instanceof ApiError && error.code === 'ALREADY_JOINED_ROOM') return;
+    throw error;
   }
 }
 
@@ -179,10 +212,7 @@ export async function uploadImage(token: string, file: File): Promise<string> {
     body: form,
   });
   if (!res.ok) {
-    const text = await res.text();
-    let message = text || `업로드 실패: ${res.status}`;
-    try { const p = JSON.parse(text); if (p?.message) message = p.message; } catch { /* keep */ }
-    throw new Error(message);
+    await throwApiError(res);
   }
   const data = (await res.json()) as { url: string };
   return data.url;

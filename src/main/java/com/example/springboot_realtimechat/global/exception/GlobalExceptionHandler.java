@@ -18,7 +18,7 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(errorCode.getStatus())
-                .body(new ErrorResponse(errorCode.getMessage()));
+                .body(ErrorResponse.of(errorCode));
     }
 
     //스프링이 자동으로 던지는 예외
@@ -28,7 +28,7 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(errorCode.getStatus())
-                .body(new ErrorResponse(errorCode.getMessage()));
+                .body(ErrorResponse.of(errorCode));
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
@@ -37,7 +37,7 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(errorCode.getStatus())
-                .body(new ErrorResponse(errorCode.getMessage()));
+                .body(ErrorResponse.of(errorCode));
     }
 
     //db/jpa가 던지는 예외
@@ -46,14 +46,16 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = ErrorCode.DATA_INTEGRITY_VIOLATION;
         return ResponseEntity
                 .status(errorCode.getStatus())
-                .body(new ErrorResponse(errorCode.getMessage()));
+                .body(ErrorResponse.of(errorCode));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleException(Exception e) {
         log.error("Unhandled exception occurred", e);
+        ErrorCode errorCode = ErrorCode.INTERNAL_SERVER_ERROR;
+
         return ResponseEntity
-                .status(500)
-                .body(new ErrorResponse("서버 내부 오류가 발생했습니다."));
+                .status(errorCode.getStatus())
+                .body(ErrorResponse.of(errorCode));
     }
 }

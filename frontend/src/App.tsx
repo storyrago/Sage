@@ -19,6 +19,7 @@ import {
   joinChatRoom,
   markRoomRead,
   sendMessage,
+  setUnauthorizedHandler,
   toChannel,
   toMessage,
   toUser,
@@ -55,7 +56,7 @@ export default function App() {
   const [loadingMessage, setLoadingMessage] = useState<string>('채팅 정보를 불러오는 중입니다.');
   const [unread, setUnread] = useState<Record<string, number>>({});
   const [roomLastRead, setRoomLastRead] = useState<Record<string, number | null>>({});
-  const [oauthError, setOauthError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
 
   const stompRef = useRef<SpringStompClient | null>(null);
@@ -87,6 +88,7 @@ export default function App() {
     localStorage.setItem(SESSION_KEY, JSON.stringify(session));
     setToken(nextToken);
     setUser(nextUser);
+    setNotice(null);
   }, []);
 
   const clearSession = useCallback(() => {
@@ -106,7 +108,17 @@ export default function App() {
     setSelectedChannelId('');
     setConnected(false);
     setWarping(false);   // Welcome이 다시 뜰 때 워프가 켜진 채 시작하면 콘텐츠가 숨겨진다
+    setNotice(null);
   }, []);
+
+  // 401은 어느 요청에서든 올 수 있다. 한 곳에서 받아 세션을 정리하고 이유를 알린다.
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      clearSession();
+      setNotice('세션이 만료되었어요. 다시 로그인해 주세요.');
+    });
+    return () => setUnauthorizedHandler(null);
+  }, [clearSession]);
 
   useEffect(() => {
     const saved = localStorage.getItem(SESSION_KEY);
@@ -134,7 +146,7 @@ export default function App() {
       history.replaceState(null, '', window.location.pathname + window.location.search);
     }
     if (errCode) {
-      setOauthError(
+      setNotice(
         errCode === 'EMAIL_ALREADY_REGISTERED'
           ? '이미 등록된 이메일이에요. 기존에 사용하던 소셜 계정으로 로그인해 주세요.'
           : '소셜 로그인에 실패했어요. 다시 시도해 주세요.',
@@ -151,7 +163,7 @@ export default function App() {
       setWarping(true);
       const guard = setTimeout(() => {
         setWarping(false);
-        setOauthError('로그인 처리가 지연되고 있어요. 다시 시도해 주세요.');
+        setNotice('로그인 처리가 지연되고 있어요. 다시 시도해 주세요.');
       }, 10000);
       try {
         const member = await getMe(oauthToken);
@@ -163,7 +175,7 @@ export default function App() {
       } catch (e) {
         console.error('[OAuth] 핸드오프 실패:', e);
         setWarping(false);
-        setOauthError('로그인 처리에 실패했어요. 다시 시도해 주세요.');
+        setNotice('로그인 처리에 실패했어요. 다시 시도해 주세요.');
       } finally {
         clearTimeout(guard);
       }
@@ -491,7 +503,7 @@ export default function App() {
     return (
       <Welcome
         warping={warping}
-        oauthError={oauthError}
+        notice={notice}
       />
     );
   }
