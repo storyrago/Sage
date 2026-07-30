@@ -157,7 +157,10 @@ export default function Welcome({ warping, oauthError }: WelcomeProps) {
   useEffect(() => {
     warpRef.current = !!warping;
     if (auraRef.current) auraRef.current.classList.toggle('on', !!warping);
-    if (contentRef.current) contentRef.current.style.opacity = warping ? '0' : '1';
+    if (contentRef.current) {
+      contentRef.current.style.opacity = warping ? '0' : '1';
+      contentRef.current.style.pointerEvents = warping ? 'none' : '';
+    }
   }, [warping]);
 
   const scrollToLogin = () => loginRef.current?.scrollIntoView({ behavior: 'smooth' });

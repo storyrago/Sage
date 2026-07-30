@@ -91,6 +91,7 @@ export default function App() {
     typingSentAtRef.current = 0;
     setSelectedChannelId('');
     setConnected(false);
+    setWarping(false);   // Welcome이 다시 뜰 때 워프가 켜진 채 시작하면 콘텐츠가 숨겨진다
   }, []);
 
   useEffect(() => {
@@ -128,12 +129,29 @@ export default function App() {
     }
     if (!oauthToken) return;
     (async () => {
+      // 워프 연출이 눈에 보이도록 최소 노출 시간을 둔다.
+      // 요청이 이미 그보다 오래 걸리면 추가로 기다리지 않는다.
+      // 모션 최소화를 켠 사용자는 연출을 보지 못하므로 기다리게 하지 않는다
+      const WARP_MIN_MS = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 900;
+      const startedAt = Date.now();
+      setWarping(true);
+      const guard = setTimeout(() => {
+        setWarping(false);
+        setOauthError('로그인 처리가 지연되고 있어요. 다시 시도해 주세요.');
+      }, 10000);
       try {
         const member = await getMe(oauthToken);
+        const elapsed = Date.now() - startedAt;
+        if (elapsed < WARP_MIN_MS) {
+          await new Promise((resolve) => setTimeout(resolve, WARP_MIN_MS - elapsed));
+        }
         persistSession(oauthToken, toUser(member));
       } catch (e) {
         console.error('[OAuth] 핸드오프 실패:', e);
+        setWarping(false);
         setOauthError('로그인 처리에 실패했어요. 다시 시도해 주세요.');
+      } finally {
+        clearTimeout(guard);
       }
     })();
   }, [persistSession]);
@@ -515,6 +533,8 @@ export default function App() {
             }}
             onLogout={handleLogout}
             unread={unread}
+            currentUser={user}
+            onOpenSettings={() => setSettingsOpen(true)}
           />
         )}
       </div>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { Plus, Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell, X, LogOut, ArrowRight } from 'lucide-react';
-import { Channel } from '../types';
+import { Channel, User } from '../types';
+import Avatar from './Avatar';
 
 const ICONS = [Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell];
 
@@ -96,9 +97,11 @@ interface Props {
   onCreateChannel: (name: string) => Promise<void>;
   onLogout: () => void;
   unread?: Record<string, number>;
+  currentUser: User;
+  onOpenSettings: () => void;
 }
 
-export default function ChannelLanding({ channels, onSelectChannel, onCreateChannel, onLogout, unread }: Props) {
+export default function ChannelLanding({ channels, onSelectChannel, onCreateChannel, onLogout, unread, currentUser, onOpenSettings }: Props) {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
@@ -192,10 +195,23 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
       <div className="sticky top-0 z-10 flex items-center justify-between px-6 h-14" style={{ background: '#141917' }}>
         <span className="text-[16px] font-bold text-[#e6ece8]">Sage</span>
         <div className="flex items-center gap-2">
-          <button onClick={() => setCreating(true)} className="inline-flex items-center gap-1.5 bg-accent text-accent-fg rounded-lg px-3.5 py-2 text-[13px] font-semibold hover:bg-accent-hover transition-colors cursor-pointer">
+          <button
+            onClick={onOpenSettings}
+            aria-label={`${currentUser.displayName} · 프로필 설정`}
+            className="flex items-center gap-2 min-w-0 rounded-lg border border-[#2d362f] pl-1.5 pr-3 py-1.5 text-[13px] font-semibold text-[#e6ece8] hover:border-[#4a5a50] transition-colors cursor-pointer"
+          >
+            <Avatar
+              photoUrl={currentUser.photoUrl}
+              gradient={currentUser.avatar}
+              name={currentUser.displayName}
+              className="w-6 h-6 rounded-md text-[11px]"
+            />
+            <span className="truncate max-w-[100px]">{currentUser.displayName}</span>
+          </button>
+          <button onClick={() => setCreating(true)} className="flex-shrink-0 inline-flex items-center gap-1.5 bg-accent text-accent-fg rounded-lg px-3.5 py-2 text-[13px] font-semibold hover:bg-accent-hover transition-colors cursor-pointer">
             <Plus className="w-4 h-4" /> 채널 만들기
           </button>
-          <button onClick={onLogout} title="로그아웃" aria-label="로그아웃" className="w-9 h-9 rounded-lg border border-[#2d362f] text-[#9aa8a0] hover:text-[#e6ece8] hover:border-[#4a5a50] transition-colors cursor-pointer flex items-center justify-center">
+          <button onClick={onLogout} title="로그아웃" aria-label="로그아웃" className="flex-shrink-0 w-9 h-9 rounded-lg border border-[#2d362f] text-[#9aa8a0] hover:text-[#e6ece8] hover:border-[#4a5a50] transition-colors cursor-pointer flex items-center justify-center">
             <LogOut className="w-4 h-4" />
           </button>
         </div>
