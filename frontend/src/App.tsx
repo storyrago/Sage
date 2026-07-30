@@ -7,6 +7,7 @@ import SettingsModal from './components/SettingsModal';
 import ProfileModal from './components/ProfileModal';
 import ChatArea from './components/ChatArea';
 import ChannelLanding from './components/ChannelLanding';
+import Toast from './components/Toast';
 import { WifiOff, RefreshCw } from 'lucide-react';
 import {
   createChatRoom,
@@ -27,6 +28,7 @@ import {
 } from './lib/api';
 import { SpringStompClient } from './lib/stomp';
 import { useTheme } from './lib/useTheme';
+import { toUserMessage } from './lib/errors';
 
 interface StoredSession {
   token: string;
@@ -55,6 +57,7 @@ export default function App() {
   const [unread, setUnread] = useState<Record<string, number>>({});
   const [roomLastRead, setRoomLastRead] = useState<Record<string, number | null>>({});
   const [notice, setNotice] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
 
   const stompRef = useRef<SpringStompClient | null>(null);
   const selectedChannelRef = useRef<string>('');
@@ -62,12 +65,23 @@ export default function App() {
   const typingActiveRef = useRef<boolean>(false);
   const typingExpiryRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const lastMarkReadAtRef = useRef<number>(0);
+  const toastIdRef = useRef(0);
 
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     selectedChannelRef.current = selectedChannelId;
   }, [selectedChannelId]);
+
+  // 실패를 사용자에게 알린다. 같은 문구가 연달아 나도 다시 보이도록 id를 증가시킨다.
+  const notify = useCallback((text: string) => {
+    toastIdRef.current += 1;
+    setToast({ id: toastIdRef.current, text });
+  }, []);
+
+  // Toast에 안정적인 참조로 넘긴다. 매 렌더 새 함수를 넘기면 Toast의 자동 닫힘 타이머가
+  // 매번 리셋되어, 3초마다 리렌더되는 재연결 중에는 타이머가 만료될 틈이 없어진다.
+  const closeToast = useCallback(() => setToast(null), []);
 
   const persistSession = useCallback((nextToken: string, nextUser: User) => {
     const session: StoredSession = { token: nextToken, user: nextUser };
@@ -215,9 +229,20 @@ export default function App() {
     let cancelled = false;
 
     async function loadMessages() {
+      setLoadingMessage('메시지를 불러오는 중입니다.');
+
       try {
-        setLoadingMessage('메시지를 불러오는 중입니다.');
         await joinChatRoom(token, selectedChannelId);
+      } catch (error) {
+        // 방에 못 들어갔으므로 채팅 화면에 남을 이유가 없다. 랜딩으로 되돌린다.
+        if (!cancelled) {
+          notify(toUserMessage(error, '채널에 입장하지 못했어요.'));
+          setSelectedChannelId('');
+        }
+        return;
+      }
+
+      try {
         const page = await getMessages(token, selectedChannelId);
         if (!cancelled) {
           const mapped = page.messages.map(toMessage);
@@ -234,8 +259,14 @@ export default function App() {
             },
           }));
           // 입장 시 읽음 처리 → 배지 0. (구분선용 lastRead 스냅샷은 App의 roomLastRead를 갱신하지 않아 세션 동안 고정)
-          await markRoomRead(token, selectedChannelId);
-          setUnread((prev) => ({ ...prev, [selectedChannelId]: 0 }));
+          // 읽음 처리 실패는 사용자가 조치할 수 없고 다음 입장에서 회복되므로 알리지 않는다.
+          // 여기서 새어나가면 "메시지를 불러오지 못했어요"로 잘못 표시된다.
+          try {
+            await markRoomRead(token, selectedChannelId);
+            setUnread((prev) => ({ ...prev, [selectedChannelId]: 0 }));
+          } catch (readError) {
+            console.error('[Unread] 입장 시 읽음 처리 실패(무시하고 계속):', readError);
+          }
           // 다음 입장 때 낡은 구분선이 뜨지 않도록 경계를 전진 (현재 화면은 ChatArea가 입장 시점 값으로 고정)
           const newestId = page.messages.length ? page.messages[page.messages.length - 1].messageId : null;
           if (newestId != null) {
@@ -243,7 +274,10 @@ export default function App() {
           }
         }
       } catch (error) {
-        console.error('[ChatRoom] Failed to load messages:', error);
+        // 입장은 성공했으므로 채팅 화면에 남는다.
+        if (!cancelled) {
+          notify(toUserMessage(error, '메시지를 불러오지 못했어요.'));
+        }
       }
     }
 
@@ -253,7 +287,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [token, selectedChannelId]);
+  }, [token, selectedChannelId, notify]);
 
   useEffect(() => {
     if (!token || !user) return;
@@ -432,21 +466,18 @@ export default function App() {
         },
       }));
     } catch (error) {
-      console.error('[ChatRoom] Failed to load older messages:', error);
+      notify(toUserMessage(error, '이전 메시지를 불러오지 못했어요.'));
       setPageState((prev) => ({ ...prev, [roomId]: { ...prev[roomId], loading: false } }));
     }
-  }, [token]);
+  }, [token, notify]);
 
+  // 실패를 ChatArea로 전파한다(전송과 동일한 방식) — 실패 시 입력·수정 상태 복원은
+  // ChatArea가 담당하므로 여기서 삼키면 안 된다.
   const handleEditMessage = async (messageId: string, content: string) => {
     if (!token || !selectedChannelId) return;
-    try {
-      const updated = await updateMessage(token, selectedChannelId, messageId, content);
-      const mapped = toMessage(updated);
-      setMessages((prev) => prev.map((m) => (m.id === mapped.id ? mapped : m)));
-    } catch (error) {
-      console.error('메시지 수정 실패', error);
-      alert(error instanceof Error ? error.message : '메시지 수정에 실패했습니다.');
-    }
+    const updated = await updateMessage(token, selectedChannelId, messageId, content);
+    const mapped = toMessage(updated);
+    setMessages((prev) => prev.map((m) => (m.id === mapped.id ? mapped : m)));
   };
 
   const handleDeleteMessage = async (messageId: string) => {
@@ -456,8 +487,7 @@ export default function App() {
       const mapped = toMessage(deleted);
       setMessages((prev) => prev.map((m) => (m.id === mapped.id ? mapped : m)));
     } catch (error) {
-      console.error('메시지 삭제 실패', error);
-      alert(error instanceof Error ? error.message : '메시지 삭제에 실패했습니다.');
+      notify(toUserMessage(error, '메시지 삭제에 실패했어요.'));
     }
   };
 
@@ -518,6 +548,7 @@ export default function App() {
               token={token ?? ''}
               onSendMessage={handleSendMessage}
               onSendImage={(url) => handleSendMessage('', undefined, url)}
+              onNotify={notify}
               onTypeStateChange={handleTypeStateChange}
               onOpenProfile={(id) => setProfileMemberId(id)}
               onlineMemberIds={onlineMemberIds}
@@ -540,7 +571,13 @@ export default function App() {
             onCreateChannel={async (name) => {
               if (!token) return;
               const room = await createChatRoom(token, name);
-              await refreshRooms(token);
+              // 방은 이미 생성됐다. 목록 갱신 실패로 "만들지 못했어요"를 띄우면
+              // 사용자가 재시도해 이름이 중복된 방을 하나 더 만들게 된다.
+              try {
+                await refreshRooms(token);
+              } catch (refreshError) {
+                console.error('[Channel] 생성 후 목록 갱신 실패(무시하고 계속):', refreshError);
+              }
               setSelectedChannelId(String(room.id));
             }}
             onLogout={handleLogout}
@@ -577,6 +614,8 @@ export default function App() {
         token={token ?? ''}
         onClose={() => setProfileMemberId(null)}
       />
+
+      <Toast toast={toast} onClose={closeToast} />
     </div>
   );
 }

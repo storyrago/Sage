@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 
 import { Plus, Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell, X, LogOut } from 'lucide-react';
 import { Channel, User } from '../types';
 import Avatar from './Avatar';
+import { toUserMessage } from '../lib/errors';
 
 const ICONS = [Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell];
 
@@ -105,6 +106,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
+  const [createError, setCreateError] = useState('');
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   // 확대 상태 (자기 자리 → 중앙 FLIP)
@@ -136,8 +138,17 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
     const n = name.trim();
     if (!n || busy) return;
     setBusy(true);
-    try { await onCreateChannel(n); setName(''); setCreating(false); }
-    finally { setBusy(false); }
+    setCreateError('');
+    try {
+      await onCreateChannel(n);
+      setName('');
+      setCreating(false);
+    } catch (err) {
+      // 다이얼로그를 열어둔 채 입력값을 유지해 그대로 다시 시도할 수 있게 한다.
+      setCreateError(toUserMessage(err, '채널을 만들지 못했어요.'));
+    } finally {
+      setBusy(false);
+    }
   };
 
   // 클릭한 우표의 화면 위치를 잡아 중앙으로 날아오게
@@ -329,13 +340,16 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
       {/* 채널 만들기 다이얼로그 */}
       {creating && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-6" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-black/55" onClick={() => setCreating(false)} />
+          <div className="absolute inset-0 bg-black/55" onClick={() => { setCreating(false); setCreateError(''); }} />
           <div className="relative w-full max-w-[360px] bg-surface border border-border rounded-3xl p-5">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-[15px] font-bold text-text">새 채널</h2>
-              <button onClick={() => setCreating(false)} aria-label="닫기" className="text-muted hover:text-text cursor-pointer"><X className="w-4 h-4" /></button>
+              <button onClick={() => { setCreating(false); setCreateError(''); }} aria-label="닫기" className="text-muted hover:text-text cursor-pointer"><X className="w-4 h-4" /></button>
             </div>
             <input autoFocus value={name} maxLength={30} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && submit()} placeholder="채널 이름" className="w-full bg-surface-2 border border-border rounded-[10px] px-3 py-2.5 text-[14px] text-text outline-none focus:border-accent" />
+            {createError && (
+              <p className="mt-2 text-[12px] text-rose-400">{createError}</p>
+            )}
             <button onClick={submit} disabled={busy} className="btn-label mt-3 w-full py-2.5 text-[14px] font-bold cursor-pointer">{busy ? '만드는 중…' : '만들기'}</button>
           </div>
         </div>
