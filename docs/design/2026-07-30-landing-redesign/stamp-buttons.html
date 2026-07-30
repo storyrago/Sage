@@ -1,0 +1,149 @@
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif; color:#e6ece8; background:#0f1412; }
+
+  .board {
+    position: relative; padding: 40px 32px 34px;
+    background-color:#171d1a;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23f)' opacity='0.55'/%3E%3C/svg%3E");
+    background-size:180px 180px; box-shadow: inset 0 0 120px rgba(0,0,0,.55);
+  }
+  h2.hd { margin:0 0 4px; font-size:15px; }
+  p.sub { margin:0 0 24px; font-size:12.5px; color:#9aa8a0; line-height:1.6; }
+
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:26px 22px; position:relative; z-index:1; }
+  .cell { }
+  .stage { min-height:76px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .label { margin-top:12px; font-size:12px; font-weight:700; }
+  .note  { margin-top:4px; font-size:11px; color:#8b978f; line-height:1.55; }
+  .paper-tex {
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='m'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.011' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.52 0 0 0 0 0.48 0 0 0 0 0.38 1.0 0.8 0 0 -0.63'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23m)'/%3E%3C/svg%3E");
+    background-size:260px 260px;
+  }
+  button { font-family:inherit; cursor:pointer; border:none; transition:transform .12s ease, filter .15s ease, background-color .15s ease; }
+  button:active { transform: translateY(1px); }
+
+  /* A. 톱니(우표 마스크) */
+  .b-perf {
+    background-color:#fbf9f3; color:#2c352f; font-weight:800; font-size:13px;
+    padding:13px 22px;
+    -webkit-mask: linear-gradient(#000 0 0) 50%/calc(100% - 9px) calc(100% - 9px) no-repeat,
+                  radial-gradient(circle 4px, #000 96%, #0000) 0 0/10px 10px round;
+    -webkit-mask-composite:source-over;
+    mask: linear-gradient(#000 0 0) 50%/calc(100% - 9px) calc(100% - 9px) no-repeat,
+          radial-gradient(circle 4px, #000 96%, #0000) 0 0/10px 10px round;
+    mask-composite:add;
+  }
+  .b-perf:hover { filter:brightness(1.05); }
+
+  /* B. 소인 도장 */
+  .b-stamp {
+    background:transparent; color:#7AAE92; font:800 12.5px ui-monospace, monospace;
+    letter-spacing:.08em; text-transform:uppercase; padding:11px 20px;
+    box-shadow: inset 0 0 0 2.4px #7AAE92, inset 0 0 0 4.6px transparent, inset 0 0 0 5.6px rgba(122,174,146,.55);
+    border-radius:3px; transform:rotate(-1.6deg);
+  }
+  .b-stamp:hover { color:#9CCBB2; box-shadow: inset 0 0 0 2.4px #9CCBB2, inset 0 0 0 4.6px transparent, inset 0 0 0 5.6px rgba(156,203,178,.55); }
+
+  /* C. 에어메일 */
+  .b-air {
+    position:relative; background-color:#fbf9f3; color:#2c352f; font-weight:800; font-size:13px;
+    padding:12px 20px; border-radius:3px; box-shadow:0 4px 8px rgba(0,0,0,.4);
+  }
+  .b-air::before {
+    content:''; position:absolute; inset:0; border-radius:3px; padding:3px;
+    background:repeating-linear-gradient(45deg,#c2402c 0 7px,#fbf9f3 7px 14px,#2f5d8e 14px 21px,#fbf9f3 21px 28px);
+    -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor; mask-composite:exclude;
+  }
+
+  /* D. 종이 라벨 (점선) */
+  .b-label {
+    background-color:#f4f1e7; color:#2c352f; font-weight:800; font-size:13px;
+    padding:12px 20px; border-radius:4px;
+    box-shadow: 0 4px 9px rgba(0,0,0,.4), inset 0 0 0 1px rgba(90,99,87,.28);
+    position:relative;
+  }
+  .b-label::after {
+    content:''; position:absolute; inset:4px; border:1.4px dashed rgba(90,99,87,.42); border-radius:2px; pointer-events:none;
+  }
+  .b-label:hover { background-color:#fbf9f3; }
+  .b-label.ghost { background-color:transparent; color:#e6ece8; box-shadow: inset 0 0 0 1px rgba(230,236,232,.32); }
+  .b-label.ghost::after { border-color:rgba(230,236,232,.3); }
+  .b-label.ghost:hover { background-color:rgba(255,255,255,.06); }
+
+  /* E. 현재 */
+  .b-now { background:#7AAE92; color:#12241B; font-weight:600; font-size:13px; padding:9px 14px; border-radius:8px; }
+  .b-now:hover { background:#8fbfa3; }
+  .b-icon-now { width:36px; height:36px; border-radius:8px; background:transparent; box-shadow:inset 0 0 0 1px #2d362f; color:#9aa8a0; display:inline-flex; align-items:center; justify-content:center; }
+  .b-icon-now:hover { color:#e6ece8; box-shadow:inset 0 0 0 1px #4a5a50; }
+
+  /* 보조 아이콘 — 각진 버전 */
+  .b-icon-paper { width:36px; height:36px; border-radius:3px; background:transparent; box-shadow:inset 0 0 0 1px rgba(230,236,232,.28); color:#c7d2cb; display:inline-flex; align-items:center; justify-content:center; }
+  .b-icon-paper:hover { color:#fbf9f3; box-shadow:inset 0 0 0 1px rgba(230,236,232,.55); }
+
+  .rec { margin-top:28px; padding:14px 16px; border-radius:10px; background:rgba(122,174,146,.09); border:1px solid rgba(122,174,146,.28); font-size:12.5px; line-height:1.7; color:#cfe0d6; position:relative; z-index:1; }
+  .rec b { color:#9CCBB2; }
+  .bar { margin-top:22px; padding:10px 16px; display:flex; align-items:center; gap:10px; background:#141917; box-shadow:inset 0 -1px 0 rgba(255,255,255,.05); border-radius:8px; position:relative; z-index:1; }
+  .bar .brand { font-weight:800; font-size:15px; margin-right:auto; }
+</style>
+
+<div class="board">
+  <h2 class="hd">버튼 다섯 가지 — 같은 액션, 다른 언어</h2>
+  <p class="sub">모두 “채널 만들기” 하나로 통일했습니다. 마우스를 올려보세요.</p>
+
+  <div class="grid">
+    <div class="cell">
+      <div class="stage"><button class="b-perf paper-tex">채널 만들기</button></div>
+      <div class="label">A. 톱니 (우표 마스크)</div>
+      <div class="note">테마는 가장 직접적. 그런데 우표와 같은 언어라 <b>우표의 특별함을 갉아먹는다.</b> 마스크가 포커스 링을 잘라 접근성도 손해.</div>
+    </div>
+
+    <div class="cell">
+      <div class="stage"><button class="b-stamp">채널 만들기</button></div>
+      <div class="label">B. 소인 도장</div>
+      <div class="note">이미 안읽음 소인이 쓰는 언어. 강렬하지만 <b>모든 버튼에 쓰면 시끄럽다.</b> 최상위 액션 하나에만.</div>
+    </div>
+
+    <div class="cell">
+      <div class="stage"><button class="b-air">채널 만들기</button></div>
+      <div class="label">C. 에어메일 테두리</div>
+      <div class="note">즉시 “우편”으로 읽힌다. 다만 빨강·파랑이 세이지 팔레트와 싸운다.</div>
+    </div>
+
+    <div class="cell">
+      <div class="stage">
+        <button class="b-label paper-tex">채널 만들기</button>
+        <button class="b-label ghost">나중에</button>
+      </div>
+      <div class="label">D. 종이 라벨 (점선)</div>
+      <div class="note">우편 라벨/택 느낌. 점선이 톱니를 <b>암시만</b> 한다. 크기·색을 가리지 않고 보조 버전(고스트)도 자연스럽다.</div>
+    </div>
+
+    <div class="cell">
+      <div class="stage">
+        <button class="b-now">채널 만들기</button>
+        <button class="b-icon-now" aria-label="로그아웃"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg></button>
+      </div>
+      <div class="label">E. 현재</div>
+      <div class="note">깔끔하지만 보드 위에서 “앱 버튼”으로 떠 보인다.</div>
+    </div>
+  </div>
+
+  <div class="bar">
+    <span class="brand">Sage</span>
+    <button class="b-icon-paper" aria-label="프로필"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg></button>
+    <button class="b-label paper-tex">채널 만들기</button>
+    <button class="b-icon-paper" aria-label="로그아웃"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg></button>
+  </div>
+
+  <div class="rec">
+    <b>추천 = D를 기본으로, B는 “입장하기” 하나에만.</b>
+    D는 크기를 가리지 않고 고스트 변형까지 자연스러워 버튼 체계 전체를 감당합니다. 점선이 톱니를 암시만 하므로 우표와 겹치지 않습니다.
+    <br><br>
+    <b>A(톱니)는 버튼에 쓰지 않는 편이 낫습니다.</b> 톱니를 우표만의 것으로 남겨둬야 우표가 주인공으로 남습니다. 게다가 마스크는 포커스 링과 그림자를 잘라내 접근성·입체감을 함께 잃습니다.
+    <br><br>
+    보조 아이콘 버튼은 지금 형태를 두되 <b>모서리만 8px → 3px</b>로 각지게 하면 종이 톤과 어긋나지 않습니다. 위 상단바가 그 조합입니다.
+  </div>
+</div>
