@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
-import { Plus, Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell, X, LogOut, ArrowRight } from 'lucide-react';
+import { Plus, Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell, X, LogOut } from 'lucide-react';
 import { Channel, User } from '../types';
 import Avatar from './Avatar';
 
@@ -198,7 +198,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
           <button
             onClick={onOpenSettings}
             aria-label={`${currentUser.displayName} · 프로필 설정`}
-            className="flex items-center gap-2 min-w-0 rounded-lg border border-[#2d362f] pl-1.5 pr-3 py-1.5 text-[13px] font-semibold text-[#e6ece8] hover:border-[#4a5a50] transition-colors cursor-pointer"
+            className="flex items-center gap-2 min-w-0 rounded-[3px] border border-[#2d362f] pl-1.5 pr-3 py-1.5 text-[13px] font-semibold text-[#e6ece8] hover:border-[#4a5a50] transition-colors cursor-pointer"
           >
             <Avatar
               photoUrl={currentUser.photoUrl}
@@ -208,10 +208,10 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
             />
             <span className="truncate max-w-[100px]">{currentUser.displayName}</span>
           </button>
-          <button onClick={() => setCreating(true)} className="flex-shrink-0 inline-flex items-center gap-1.5 bg-accent text-accent-fg rounded-lg px-3.5 py-2 text-[13px] font-semibold hover:bg-accent-hover transition-colors cursor-pointer">
+          <button onClick={() => setCreating(true)} className="btn-label flex-shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-semibold transition-colors cursor-pointer">
             <Plus className="w-4 h-4" /> 채널 만들기
           </button>
-          <button onClick={onLogout} title="로그아웃" aria-label="로그아웃" className="flex-shrink-0 w-9 h-9 rounded-lg border border-[#2d362f] text-[#9aa8a0] hover:text-[#e6ece8] hover:border-[#4a5a50] transition-colors cursor-pointer flex items-center justify-center">
+          <button onClick={onLogout} title="로그아웃" aria-label="로그아웃" className="flex-shrink-0 w-9 h-9 rounded-[3px] border border-[#2d362f] text-[#9aa8a0] hover:text-[#e6ece8] hover:border-[#4a5a50] transition-colors cursor-pointer flex items-center justify-center">
             <LogOut className="w-4 h-4" />
           </button>
         </div>
@@ -220,7 +220,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
       {channels.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-4 pt-40 text-center">
           <div className="text-[15px] text-[#9aa8a0]">아직 채널이 없어요.</div>
-          <button onClick={() => setCreating(true)} className="inline-flex items-center gap-1.5 bg-accent text-accent-fg rounded-lg px-4 py-2.5 text-[14px] font-bold cursor-pointer"><Plus className="w-4 h-4" /> 첫 채널 만들기</button>
+          <button onClick={() => setCreating(true)} className="btn-label inline-flex items-center gap-1.5 px-4 py-2.5 text-[14px] font-bold cursor-pointer"><Plus className="w-4 h-4" /> 첫 채널 만들기</button>
         </div>
       ) : (
         <div className="grid grid-cols-2 justify-items-center gap-x-3 gap-y-8 px-4 pt-6 pb-12 md:block md:relative md:h-[560px] md:gap-0 md:p-0">
@@ -247,7 +247,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
                 onClick={(e) => openFocus(ch, e.currentTarget)}
               >
                 <div
-                  className="w-full h-full cursor-pointer hover:!rotate-0 hover:scale-105"
+                  className="relative w-full h-full cursor-pointer hover:!rotate-0 hover:scale-105"
                   style={{
                     transform: `rotate(${p.rot}deg)`,
                     transition: 'transform .22s ease',
@@ -255,6 +255,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
                   }}
                 >
                   <StampFace ch={ch} />
+                  <span className="stamp-tape" aria-hidden="true" />
                   {count > 0 && (
                     <span key={count} className="contents">
                       <Postmark count={count} />
@@ -316,9 +317,9 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
           >
             <button
               onClick={() => onSelectChannel(focused.id)}
-              className="inline-flex items-center gap-2 bg-accent text-accent-fg rounded-xl px-6 py-3 text-[15px] font-bold hover:bg-accent-hover transition-colors cursor-pointer shadow-xl"
+              className="btn-stamp transition-colors cursor-pointer"
             >
-              입장하기 <ArrowRight className="w-4 h-4" />
+              입장하기
             </button>
             <div className="text-[12px] text-[#8a978d] select-none">바깥을 클릭하거나 ESC로 닫기</div>
           </div>
@@ -335,7 +336,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
               <button onClick={() => setCreating(false)} aria-label="닫기" className="text-muted hover:text-text cursor-pointer"><X className="w-4 h-4" /></button>
             </div>
             <input autoFocus value={name} maxLength={30} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && submit()} placeholder="채널 이름" className="w-full bg-surface-2 border border-border rounded-[10px] px-3 py-2.5 text-[14px] text-text outline-none focus:border-accent" />
-            <button onClick={submit} disabled={busy} className="mt-3 w-full rounded-xl py-2.5 text-[14px] font-bold bg-accent text-accent-fg hover:bg-accent-hover cursor-pointer disabled:opacity-60">{busy ? '만드는 중…' : '만들기'}</button>
+            <button onClick={submit} disabled={busy} className="btn-label mt-3 w-full py-2.5 text-[14px] font-bold cursor-pointer">{busy ? '만드는 중…' : '만들기'}</button>
           </div>
         </div>
       )}
