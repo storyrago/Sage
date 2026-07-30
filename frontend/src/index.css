@@ -163,24 +163,24 @@ body {
    안읽음 소인이 좌상단이라 겹치지 않는다. 크기는 96×128(모바일)→132×176(데스크톱) 타일 비율에 맞춰 확대 */
 .stamp-tape {
   position: absolute;
-  top: -7px;
-  right: -9px;
-  width: 39px;
-  height: 14px;
+  top: -5px;
+  right: -5px;
+  width: 34px;
+  height: 13px;
   pointer-events: none;
   background:
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0 3px, transparent 3px 7px),
-    linear-gradient(180deg, rgba(242, 238, 225, 0.50), rgba(232, 227, 210, 0.38));
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
-  clip-path: polygon(3% 0, 97% 4%, 100% 96%, 2% 100%);
-  transform: rotate(38deg);
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.09) 0 3px, transparent 3px 7px),
+    linear-gradient(180deg, rgba(244, 240, 226, 0.90), rgba(226, 220, 202, 0.82));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  clip-path: polygon(4% 0, 96% 5%, 100% 95%, 2% 100%);
+  transform: rotate(45deg);   /* 모서리 대각선과 나란히 — 절반은 종이, 절반은 보드를 문다 */
 }
 @media (min-width: 768px) {
   .stamp-tape {
-    top: -9px;
-    right: -13px;
-    width: 54px;
-    height: 19px;
+    top: -7px;
+    right: -7px;
+    width: 46px;
+    height: 17px;
   }
 }
 
@@ -226,10 +226,10 @@ body {
 .btn-stamp {
   background: transparent;
   color: #7AAE92;
-  font: 800 12.5px var(--font-mono);
-  letter-spacing: 0.08em;
+  font: 800 15px var(--font-mono);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  padding: 11px 20px;
+  padding: 14px 30px;
   border-radius: 3px;
   box-shadow: inset 0 0 0 2.4px #7AAE92, inset 0 0 0 4.6px transparent, inset 0 0 0 5.6px rgba(122, 174, 146, 0.55);
   transform: rotate(-1.6deg);
