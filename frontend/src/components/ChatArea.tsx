@@ -4,6 +4,7 @@ import { Channel, Message, Presence, User } from '../types';
 import Avatar from './Avatar';
 import { getRoomMemberProfiles, RoomMemberProfile, uploadImage } from '../lib/api';
 import { avatarForId } from '../lib/avatar';
+import { toUserMessage } from '../lib/errors';
 import {
   Send, CornerUpLeft, ArrowDown,
   MessageCircle, Hash, Info, Users, X,
@@ -16,8 +17,9 @@ interface ChatAreaProps {
   presences: Presence[];
   currentUser: User;
   token: string;
-  onSendMessage: (text: string, replyToId?: string) => void;
-  onSendImage: (imageUrl: string) => void;
+  onSendMessage: (text: string, replyToId?: string) => Promise<void>;
+  onSendImage: (imageUrl: string) => Promise<void>;
+  onNotify: (text: string) => void;
   onTypeStateChange: (isTyping: boolean) => void;
   onOpenProfile: (userId: string) => void;
   onlineMemberIds: Set<string>;
@@ -28,7 +30,7 @@ interface ChatAreaProps {
   onLoadOlder?: () => void;
   hasMoreOlder?: boolean;
   loadingOlder?: boolean;
-  onEditMessage?: (messageId: string, content: string) => void;
+  onEditMessage?: (messageId: string, content: string) => Promise<void>;
   onDeleteMessage?: (messageId: string) => void;
   unreadFromId?: number | null;
 }
@@ -41,6 +43,7 @@ export default function ChatArea({
   token,
   onSendMessage,
   onSendImage,
+  onNotify,
   onTypeStateChange,
   onOpenProfile,
   onlineMemberIds,
@@ -56,8 +59,11 @@ export default function ChatArea({
   unreadFromId
 }: ChatAreaProps) {
   const [inputText, setInputText] = useState('');
+  const inputTextRef = useRef('');
+  const [sendError, setSendError] = useState('');
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
   const [participants, setParticipants] = useState<RoomMemberProfile[] | null>(null);
+  const [membersError, setMembersError] = useState('');
   const [showMembers, setShowMembers] = useState(false);
   const [replyMessage, setReplyMessage] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
@@ -127,6 +133,12 @@ export default function ChatArea({
     }
   };
 
+  // 전송/수정 실패 콜백은 async 대기 중 사용자가 새로 입력한 내용을 알아야 한다.
+  // state는 콜백 클로저에 옛 값으로 갇히므로 ref로 최신값을 따로 추적한다.
+  useEffect(() => {
+    inputTextRef.current = inputText;
+  }, [inputText]);
+
   // 채널 전환 시 입력/모달 상태 초기화 (스크롤은 아래 통합 이펙트가 처리)
   useEffect(() => {
     setInputText('');
@@ -172,32 +184,66 @@ export default function ChatArea({
   const openMembers = async () => {
     setShowMembers(true);
     setParticipants(null);
+    setMembersError('');
     try {
       const list = await getRoomMemberProfiles(token, channel.id);
       setParticipants(list);
-    } catch {
-      setParticipants([]);
+    } catch (err) {
+      // 빈 배열로 두면 "참가자가 없습니다"로 위장된다.
+      setMembersError(toUserMessage(err, '참가자를 불러오지 못했어요.'));
     }
   };
 
-  const handleSend = (e: FormEvent) => {
+  const handleSend = async (e: FormEvent) => {
     e.preventDefault();
     const cleanText = inputText.trim();
     if (!cleanText) return;
 
-    if (editingMessage) {
-      onEditMessage?.(editingMessage.id, cleanText);
-      setEditingMessage(null);
-    } else {
-      onSendMessage(cleanText, replyMessage?.id);
-      setReplyMessage(null);
-    }
+    setSendError('');
     setInputText('');
 
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
     onTypeStateChange(false);
+
+    if (editingMessage) {
+      const editing = editingMessage;
+      setEditingMessage(null);
+      try {
+        await onEditMessage?.(editing.id, cleanText);
+      } catch (err) {
+        // 대기 중 사용자가 새로 입력을 시작했다면 그 내용을 덮지 않는다.
+        // 대신 보내지 못한 수정 내용을 오류 메시지에 실어 보존한다.
+        if (inputTextRef.current.trim()) {
+          setSendError(`보내지 못했어요: "${cleanText}"`);
+        } else {
+          setEditingMessage(editing);
+          setInputText(cleanText);
+          setSendError(toUserMessage(err, '메시지 수정에 실패했어요.'));
+        }
+      }
+      return;
+    }
+
+    const replyToId = replyMessage?.id;
+    const previousReply = replyMessage;
+    setReplyMessage(null);
+    try {
+      await onSendMessage(cleanText, replyToId);
+    } catch (err) {
+      // 전송은 낙관적 렌더가 아니라 실패하면 화면에 아무것도 남지 않는다.
+      // 답장 대상은 항상 복원해 다음 재전송이 조용히 일반 메시지로 바뀌지 않게 한다.
+      setReplyMessage(previousReply);
+      // 대기 중 사용자가 새로 입력을 시작했다면 그 내용을 덮지 않는다.
+      // 대신 보내지 못한 내용을 오류 메시지에 실어 보존한다.
+      if (inputTextRef.current.trim()) {
+        setSendError(`보내지 못했어요: "${cleanText}"`);
+      } else {
+        setInputText(cleanText);
+        setSendError(toUserMessage(err, '메시지를 보내지 못했어요. 다시 시도해 주세요.'));
+      }
+    }
   };
 
   const handleUpload = async (file: File) => {
@@ -205,9 +251,9 @@ export default function ChatArea({
     setUploading(true);
     try {
       const url = await uploadImage(token, file);
-      onSendImage(url);
+      await onSendImage(url);
     } catch (err) {
-      console.error('이미지 업로드 실패', err);
+      onNotify(toUserMessage(err, '이미지를 보내지 못했어요.'));
     } finally {
       setUploading(false);
     }
@@ -354,44 +400,58 @@ export default function ChatArea({
                 </button>
               </div>
 
-              {participants === null && (
-                <div className="py-6 text-center text-xs text-muted select-none">불러오는 중…</div>
-              )}
+              {membersError ? (
+                <div className="px-3 py-4 text-center">
+                  <p className="text-[12px] text-rose-400">{membersError}</p>
+                  <button
+                    onClick={openMembers}
+                    className="mt-2 text-[12px] font-semibold text-accent-text hover:underline cursor-pointer"
+                  >
+                    다시 시도
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {participants === null && (
+                    <div className="py-6 text-center text-xs text-muted select-none">불러오는 중…</div>
+                  )}
 
-              {participants !== null && participants.length === 0 && (
-                <div className="py-6 text-center text-xs text-muted select-none">참가자가 없습니다.</div>
-              )}
+                  {participants !== null && participants.length === 0 && (
+                    <div className="py-6 text-center text-xs text-muted select-none">참가자가 없습니다.</div>
+                  )}
 
-              {participants !== null && participants.length > 0 && (
-                <ul className="space-y-1">
-                  {participants.map((member) => (
-                    <li key={member.id}>
-                      <button
-                        onClick={() => {
-                          onOpenProfile(String(member.id));
-                          setShowMembers(false);
-                        }}
-                        className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-surface-2 transition-colors cursor-pointer text-left"
-                      >
-                        <div className="relative flex-shrink-0">
-                          <Avatar
-                            photoUrl={member.profileImageUrl ?? undefined}
-                            gradient={avatarForId(member.id)}
-                            name={member.nickname}
-                            className="w-8 h-8 rounded-lg text-xs"
-                          />
-                          {onlineMemberIds.has(String(member.id)) && (
-                            <span
-                              className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-surface"
-                              title="온라인"
-                            />
-                          )}
-                        </div>
-                        <span className="text-sm font-medium text-text truncate">{member.nickname}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                  {participants !== null && participants.length > 0 && (
+                    <ul className="space-y-1">
+                      {participants.map((member) => (
+                        <li key={member.id}>
+                          <button
+                            onClick={() => {
+                              onOpenProfile(String(member.id));
+                              setShowMembers(false);
+                            }}
+                            className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-surface-2 transition-colors cursor-pointer text-left"
+                          >
+                            <div className="relative flex-shrink-0">
+                              <Avatar
+                                photoUrl={member.profileImageUrl ?? undefined}
+                                gradient={avatarForId(member.id)}
+                                name={member.nickname}
+                                className="w-8 h-8 rounded-lg text-xs"
+                              />
+                              {onlineMemberIds.has(String(member.id)) && (
+                                <span
+                                  className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-surface"
+                                  title="온라인"
+                                />
+                              )}
+                            </div>
+                            <span className="text-sm font-medium text-text truncate">{member.nickname}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
               )}
             </motion.div>
           )}
@@ -642,8 +702,11 @@ export default function ChatArea({
           )}
         </AnimatePresence>
 
-        <form onSubmit={handleSend} className="flex gap-2 items-stretch">
+        {sendError && (
+          <p className="mb-2 text-[12px] text-rose-400">{sendError}</p>
+        )}
 
+        <form onSubmit={handleSend} className="flex gap-2 items-stretch">
           <input
             ref={imageInputRef}
             type="file"
