@@ -1,12 +1,14 @@
 package com.example.springboot_realtimechat.service;
 
 import com.example.springboot_realtimechat.domain.Member;
+import com.example.springboot_realtimechat.event.ImageDereferencedEvent;
 import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.repository.ChatRoomMemberRepository;
 import com.example.springboot_realtimechat.repository.MemberRepository;
 import com.example.springboot_realtimechat.repository.MessageRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +23,7 @@ public class MemberService {
     private final PasswordEncoder passwordEncoder;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final MessageRepository messageRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     public List<Member> getMemberList(){
         return memberRepository.findAll();
@@ -44,7 +47,14 @@ public class MemberService {
     @Transactional
     public Member updateProfileImage(Long memberId, String imageUrl) {
         Member member = getMemberById(memberId);        // 기존 메서드 재사용
+        String oldUrl = member.getProfileImageUrl();
         member.updateProfileImageUrl(imageUrl);         // 엔티티에 만든 메서드
+
+        // 같은 URL로 다시 저장하는 경로(사진 확정 후 닉네임 저장 실패 → 재시도)에서
+        // 이벤트가 나가면 살아있는 사진에 만료 태그가 붙는다.
+        if (oldUrl != null && !oldUrl.isBlank() && !oldUrl.equals(imageUrl)) {
+            eventPublisher.publishEvent(new ImageDereferencedEvent(oldUrl));
+        }
         return member;
     }
 

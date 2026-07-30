@@ -3,11 +3,13 @@ package com.example.springboot_realtimechat.service;
 import com.example.springboot_realtimechat.domain.ChatRoom;
 import com.example.springboot_realtimechat.domain.Member;
 import com.example.springboot_realtimechat.domain.Message;
+import com.example.springboot_realtimechat.event.ImageDereferencedEvent;
 import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.repository.ChatRoomMemberRepository;
 import com.example.springboot_realtimechat.repository.MessageRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -25,6 +27,7 @@ public class MessageService {
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final MemberService memberService;
     private final ChatRoomService chatRoomService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public record MessagePage(List<Message> messages, boolean hasMore) {}
 
@@ -101,7 +104,12 @@ public class MessageService {
         if (!message.getMember().getId().equals(memberId)) {
             throw new CustomException(ErrorCode.NOT_MESSAGE_OWNER);
         }
+        String imageUrl = message.getImageUrl();        // softDelete가 참조를 지우기 전에 읽는다
         message.softDelete();
+
+        if (imageUrl != null && !imageUrl.isBlank()) {
+            eventPublisher.publishEvent(new ImageDereferencedEvent(imageUrl));
+        }
         return message;
     }
 }
