@@ -212,9 +212,20 @@ export default function App() {
     let cancelled = false;
 
     async function loadMessages() {
+      setLoadingMessage('메시지를 불러오는 중입니다.');
+
       try {
-        setLoadingMessage('메시지를 불러오는 중입니다.');
         await joinChatRoom(token, selectedChannelId);
+      } catch (error) {
+        // 방에 못 들어갔으므로 채팅 화면에 남을 이유가 없다. 랜딩으로 되돌린다.
+        if (!cancelled) {
+          notify(error instanceof Error ? error.message : '채널에 입장하지 못했어요.');
+          setSelectedChannelId('');
+        }
+        return;
+      }
+
+      try {
         const page = await getMessages(token, selectedChannelId);
         if (!cancelled) {
           const mapped = page.messages.map(toMessage);
@@ -240,7 +251,10 @@ export default function App() {
           }
         }
       } catch (error) {
-        console.error('[ChatRoom] Failed to load messages:', error);
+        // 입장은 성공했으므로 채팅 화면에 남는다.
+        if (!cancelled) {
+          notify(error instanceof Error ? error.message : '메시지를 불러오지 못했어요.');
+        }
       }
     }
 
@@ -250,7 +264,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [token, selectedChannelId]);
+  }, [token, selectedChannelId, notify]);
 
   useEffect(() => {
     if (!token || !user) return;
@@ -429,10 +443,10 @@ export default function App() {
         },
       }));
     } catch (error) {
-      console.error('[ChatRoom] Failed to load older messages:', error);
+      notify(error instanceof Error ? error.message : '이전 메시지를 불러오지 못했어요.');
       setPageState((prev) => ({ ...prev, [roomId]: { ...prev[roomId], loading: false } }));
     }
-  }, [token]);
+  }, [token, notify]);
 
   const handleEditMessage = async (messageId: string, content: string) => {
     if (!token || !selectedChannelId) return;
