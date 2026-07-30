@@ -7,6 +7,7 @@ import SettingsModal from './components/SettingsModal';
 import ProfileModal from './components/ProfileModal';
 import ChatArea from './components/ChatArea';
 import ChannelLanding from './components/ChannelLanding';
+import Toast from './components/Toast';
 import { WifiOff, RefreshCw } from 'lucide-react';
 import {
   createChatRoom,
@@ -54,6 +55,7 @@ export default function App() {
   const [unread, setUnread] = useState<Record<string, number>>({});
   const [roomLastRead, setRoomLastRead] = useState<Record<string, number | null>>({});
   const [oauthError, setOauthError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
 
   const stompRef = useRef<SpringStompClient | null>(null);
   const selectedChannelRef = useRef<string>('');
@@ -61,12 +63,19 @@ export default function App() {
   const typingActiveRef = useRef<boolean>(false);
   const typingExpiryRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const lastMarkReadAtRef = useRef<number>(0);
+  const toastIdRef = useRef(0);
 
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     selectedChannelRef.current = selectedChannelId;
   }, [selectedChannelId]);
+
+  // 실패를 사용자에게 알린다. 같은 문구가 연달아 나도 다시 보이도록 id를 증가시킨다.
+  const notify = useCallback((text: string) => {
+    toastIdRef.current += 1;
+    setToast({ id: toastIdRef.current, text });
+  }, []);
 
   const persistSession = useCallback((nextToken: string, nextUser: User) => {
     const session: StoredSession = { token: nextToken, user: nextUser };
@@ -432,8 +441,7 @@ export default function App() {
       const mapped = toMessage(updated);
       setMessages((prev) => prev.map((m) => (m.id === mapped.id ? mapped : m)));
     } catch (error) {
-      console.error('메시지 수정 실패', error);
-      alert(error instanceof Error ? error.message : '메시지 수정에 실패했습니다.');
+      notify(error instanceof Error ? error.message : '메시지 수정에 실패했어요.');
     }
   };
 
@@ -444,8 +452,7 @@ export default function App() {
       const mapped = toMessage(deleted);
       setMessages((prev) => prev.map((m) => (m.id === mapped.id ? mapped : m)));
     } catch (error) {
-      console.error('메시지 삭제 실패', error);
-      alert(error instanceof Error ? error.message : '메시지 삭제에 실패했습니다.');
+      notify(error instanceof Error ? error.message : '메시지 삭제에 실패했어요.');
     }
   };
 
@@ -565,6 +572,8 @@ export default function App() {
         token={token ?? ''}
         onClose={() => setProfileMemberId(null)}
       />
+
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </div>
   );
 }
