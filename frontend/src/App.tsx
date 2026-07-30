@@ -128,11 +128,21 @@ export default function App() {
     }
     if (!oauthToken) return;
     (async () => {
+      // 워프 연출이 눈에 보이도록 최소 노출 시간을 둔다.
+      // 요청이 이미 그보다 오래 걸리면 추가로 기다리지 않는다.
+      const WARP_MIN_MS = 900;
+      const startedAt = Date.now();
+      setWarping(true);
       try {
         const member = await getMe(oauthToken);
+        const elapsed = Date.now() - startedAt;
+        if (elapsed < WARP_MIN_MS) {
+          await new Promise((resolve) => setTimeout(resolve, WARP_MIN_MS - elapsed));
+        }
         persistSession(oauthToken, toUser(member));
       } catch (e) {
         console.error('[OAuth] 핸드오프 실패:', e);
+        setWarping(false);
         setOauthError('로그인 처리에 실패했어요. 다시 시도해 주세요.');
       }
     })();
