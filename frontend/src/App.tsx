@@ -242,8 +242,14 @@ export default function App() {
             },
           }));
           // 입장 시 읽음 처리 → 배지 0. (구분선용 lastRead 스냅샷은 App의 roomLastRead를 갱신하지 않아 세션 동안 고정)
-          await markRoomRead(token, selectedChannelId);
-          setUnread((prev) => ({ ...prev, [selectedChannelId]: 0 }));
+          // 읽음 처리 실패는 사용자가 조치할 수 없고 다음 입장에서 회복되므로 알리지 않는다.
+          // 여기서 새어나가면 "메시지를 불러오지 못했어요"로 잘못 표시된다.
+          try {
+            await markRoomRead(token, selectedChannelId);
+            setUnread((prev) => ({ ...prev, [selectedChannelId]: 0 }));
+          } catch (readError) {
+            console.error('[Unread] 입장 시 읽음 처리 실패(무시하고 계속):', readError);
+          }
           // 다음 입장 때 낡은 구분선이 뜨지 않도록 경계를 전진 (현재 화면은 ChatArea가 입장 시점 값으로 고정)
           const newestId = page.messages.length ? page.messages[page.messages.length - 1].messageId : null;
           if (newestId != null) {
