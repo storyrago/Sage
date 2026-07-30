@@ -1,5 +1,6 @@
 package com.example.springboot_realtimechat.config;
 
+import com.example.springboot_realtimechat.global.exception.ApiAuthenticationEntryPoint;
 import com.example.springboot_realtimechat.security.CustomOidcUserService;
 import com.example.springboot_realtimechat.security.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.example.springboot_realtimechat.security.JwtAuthenticationFilter;
@@ -15,6 +16,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 
 @Configuration
 @EnableWebSecurity
@@ -25,6 +27,7 @@ public class SecurityConfig {
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
     private final OAuth2FailureHandler oAuth2FailureHandler;
     private final HttpCookieOAuth2AuthorizationRequestRepository cookieAuthorizationRequestRepository;
+    private final ApiAuthenticationEntryPoint apiAuthenticationEntryPoint;
 
     @Bean
     public PasswordEncoder passwordEncoder(){
@@ -51,6 +54,10 @@ public class SecurityConfig {
                         ).permitAll()
                         .anyRequest().authenticated() // 나머지는 인증 필요
                 )
+                .exceptionHandling(ex -> ex.defaultAuthenticationEntryPointFor(
+                        apiAuthenticationEntryPoint,
+                        PathPatternRequestMatcher.withDefaults().matcher("/api/**")
+                ))
                 .oauth2Login(oauth -> oauth
                         .authorizationEndpoint(a -> a
                                 .authorizationRequestRepository(cookieAuthorizationRequestRepository))
