@@ -515,6 +515,8 @@ export default function App() {
             }}
             onLogout={handleLogout}
             unread={unread}
+            currentUser={user}
+            onOpenSettings={() => setSettingsOpen(true)}
           />
         )}
       </div>
