@@ -144,7 +144,7 @@ export default function SettingsModal({ open, onClose, currentUser, token, onUpd
           <div className="mb-3">
             <div className="text-[13px] font-semibold text-text mb-1.5">표시 이름</div>
             <input className={inputCls} value={name} maxLength={20} onChange={(e) => setName(e.target.value)} />
-            {nameError && <p className="text-[12px] text-red-400 mt-1.5">{nameError}</p>}
+            {nameError && <p className="text-[12px] text-red-300 mt-1.5">{nameError}</p>}
           </div>
           <div>
             <div className="text-[13px] font-semibold text-text mb-1.5">상태 메시지</div>
