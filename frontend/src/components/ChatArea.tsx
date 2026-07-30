@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useLayoutEffect, FormEvent, ChangeEvent } 
 import { motion, AnimatePresence } from 'motion/react';
 import { Channel, Message, Presence, User } from '../types';
 import Avatar from './Avatar';
-import { getRoomMemberProfiles, BackendMember, uploadImage } from '../lib/api';
+import { getRoomMemberProfiles, RoomMemberProfile, uploadImage } from '../lib/api';
 import { avatarForId } from '../lib/avatar';
 import {
   Send, CornerUpLeft, ArrowDown,
@@ -57,7 +57,7 @@ export default function ChatArea({
 }: ChatAreaProps) {
   const [inputText, setInputText] = useState('');
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
-  const [participants, setParticipants] = useState<BackendMember[] | null>(null);
+  const [participants, setParticipants] = useState<RoomMemberProfile[] | null>(null);
   const [showMembers, setShowMembers] = useState(false);
   const [replyMessage, setReplyMessage] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);

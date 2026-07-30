@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Channel, Message, Presence, User } from './types';
 import Welcome from './components/Welcome';
+import Onboarding from './components/Onboarding';
 import SettingsModal from './components/SettingsModal';
 import ProfileModal from './components/ProfileModal';
 import ChatArea from './components/ChatArea';
@@ -21,6 +22,7 @@ import {
   toMessage,
   toUser,
   updateMessage,
+  updateNickname,
 } from './lib/api';
 import { SpringStompClient } from './lib/stomp';
 import { useTheme } from './lib/useTheme';
@@ -446,6 +448,18 @@ export default function App() {
     );
   }
 
+  if (!user.onboarded) {
+    return (
+      <Onboarding
+        user={user}
+        token={token ?? ''}
+        onDone={(updated) => {
+          if (token) persistSession(token, updated);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="flex h-screen w-screen bg-bg text-text font-sans select-none overflow-hidden relative sage-chat-enter">
       <AnimatePresence>
@@ -510,7 +524,11 @@ export default function App() {
         onClose={() => setSettingsOpen(false)}
         currentUser={user}
         token={token ?? ''}
-        onUpdateName={(displayName) => setUser((u) => (u ? { ...u, displayName } : u))}
+        onUpdateName={async (displayName) => {
+          if (!token) return;
+          const member = await updateNickname(token, displayName);
+          persistSession(token, toUser(member));
+        }}
         onUpdatePhoto={(url) => {
           setUser((prev) => {
             if (!prev) return prev;

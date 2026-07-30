@@ -2,6 +2,7 @@ package com.example.springboot_realtimechat.controller;
 
 import com.example.springboot_realtimechat.domain.Member;
 import com.example.springboot_realtimechat.dto.MemberResponse;
+import com.example.springboot_realtimechat.dto.NicknameRequest;
 import com.example.springboot_realtimechat.dto.ProfileImageRequest;
 import com.example.springboot_realtimechat.security.CustomUserDetails;
 import com.example.springboot_realtimechat.service.MemberService;
@@ -36,6 +37,26 @@ public class MemberController {
     @GetMapping("/{id}")
     public MemberResponse getMemberById(@PathVariable Long id){
         Member member = memberService.getMemberById(id);
+        return MemberResponse.from(member);
+    }
+
+    @PatchMapping("/me")
+    public MemberResponse updateMe(
+            @AuthenticationPrincipal CustomUserDetails customUserDetails,
+            @Valid @RequestBody NicknameRequest request) {
+
+        Member member = memberService.updateNickname(
+                customUserDetails.getMemberId(),
+                request.getNickname());
+
+        return MemberResponse.from(member);
+    }
+
+    @PostMapping("/me/onboarding")
+    public MemberResponse completeOnboarding(
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
+
+        Member member = memberService.completeOnboarding(customUserDetails.getMemberId());
         return MemberResponse.from(member);
     }
 

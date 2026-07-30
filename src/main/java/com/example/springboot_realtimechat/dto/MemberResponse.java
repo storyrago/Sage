@@ -14,13 +14,16 @@ public class MemberResponse {
     String nickname;
     String profileImageUrl;
     LocalDateTime createdAt;
+    boolean onboarded;
 
-    public MemberResponse(Long id, String email, String nickname, String profileImageUrl, LocalDateTime createdAt) {
+    public MemberResponse(Long id, String email, String nickname, String profileImageUrl,
+                          LocalDateTime createdAt, boolean onboarded) {
         this.id = id;
         this.email = email;
         this.nickname = nickname;
         this.profileImageUrl = profileImageUrl;
         this.createdAt = createdAt;
+        this.onboarded = onboarded;
     }
 
     public static MemberResponse from(Member member){
@@ -29,7 +32,8 @@ public class MemberResponse {
                 member.getEmail(),
                 member.getNickname(),
                 member.getProfileImageUrl(),
-                member.getCreatedAt()
+                member.getCreatedAt(),
+                member.isOnboarded()
         );
     }
 }

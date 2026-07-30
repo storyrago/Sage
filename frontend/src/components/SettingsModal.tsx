@@ -9,7 +9,7 @@ interface SettingsModalProps {
   onClose: () => void;
   currentUser: User;
   token: string;
-  onUpdateName: (name: string) => void;
+  onUpdateName: (name: string) => void | Promise<void>;
   onUpdatePhoto: (url: string) => void;
 }
 
@@ -48,6 +48,8 @@ export default function SettingsModal({ open, onClose, currentUser, token, onUpd
   const [saved, setSaved] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [nameError, setNameError] = useState('');
 
   const handlePhoto = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -69,6 +71,7 @@ export default function SettingsModal({ open, onClose, currentUser, token, onUpd
     if (open) {
       setName(currentUser.displayName);
       setSaved(false);
+      setNameError('');
     }
   }, [open, currentUser.displayName]);
 
@@ -85,14 +88,23 @@ export default function SettingsModal({ open, onClose, currentUser, token, onUpd
 
   const toggleNotif = (k: keyof Notif) => setNotif((n) => ({ ...n, [k]: !n[k] }));
 
-  const handleSave = () => {
-    onUpdateName(name.trim() || currentUser.displayName);
+  const handleSave = async () => {
+    setNameError('');
+    setSaving(true);
+    try {
+      await onUpdateName(name.trim() || currentUser.displayName);
+    } catch (err) {
+      setNameError(err instanceof Error ? err.message : '닉네임 저장에 실패했어요. 다시 시도해 주세요.');
+      setSaving(false);
+      return;
+    }
     try {
       localStorage.setItem('sage-status', status);
       localStorage.setItem('sage-notif', JSON.stringify(notif));
     } catch {
       /* ignore */
     }
+    setSaving(false);
     setSaved(true);
     setTimeout(() => {
       setSaved(false);
@@ -131,7 +143,8 @@ export default function SettingsModal({ open, onClose, currentUser, token, onUpd
           </div>
           <div className="mb-3">
             <div className="text-[13px] font-semibold text-text mb-1.5">표시 이름</div>
-            <input className={inputCls} value={name} maxLength={10} onChange={(e) => setName(e.target.value)} />
+            <input className={inputCls} value={name} maxLength={20} onChange={(e) => setName(e.target.value)} />
+            {nameError && <p className="text-[12px] text-red-300 mt-1.5">{nameError}</p>}
           </div>
           <div>
             <div className="text-[13px] font-semibold text-text mb-1.5">상태 메시지</div>
@@ -164,8 +177,12 @@ export default function SettingsModal({ open, onClose, currentUser, token, onUpd
         </div>
 
         <div className="px-5 py-4 flex gap-2.5 border-t border-border">
-          <button onClick={handleSave} className="flex-1 rounded-xl py-3 text-[14px] font-bold bg-accent text-accent-fg hover:bg-accent-hover transition-all cursor-pointer">
-            {saved ? '저장됨 ✓' : '저장'}
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex-1 rounded-xl py-3 text-[14px] font-bold bg-accent text-accent-fg hover:bg-accent-hover transition-all cursor-pointer disabled:opacity-60 disabled:cursor-default"
+          >
+            {saving ? '저장 중…' : saved ? '저장됨 ✓' : '저장'}
           </button>
         </div>
       </div>

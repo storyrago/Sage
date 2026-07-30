@@ -9,7 +9,10 @@ export interface BackendMember {
   nickname: string;
   profileImageUrl?: string | null;
   createdAt?: string;
+  onboarded: boolean;
 }
+
+export type RoomMemberProfile = Omit<BackendMember, 'onboarded'>;
 
 export interface BackendChatRoom {
   id: number;
@@ -156,7 +159,7 @@ export async function getChatRoomMembers(token: string, chatroomId: string) {
 }
 
 // 참가자 목록 응답에 nickname·프로필사진이 포함되어 단일 요청으로 매핑(멤버별 조회 N+1 제거).
-export async function getRoomMemberProfiles(token: string, chatroomId: string): Promise<BackendMember[]> {
+export async function getRoomMemberProfiles(token: string, chatroomId: string): Promise<RoomMemberProfile[]> {
   const members = await getChatRoomMembers(token, chatroomId);
   return members.map((m) => ({
     id: m.memberId,
@@ -191,6 +194,19 @@ export async function updateProfileImage(token: string, imageUrl: string) {
   }, token);
 }
 
+export async function updateNickname(token: string, nickname: string) {
+  return request<BackendMember>('/api/members/me', {
+    method: 'PATCH',
+    body: JSON.stringify({ nickname }),
+  }, token);
+}
+
+export async function completeOnboarding(token: string) {
+  return request<BackendMember>('/api/members/me/onboarding', {
+    method: 'POST',
+  }, token);
+}
+
 export function toUser(member: BackendMember): User {
   return {
     id: String(member.id),
@@ -198,6 +214,7 @@ export function toUser(member: BackendMember): User {
     displayName: member.nickname,
     avatar: avatarForId(member.id),
     photoUrl: member.profileImageUrl ?? undefined,
+    onboarded: member.onboarded,
   };
 }
 
