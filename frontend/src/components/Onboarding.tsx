@@ -1,7 +1,8 @@
-import { useState, CSSProperties } from 'react';
+import { useState, useRef, CSSProperties } from 'react';
 import { User } from '../types';
 import { MessagesSquare } from 'lucide-react';
 import { updateNickname, completeOnboarding, toUser } from '../lib/api';
+import { useProfilePhotoDraft } from '../lib/useProfilePhotoDraft';
 
 interface OnboardingProps {
   user: User;
@@ -16,6 +17,15 @@ export default function Onboarding({ user, token, onDone }: OnboardingProps) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
+  const {
+    previewUrl,
+    hasDraft,
+    error: photoError,
+    pick: pickPhoto,
+    commit: commitPhoto,
+  } = useProfilePhotoDraft(token);
+  const fileRef = useRef<HTMLInputElement>(null);
+
   const handleStart = async () => {
     const trimmed = nickname.trim();
     if (!trimmed) {
@@ -24,6 +34,12 @@ export default function Onboarding({ user, token, onDone }: OnboardingProps) {
     }
     setError('');
     setBusy(true);
+    try {
+      await commitPhoto();          // 고른 사진이 없으면 요청을 보내지 않는다
+    } catch {
+      setBusy(false);               // 사진 오류는 훅의 error가 아바타 아래에 표시한다
+      return;
+    }
     try {
       await updateNickname(token, trimmed);
       const member = await completeOnboarding(token);
@@ -65,12 +81,50 @@ export default function Onboarding({ user, token, onDone }: OnboardingProps) {
 
         <div style={{ background: '#1C241F', border: '1px solid #2D362F', borderRadius: 22, padding: '30px 28px' }}>
 
-          <div className="flex items-center justify-center"
-            style={{ width: 64, height: 64, borderRadius: '50%', background: '#29392F', color: '#9CCBB2', margin: '0 auto 14px', overflow: 'hidden' }}>
-            {user.photoUrl
-              ? <img src={user.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={busy}
+            aria-label="프로필 사진 변경"
+            className="flex items-center justify-center"
+            style={{
+              width: 64, height: 64, borderRadius: '50%', background: '#29392F', color: '#9CCBB2',
+              margin: '0 auto 8px', overflow: 'hidden', border: 'none', padding: 0,
+              cursor: busy ? 'default' : 'pointer',
+            }}
+          >
+            {previewUrl || user.photoUrl
+              ? <img src={previewUrl || user.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               : <MessagesSquare className="w-6 h-6" />}
-          </div>
+          </button>
+
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) pickPhoto(f);
+              e.target.value = '';        // 같은 파일을 다시 골라도 onChange가 발생하게 한다
+            }}
+          />
+
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={busy}
+            style={{
+              display: 'block', margin: '0 auto 6px', background: 'none', border: 'none',
+              color: '#9AA8A0', fontSize: 12, cursor: busy ? 'default' : 'pointer',
+            }}
+          >
+            사진 변경
+          </button>
+
+          {photoError && (
+            <p style={{ fontSize: 12, color: '#f0a5a5', textAlign: 'center', margin: '0 0 10px' }}>{photoError}</p>
+          )}
 
           <h2 className="text-center" style={{ fontWeight: 700, fontSize: 21, color: '#E6ECE8', margin: '0 0 6px' }}>
             어떤 이름으로 부를까요?
@@ -104,6 +158,12 @@ export default function Onboarding({ user, token, onDone }: OnboardingProps) {
             style={{ width: '100%', marginTop: 14, background: 'transparent', color: '#6B7972', border: 'none', fontSize: 13, cursor: 'pointer' }}>
             나중에 하기
           </button>
+
+          {hasDraft && (
+            <p style={{ fontSize: 11, color: '#6B7972', textAlign: 'center', margin: '8px 0 0' }}>
+              고른 사진은 저장되지 않아요
+            </p>
+          )}
 
         </div>
       </div>
