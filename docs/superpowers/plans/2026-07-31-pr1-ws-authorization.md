@@ -17,6 +17,7 @@
 - 규칙은 first-match-wins이고 마지막은 반드시 `anyMessage().denyAll()`
 - 목적지는 **명시적으로 나열한다.** `/sub/chatrooms/{id}/**` 같은 와일드카드 규칙을 쓰지 않는다
 - 새 의존성은 `org.springframework.security:spring-security-messaging` **하나뿐이고 버전을 명시하지 않는다**(BOM이 관리)
+- **Task 1 실측 결과(확정, 이후 태스크가 그대로 쓴다):** `AuthorizationManager`의 호출 메서드는 `check(...)`가 아니라 `authorize(Supplier<? extends Authentication>, T)`이고 반환 타입은 `AuthorizationResult`(nullable). `AuthorizationDecision implements AuthorizationResult`이므로 `access(...)`에서는 `new AuthorizationDecision(boolean)`을 반환하고, 호출부는 `result != null && result.isGranted()`로 판정한다. `MessageAuthorizationContext.getVariables()`는 `{chatroomId}`를 정상으로 채운다(실측 확인)
 - 스키마 변경 없음. Flyway 마이그레이션을 추가하지 않는다
 - 백엔드 검증: `./gradlew test` / 프론트 검증: `cd frontend && npm run lint && npm test && npm run build`
 - 브랜치: develop에서 `feat/ws-authorization`을 새로 딴다. PR 대상은 **develop**
@@ -121,8 +122,8 @@ class MessageAuthorizationApiTest {
                 .anyMessage().denyAll();
         AuthorizationManager<Message<?>> manager = builder.build();
 
-        AuthorizationDecision decision =
-                (AuthorizationDecision) manager.check(MessageAuthorizationApiTest::user, subscribe("/sub/chatrooms/42"));
+        AuthorizationResult decision =
+                manager.authorize(MessageAuthorizationApiTest::user, subscribe("/sub/chatrooms/42"));
 
         assertThat(decision).isNotNull();
         assertThat(decision.isGranted()).isTrue();
@@ -138,8 +139,8 @@ class MessageAuthorizationApiTest {
                 .anyMessage().denyAll();
         AuthorizationManager<Message<?>> manager = builder.build();
 
-        AuthorizationDecision decision =
-                (AuthorizationDecision) manager.check(MessageAuthorizationApiTest::user, subscribe("/sub/notices"));
+        AuthorizationResult decision =
+                manager.authorize(MessageAuthorizationApiTest::user, subscribe("/sub/notices"));
 
         assertThat(decision).isNotNull();
         assertThat(decision.isGranted()).isFalse();
@@ -439,8 +440,8 @@ class WebSocketAuthorizationRulesTest {
     }
 
     private boolean granted(Supplier<Authentication> auth, Message<?> message) {
-        AuthorizationDecision decision = (AuthorizationDecision) manager.check(auth, message);
-        return decision != null && decision.isGranted();
+        AuthorizationResult result = manager.authorize(auth, message);
+        return result != null && result.isGranted();
     }
 
     @Test
@@ -854,7 +855,7 @@ class RoomAuthorizationInterceptorTest {
     }
 
     private void decide(boolean granted) {
-        when(manager.check(any(), any())).thenReturn(new AuthorizationDecision(granted));
+        when(manager.authorize(any(), any())).thenReturn(new AuthorizationDecision(granted));
     }
 
     @Test
@@ -982,10 +983,9 @@ public class RoomAuthorizationChannelInterceptor implements ChannelInterceptor {
                 MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
         Authentication authentication = authenticationOf(accessor);
 
-        AuthorizationDecision decision =
-                (AuthorizationDecision) authorizationManager.check(() -> authentication, message);
+        AuthorizationResult result = authorizationManager.authorize(() -> authentication, message);
 
-        if (decision == null || decision.isGranted()) {
+        if (result == null || result.isGranted()) {
             return message;
         }
 
