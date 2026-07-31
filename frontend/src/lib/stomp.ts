@@ -6,6 +6,13 @@ interface StompFrame {
   body: string;
 }
 
+/** 서버가 인가 거부 사유를 개인 큐로 보낼 때의 페이로드 */
+export interface WsAuthzError {
+  code: string;
+  message: string;
+  destination?: string;
+}
+
 interface StompClientOptions {
   token: string;
   onConnect: () => void;
@@ -13,7 +20,10 @@ interface StompClientOptions {
   onPresence?: (roomId: string, onlineMemberIds: string[]) => void;
   onTyping?: (p: { chatroomId: string; memberId: string; nickname: string; typing: boolean }) => void;
   onUnread?: (evt: { chatroomId: number; messageId: number }) => void;
+  /** 특정 목적지의 인가 거부. 세션은 살아있으므로 재연결하지 않는다. */
+  onAuthzError?: (err: WsAuthzError) => void;
   onDisconnect: () => void;
+  /** 연결 수준 실패(ERROR 프레임·소켓 오류). 세션이 끊겼으므로 재연결 대상이다. */
   onError: () => void;
 }
 
@@ -25,8 +35,9 @@ export class SpringStompClient {
   private currentTypingSubscription?: string;
   private currentRoomPresenceSubscription?: string;
   private unreadSubscription?: string;
+  private authzErrorSubscription?: string;
   // subscription id -> 종류: 들어온 MESSAGE 프레임을 알맞은 핸들러로 라우팅
-  private subscriptionKinds = new Map<string, 'chat' | 'typing' | 'roompresence' | 'unread'>();
+  private subscriptionKinds = new Map<string, 'chat' | 'typing' | 'roompresence' | 'unread' | 'authzerror'>();
   private options: StompClientOptions;
 
   constructor(options: StompClientOptions) {
@@ -66,6 +77,7 @@ export class SpringStompClient {
     this.currentTypingSubscription = undefined;
     this.currentRoomPresenceSubscription = undefined;
     this.unreadSubscription = undefined;
+    this.authzErrorSubscription = undefined;
     this.subscriptionKinds.clear();
   }
 
@@ -142,6 +154,13 @@ export class SpringStompClient {
           destination: '/user/queue/unread',
           ack: 'auto',
         });
+        this.authzErrorSubscription = `sub-${++this.subscriptionId}`;
+        this.subscriptionKinds.set(this.authzErrorSubscription, 'authzerror');
+        this.write('SUBSCRIBE', {
+          id: this.authzErrorSubscription,
+          destination: '/user/queue/errors',
+          ack: 'auto',
+        });
         this.options.onConnect();
         return;
       }
@@ -162,6 +181,8 @@ export class SpringStompClient {
         } else if (kind === 'unread') {
           const p = JSON.parse(frame.body) as { chatroomId: number; messageId: number };
           this.options.onUnread?.(p);
+        } else if (kind === 'authzerror') {
+          this.options.onAuthzError?.(JSON.parse(frame.body) as WsAuthzError);
         } else {
           this.options.onMessage(JSON.parse(frame.body) as BackendMessage);
         }
