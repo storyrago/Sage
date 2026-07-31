@@ -1,7 +1,10 @@
 name: CI
 
-on:                          # 트리거: push / PR 마다
+# PR이 열린 브랜치에 push하면 push·pull_request 실행이 각각 생겨 같은 커밋을 두 번 빌드한다.
+# push는 머지 결과를 받는 브랜치로 한정하고, feature 브랜치는 PR 컨텍스트에서만 검증한다.
+on:
   push:
+    branches: [ develop, main ]
   pull_request:
 
 jobs:
