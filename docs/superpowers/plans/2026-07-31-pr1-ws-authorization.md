@@ -943,6 +943,7 @@ package com.example.springboot_realtimechat.security;
 
 import com.example.springboot_realtimechat.dto.WsErrorResponse;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -964,6 +965,7 @@ import java.security.Principal;
  * 인증 실패는 알릴 대상이 없으므로 예외로 세션을 닫고,
  * 인가 실패는 나머지 방이 정상이므로 프레임만 버리고 개인 채널로 사유를 보낸다.
  */
+@Slf4j
 @Component
 public class RoomAuthorizationChannelInterceptor implements ChannelInterceptor {
 
@@ -997,6 +999,9 @@ public class RoomAuthorizationChannelInterceptor implements ChannelInterceptor {
         }
 
         String destination = accessor != null ? accessor.getDestination() : null;
+        // 인가 거부는 운영에서 원인을 추적할 수 있어야 한다. 페이로드는 남기지 않는다.
+        log.warn("STOMP 인가 거부: command={}, destination={}, principal={}",
+                accessor != null ? accessor.getCommand() : null, destination, authentication.getName());
         messagingTemplate.getObject().convertAndSendToUser(
                 authentication.getName(),
                 "/queue/errors",
