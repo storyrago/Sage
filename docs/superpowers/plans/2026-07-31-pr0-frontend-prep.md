@@ -74,28 +74,28 @@ import { describe, it, expect } from 'vitest';
 import { reconnectDelayMs, reconnectExhausted, RECONNECT_MAX_MS, RECONNECT_MAX_ATTEMPTS } from './reconnect';
 
 describe('reconnectDelayMs', () => {
-  it('첫 시도는 기본 지연에 지터만 적용한다', () => {
-    expect(reconnectDelayMs(0, () => 0.5)).toBe(1000);
+  it('첫 시도는 기본 지연의 절반에서 시작한다', () => {
+    expect(reconnectDelayMs(0, () => 0)).toBe(500);
+    expect(reconnectDelayMs(0, () => 1)).toBe(1000);
   });
 
-  it('시도마다 2배로 늘어난다', () => {
-    const noJitter = () => 0.5;
-    expect(reconnectDelayMs(1, noJitter)).toBe(2000);
-    expect(reconnectDelayMs(2, noJitter)).toBe(4000);
-    expect(reconnectDelayMs(3, noJitter)).toBe(8000);
+  it('시도마다 상한이 2배로 늘어난다', () => {
+    expect(reconnectDelayMs(1, () => 1)).toBe(2000);
+    expect(reconnectDelayMs(2, () => 1)).toBe(4000);
+    expect(reconnectDelayMs(3, () => 1)).toBe(8000);
   });
 
-  it('상한을 넘지 않는다', () => {
-    expect(reconnectDelayMs(20, () => 0.5)).toBe(RECONNECT_MAX_MS);
+  it('지터가 최대여도 상한을 넘지 않는다', () => {
+    expect(reconnectDelayMs(5, () => 1)).toBe(RECONNECT_MAX_MS);
+    expect(reconnectDelayMs(20, () => 1)).toBe(RECONNECT_MAX_MS);
   });
 
-  it('지터는 ±20% 안에 있다', () => {
-    expect(reconnectDelayMs(1, () => 0)).toBe(1600);
-    expect(reconnectDelayMs(1, () => 1)).toBe(2400);
+  it('지터가 최소여도 상한의 절반 아래로 내려가지 않는다', () => {
+    expect(reconnectDelayMs(20, () => 0)).toBe(RECONNECT_MAX_MS / 2);
   });
 
   it('음수 시도는 0으로 취급한다', () => {
-    expect(reconnectDelayMs(-3, () => 0.5)).toBe(1000);
+    expect(reconnectDelayMs(-3, () => 1)).toBe(1000);
   });
 });
 
@@ -125,6 +125,8 @@ cd frontend && npm test
 ```ts
 // 재연결 간격은 지수적으로 늘리고 상한을 둔다.
 // 지터는 서버가 되살아날 때 모든 클라이언트가 같은 시점에 몰려 다시 과부하를 주는 것을 막는다.
+// 지연은 [상한의 절반, 상한]에서 뽑는다 — 상한을 실제로 넘지 않으면서 분산을 유지한다.
+// 상한에 곱셈으로 지터를 주면 상한을 초과하고, 곱한 뒤 자르면 상한 근처에서 분산이 뭉개진다.
 export const RECONNECT_BASE_MS = 1000;
 export const RECONNECT_MAX_MS = 30000;
 export const RECONNECT_MAX_ATTEMPTS = 8;
@@ -132,9 +134,8 @@ export const RECONNECT_MAX_ATTEMPTS = 8;
 /** attempt는 0부터. random은 테스트에서 고정하기 위한 주입점이다. */
 export function reconnectDelayMs(attempt: number, random: () => number = Math.random): number {
   const steps = Math.max(0, attempt);
-  const exponential = Math.min(RECONNECT_BASE_MS * 2 ** steps, RECONNECT_MAX_MS);
-  const jitter = 1 + (random() * 0.4 - 0.2);
-  return Math.round(exponential * jitter);
+  const ceiling = Math.min(RECONNECT_BASE_MS * 2 ** steps, RECONNECT_MAX_MS);
+  return Math.round(ceiling / 2 + random() * (ceiling / 2));
 }
 
 /** 자동 재시도를 멈추고 사용자에게 알려야 하는 시점 */
