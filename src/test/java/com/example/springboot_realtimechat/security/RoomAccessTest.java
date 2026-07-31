@@ -8,6 +8,8 @@ import com.example.springboot_realtimechat.repository.ChatRoomRepository;
 import com.example.springboot_realtimechat.repository.MemberRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,5 +62,17 @@ class RoomAccessTest {
         assertThat(roomAccess.isMember(null, room.getId())).isFalse();
         assertThat(roomAccess.isMember(joined.getId(), null)).isFalse();
         assertThat(roomAccess.isMember(null, null)).isFalse();
+    }
+
+    @Test
+    void null_인자는_조회하지_않는다() {
+        ChatRoomMemberRepository repository = Mockito.mock(ChatRoomMemberRepository.class);
+        RoomAccess isolated = new RoomAccess(repository);
+
+        assertThat(isolated.isMember(null, 1L)).isFalse();
+        assertThat(isolated.isMember(1L, null)).isFalse();
+
+        Mockito.verify(repository, Mockito.never())
+                .existsByMemberIdAndChatRoomId(ArgumentMatchers.any(), ArgumentMatchers.any());
     }
 }
