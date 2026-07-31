@@ -1,6 +1,7 @@
 package com.example.springboot_realtimechat.config;
 
 import com.example.springboot_realtimechat.security.JwtAuthChannelInterceptor;
+import com.example.springboot_realtimechat.security.RoomAuthorizationChannelInterceptor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
@@ -15,6 +16,7 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private final JwtAuthChannelInterceptor jwtAuthChannelInterceptor;
+    private final RoomAuthorizationChannelInterceptor roomAuthorizationChannelInterceptor;
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry){
@@ -33,7 +35,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         // 순서가 곧 인가다. 토큰 검증으로 사용자를 세운 뒤 SecurityContext를 채우고, 그다음 규칙을 평가한다.
         registration.interceptors(
                 jwtAuthChannelInterceptor,
-                new SecurityContextChannelInterceptor()
+                new SecurityContextChannelInterceptor(),
+                roomAuthorizationChannelInterceptor
         );
     }
 }
