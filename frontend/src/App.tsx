@@ -307,6 +307,7 @@ export default function App() {
     let disposed = false;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let attempt = 0;
+    setReconnectGaveUp(false);   // 로컬 시도 횟수와 배너 상태가 어긋나지 않게 함께 초기화한다
 
     const scheduleReconnect = () => {
       if (disposed || reconnectTimer) return;
@@ -557,7 +558,7 @@ export default function App() {
             exit={{ y: -50 }}
             className="absolute top-0 inset-x-0 bg-rose-600 border-b border-rose-500 text-white z-50 text-center py-2 px-4 shadow-xl flex items-center justify-center gap-2 text-xs font-bold leading-none"
           >
-            <WifiOff className="w-4 h-4 animate-pulse flex-shrink-0" />
+            <WifiOff className={`w-4 h-4 flex-shrink-0 ${reconnectGaveUp ? '' : 'animate-pulse'}`} />
             <span>
               {reconnectGaveUp
                 ? '실시간 채팅에 연결할 수 없습니다. 페이지를 새로고침해 주세요. REST API는 계속 사용할 수 있습니다.'
