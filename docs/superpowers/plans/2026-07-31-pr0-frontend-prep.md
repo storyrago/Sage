@@ -600,13 +600,13 @@ git commit -m "feat(frontend): 인가 거부 사유를 받는 개인 오류 채�
 
 - [ ] **Step 2: 재연결 경로도 같은 규칙을 따르는지 확인**
 
-`App.tsx:314-316`의 `onConnect`가 `selectedChannelRef.current`를 구독한다. 이 경로는 이미 join이 끝난 방에만 해당하므로 그대로 둔다. 변경하지 않는다.
+`App.tsx:338-347`의 `onConnect`가 `selectedChannelRef.current`를 구독한다. 이 경로도 join 커밋이 확정된 방만 구독해야 한다 — join 성공 시점에 채우는 방 집합(`joinedRoomsRef`)에 있는 방만 구독하도록 게이트한다.
 
 ```bash
-cd /Users/cheonjamin/projects/realtimechat-backend && sed -n '312,318p' frontend/src/App.tsx
+cd /Users/cheonjamin/projects/realtimechat-backend && sed -n '338,347p' frontend/src/App.tsx
 ```
 
-기대: `if (selectedChannelRef.current) { client.subscribe(selectedChannelRef.current); }` 가 그대로 있다.
+기대: `const room = selectedChannelRef.current; if (room && joinedRoomsRef.current.has(room)) { client.subscribe(room); }` 가 있다.
 
 - [ ] **Step 3: 타입 검사와 빌드**
 
@@ -722,7 +722,7 @@ import { reconnectDelayMs, reconnectExhausted } from './lib/reconnect';
 
 `notice`는 쓰지 않는다. `notice`는 `Welcome`(로그인 전 화면)에만 전달되므로 재연결이 도는 상황에서는 화면에 나타나지 않는다.
 
-로그인 후 화면에는 이미 `!connected`일 때 뜨는 배너가 있다(`App.tsx:553`). 상한에 도달하면 같은 배너를 종료 상태로 바꾼다 — 문구를 조치 안내로 바꾸고, 재시도 중을 뜻하는 회전 아이콘을 제거한다.
+로그인 후 화면에는 이미 `!connected`일 때 뜨는 배너가 있다(`App.tsx:559`). 상한에 도달하면 같은 배너를 종료 상태로 바꾼다 — 문구를 조치 안내로 바꾸고, 재시도 중을 뜻하는 회전 아이콘을 제거한다.
 
 ```tsx
             <WifiOff className="w-4 h-4 animate-pulse flex-shrink-0" />
@@ -754,13 +754,13 @@ docker compose stop app
 
 개발자도구 Network → WS에서 재연결 시도 간격을 관찰한다.
 
-기대: 간격이 약 1초 → 2초 → 4초 → 8초로 벌어진다(±20% 지터). 수정 전에는 계속 3초다.
+기대: 간격이 약 0.5–1초 → 1–2초 → 2–4초 → 4–8초 → 8–16초로 벌어진다([상한의 절반, 상한] 구간의 균등분포). 수정 전에는 계속 3초다.
 
 - [ ] **Step 9: 수동 확인 — 상한**
 
-정지한 채로 두고 8회 시도가 끝날 때까지 기다린다(총 약 1분).
+정지한 채로 두고 8회 시도가 끝날 때까지 기다린다(총 약 91초, 지터에 따라 61초~121초 범위).
 
-기대: 자동 재시도가 멈추고 "서버에 연결할 수 없어요. 페이지를 새로고침해 주세요." 안내가 뜬다.
+기대: 자동 재시도가 멈추고 "실시간 채팅에 연결할 수 없습니다. 페이지를 새로고침해 주세요. REST API는 계속 사용할 수 있습니다." 안내가 뜬다.
 
 - [ ] **Step 10: 수동 확인 — 복구**
 
@@ -851,3 +851,7 @@ PR 대상 브랜치는 **develop**이다. 머지는 사용자가 한다.
 **타입 일관성:** `WsAuthzError`(Task 4 정의) → Task 6 Step 5에서 `{ message }` 구조분해로 소비. `reconnectDelayMs(attempt, random?)`·`reconnectExhausted(attempt)`(Task 1 정의) → Task 6 Step 3에서 호출. `isSessionExpiredError(err)`(Task 2 정의) → Task 3 Step 2에서 호출. 이름과 시그니처가 일치한다.
 
 **설계에서 벗어난 점:** §6 F3은 "`onError`가 사유를 받도록 시그니처를 바꾼다"고 했으나, 이 계획은 `onError`를 연결 수준 전용으로 두고 `onAuthzError`를 새로 추가한다. 두 경로의 반응이 완전히 다르므로(재연결 대 미재연결) 콜백을 나누는 편이 호출부의 분기가 분명하다. 결과는 같다.
+
+§6 F1의 코드 스니펫은 `await loadMessages(roomId)` 다음에 구독하는 순서였으나, 구현은 join 커밋 직후·메시지 로드 이전에 구독한다 — 그 사이 도착한 메시지를 놓치지 않기 위해서다. 겹쳐 수신되는 메시지는 `onMessage`의 id 대조가 흡수한다.
+
+§6 F5는 "`clearSession`에서 notice 초기화를 분리한다"고 했으나, 구현은 부트스트랩 `catch`에서 `clearSession()` 호출을 제거하는 것으로 대체했다 — 401 핸들러가 이미 `clearSession()` 다음에 `setNotice(...)`를 호출하는 순서이므로 이것으로 충분했다. `clearSession` 자체는 그대로 두었다.

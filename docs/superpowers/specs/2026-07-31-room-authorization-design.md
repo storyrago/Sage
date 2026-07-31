@@ -23,6 +23,8 @@
 
 전수 감사(42개 에이전트, 제기 37건 중 적대적 검증 통과 19건)에서 확정된 것 중 이 설계가 다루는 항목이다.
 
+> A4·A5·A6은 PR 0에서 해결되었다. 아래 서술은 감사 시점 코드 상태의 기록이다 — PR 1~3 작업자는 이 세 항목을 다시 고칠 대상으로 보지 않아도 된다.
+
 **A1. STOMP 구독에 인가가 없고, 인증조차 강제되지 않는다.**
 `WebSocketConfig:46`의 인터셉터는 `CONNECT`에서 토큰이 없거나 유효하지 않아도 예외 없이 `return message`(`:71`)한다. `accessor.setUser(...)`(`:66`)만 건너뛴다. `/ws/**`는 `permitAll`이고 `SUBSCRIBE`에는 검사가 없으므로, **미인증 클라이언트가 임의 방을 구독해 실시간 메시지를 수신할 수 있다.** `WebSocketEventListener:41`이 `memberId == null`이면 조용히 반환하므로 접속자 명단에도 나타나지 않는다.
 
@@ -35,13 +37,13 @@
 `CONNECT` 시 1회 검증이 전부다. 한 번 연결된 소켓은 토큰이 만료된 뒤에도 유지된다.
 
 **A4. 프론트에 구독/join 경쟁 조건이 있다.**
-`App.tsx:284`가 `loadMessages()`를 `await` 없이 호출하고 다음 줄에서 동기적으로 구독한다. `loadMessages` 내부 첫 await가 `joinChatRoom`의 fetch(`App.tsx:235` → `api.ts:87`)이므로 제어가 즉시 반환되어 **첫 입장에서 SUBSCRIBE가 join 커밋보다 먼저 도착한다.** 현재는 구독에 검사가 없어 증상이 없다.
+`App.tsx:261`이 `loadMessages()`를 `await` 없이 호출하고 다음 줄에서 동기적으로 구독한다. `loadMessages` 내부 첫 await가 `joinChatRoom`의 fetch(`App.tsx:245` → `api.ts:87`)이므로 제어가 즉시 반환되어 **첫 입장에서 SUBSCRIBE가 join 커밋보다 먼저 도착한다.** 현재는 구독에 검사가 없어 증상이 없다.
 
 **A5. 인가 거부를 표현할 수단이 프론트에 없다.**
-`stomp.ts:17`의 `onError: () => void`는 인자가 없다. STOMP ERROR 프레임의 `message` 헤더는 래핑된 `MessageDeliveryException` 문자열이라 사유를 구분할 수 없다.
+`stomp.ts:27`의 `onError: () => void`는 인자가 없다. STOMP ERROR 프레임의 `message` 헤더는 래핑된 `MessageDeliveryException` 문자열이라 사유를 구분할 수 없다.
 
 **A6. 오류 종류를 가리지 않고 세션을 지운다.**
-`App.tsx:196-218`이 `getMe`와 `refreshRooms`를 한 `try`에 묶고 `catch`가 무조건 `clearSession()`을 한다. `api.ts:76`은 상태코드와 무관하게 던지므로 403·500·502·네트워크 오류가 모두 여기로 온다. 또한 `clearSession`이 `setNotice(null)`(`App.tsx:111`)을 하므로, 401 핸들러(`App.tsx:115-121`)가 띄운 세션 만료 안내가 덮인다.
+`App.tsx:201-228`이 `getMe`와 `refreshRooms`를 한 `try`에 묶고 `catch`가 무조건 `clearSession()`을 한다. `api.ts:76`은 상태코드와 무관하게 던지므로 403·500·502·네트워크 오류가 모두 여기로 온다. 또한 `clearSession`이 `setNotice(null)`(`App.tsx:116`)을 하므로, 401 핸들러(`App.tsx:120-126`)가 띄운 세션 만료 안내가 덮인다.
 
 **A7. 메시지 수정·삭제가 경로의 방 id를 쓰지 않고 멤버십도 보지 않는다.**
 `MessageController:54-75`의 `@PathVariable Long chatroomId`가 본문에서 참조되지 않는다. 검사는 메시지 작성자 여부뿐이다(`MessageService:88`, `:104`). 방을 나가도 예전 메시지의 수정·삭제가 가능하고 결과가 방 전체에 재전파된다.
@@ -213,7 +215,7 @@ AuthorizationManager<MessageAuthorizationContext<?>> roomMember = (auth, ctx) ->
 
 **F1. join 성공 이후에 구독한다 (A4).**
 
-`await loadMessages()`로 바꾸는 것으로는 부족하다. `loadMessages`는 join 실패 경로(`App.tsx:236-243`)에서도 정상 반환하고, await 뒤에 취소 검사가 없어 방 전환 시 이전 방을 늦게 구독한다.
+`await loadMessages()`로 바꾸는 것으로는 부족하다. `loadMessages`는 join 실패 경로(`App.tsx:246-253`)에서도 정상 반환하고, await 뒤에 취소 검사가 없어 방 전환 시 이전 방을 늦게 구독한다.
 
 ```tsx
 useEffect(() => {
@@ -222,23 +224,25 @@ useEffect(() => {
     const joined = await ensureJoined(roomId);
     if (cancelled || selectedChannelRef.current !== roomId) return;
     if (!joined) return;
+    stompRef.current?.subscribe(roomId);
     await loadMessages(roomId);
     if (cancelled) return;
-    stompRef.current?.subscribe(roomId);
   })();
   return () => { cancelled = true; };
 }, [roomId]);
 ```
 
-순서·실패 처리·취소를 함께 고친다. 재연결 경로(`App.tsx:314`)도 같은 규칙을 따른다.
+구독을 메시지 로드보다 먼저 해야 그 사이 도착한 메시지를 놓치지 않는다. 겹쳐 수신되는 메시지는 `onMessage`의 id 대조가 흡수하므로 중복은 문제가 되지 않는다.
+
+순서·실패 처리·취소를 함께 고친다. 재연결 경로(`App.tsx:343-344`)도 같은 규칙을 따른다.
 
 **F2. `/user/queue/errors`를 구독한다.**
 
-`stomp.ts:140`이 CONNECTED마다 `/user/queue/unread`를 구독하는 자리에 하나 더 추가한다. 페이로드는 `{ code, message, destination }`. PR 0 시점에는 아무것도 오지 않는다. **프론트가 먼저 배포되어 있어야** PR 1 적용 직후 사용자가 사유를 볼 수 있다.
+`stomp.ts:150`이 CONNECTED마다 `/user/queue/unread`를 구독하는 자리에 하나 더 추가한다. 페이로드는 `{ code, message, destination }`. PR 0 시점에는 아무것도 오지 않는다. **프론트가 먼저 배포되어 있어야** PR 1 적용 직후 사용자가 사유를 볼 수 있다.
 
 **F3. 연결 오류와 인가 오류를 구분한다 (A5).**
 
-`stomp.ts:17`의 `onError`가 사유를 받도록 시그니처를 바꾸고 두 경로를 분리한다.
+`stomp.ts:27`의 `onError`가 사유를 받도록 시그니처를 바꾸고 두 경로를 분리한다.
 
 | 출처 | 의미 | 반응 |
 |---|---|---|
@@ -249,20 +253,20 @@ ERROR 프레임 헤더로는 401/403을 구분할 수 없으므로, 사유는 �
 
 **F4. 재연결에 백오프와 상한을 둔다.**
 
-`App.tsx:298`은 고정 3초에 상한이 없고, 재연결마다 `getUnreadCounts` REST를 동반한다(`App.tsx:318`).
+`App.tsx:317`은 고정 3초에 상한이 없고, 재연결마다 `getUnreadCounts` REST를 동반한다(`App.tsx:348`).
 
 ```
-1s → 2s → 4s → 8s → 16s → 30s(상한), 각 시도에 ±20% 지터
+0.5-1s → 1-2s → 2-4s → 4-8s → 8-16s → 15-30s(상한), 각 구간은 [상한의 절반, 상한]에서 균등분포로 뽑는다
 연속 실패가 상한을 넘으면 자동 재시도 중단 + 새로고침 안내 배너
 ```
 
-지터는 서버 재기동 시 클라이언트가 같은 시점에 몰려 다시 과부하를 주는 것을 막는다.
+상한에 곱셈으로 지터를 주면 상한을 넘고, 곱한 뒤 상한으로 자르면 상한 근처에서 분산이 뭉개진다. `[상한의 절반, 상한]`에서 균등하게 뽑으면 상한을 넘지 않으면서 분산을 유지한다. 지터는 서버 재기동 시 클라이언트가 같은 시점에 몰려 다시 과부하를 주는 것을 막는다.
 
 **F5. 오류 종류를 가려 세션을 지운다 (A6).**
 
 세션을 지우는 기준을 `code === 'UNAUTHORIZED'`로 한다. `status === 401`은 `INVALID_PASSWORD` 등 다른 401까지 포함하므로 기준이 될 수 없다. 그 외 오류는 세션을 유지하고 표시만 한다.
 
-`clearSession`에서 notice 초기화를 분리한다. 현재는 `clearSession`의 `setNotice(null)`(`App.tsx:111`)이 401 핸들러가 띄운 안내를 덮어, 저장된 토큰이 만료된 채 앱을 여는 가장 흔한 경로에서 안내가 보이지 않는다.
+실제로는 `clearSession`에서 notice 초기화를 분리하지 않았다. 부트스트랩 `catch`(`App.tsx:219-227`)에서 `clearSession()` 호출을 제거하는 것만으로 충분했다 — 401 핸들러(`App.tsx:120-126`)가 이미 `clearSession()` 다음에 `setNotice(...)`를 호출하는 순서이므로, 부트스트랩이 세션을 다시 지우지 않으면 그 안내가 덮이지 않는다. `clearSession`의 `setNotice(null)`(`App.tsx:116`)은 그대로 남아 있다. 남는 위험: 앞으로 어떤 호출부가 `setNotice(...)`를 먼저 하고 그 다음에 `clearSession()`을 부르면, 그 안내도 같은 방식으로 지워진다 — 순서는 각 호출부가 스스로 지켜야 하는 암묵적 계약이다.
 
 ## 7. PR 2 — REST 인가 (개요)
 
@@ -309,8 +313,8 @@ A10의 근본 원인은 두 진입점이 아니라 `tagAsOrphan`이 **URL 문자
 | 확인 | 방법 | 기대 |
 |---|---|---|
 | join이 구독보다 먼저 | Network + WS 프레임 탭에서 새 방 첫 입장 | `POST .../members` 응답 후 `SUBSCRIBE` |
-| 백오프 | 백엔드 컨테이너 정지 후 콘솔 관찰 | 재연결 간격 1→2→4→8초 |
+| 백오프 | 백엔드 컨테이너 정지 후 콘솔 관찰 | 재연결 간격 0.5–1s → 1–2s → 2–4s → 4–8s → 8–16s → 15–30s(상한)로 벌어짐 |
 | 로그아웃 오작동 수정 | 백엔드 정지 상태로 새로고침 | 로그인 화면으로 튕기지 않고 오류 배너만 |
 | 세션 만료 안내 | 만료 토큰으로 접속 | 안내 문구가 남아있음 |
 
-마지막 두 항목은 현재 코드에서 반대로 동작한다.
+마지막 두 항목은 이 PR이 고치는 대상이었다 — 배포된 빌드에서 재확인해야 한다.
