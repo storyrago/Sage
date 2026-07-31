@@ -38,6 +38,15 @@ interface StoredSession {
 
 const SESSION_KEY = 'chat_auth_session';
 
+// /sub/chatrooms/{id}, /sub/chatrooms/{id}/typing, /pub/chatrooms/{id}/messages 등에서 방 id를 뽑는다
+const ROOM_DESTINATION = /^\/(?:sub|pub)\/chatrooms\/(\d+)(?:\/|$)/;
+
+function roomIdFromDestination(destination?: string): string | null {
+  if (!destination) return null;
+  const matched = ROOM_DESTINATION.exec(destination);
+  return matched ? matched[1] : null;
+}
+
 export default function App() {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -413,9 +422,13 @@ export default function App() {
           if (roomId === selectedChannelRef.current) return; // 지금 보는 방은 무시
           setUnread((prev) => ({ ...prev, [roomId]: (prev[roomId] ?? 0) + 1 }));
         },
-        onAuthzError: ({ message }) => {
+        onAuthzError: ({ message, destination }) => {
           // 세션은 살아있고 특정 목적지만 거부된 것이므로 재연결하지 않는다.
           notify(message || '이 채널에 접근할 수 없어요.');
+          const deniedRoom = roomIdFromDestination(destination);
+          if (deniedRoom && deniedRoom === selectedChannelRef.current) {
+            setSelectedChannelId('');   // 볼 수 없는 방에 머무르지 않는다
+          }
         },
         onDisconnect: scheduleReconnect,
         onError: scheduleReconnect,
