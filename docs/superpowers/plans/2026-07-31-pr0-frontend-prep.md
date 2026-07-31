@@ -718,19 +718,23 @@ import { reconnectDelayMs, reconnectExhausted } from './lib/reconnect';
         onError: scheduleReconnect,
 ```
 
-- [ ] **Step 6: 상한 도달 배너 표시**
+- [ ] **Step 6: 상한 도달을 기존 연결 끊김 배너에 반영**
 
-`reconnectGaveUp`이 `true`일 때 사용자가 조치할 수 있도록 안내한다. 기존 `notice` 표시 경로를 재사용한다 — 새 UI 컴포넌트를 만들지 않는다.
+`notice`는 쓰지 않는다. `notice`는 `Welcome`(로그인 전 화면)에만 전달되므로 재연결이 도는 상황에서는 화면에 나타나지 않는다.
 
-`connected` 상태를 쓰는 기존 표시 지점 근처에 추가한다.
+로그인 후 화면에는 이미 `!connected`일 때 뜨는 배너가 있다(`App.tsx:553`). 상한에 도달하면 같은 배너를 종료 상태로 바꾼다 — 문구를 조치 안내로 바꾸고, 재시도 중을 뜻하는 회전 아이콘을 제거한다.
 
 ```tsx
-  useEffect(() => {
-    if (reconnectGaveUp) {
-      setNotice('서버에 연결할 수 없어요. 페이지를 새로고침해 주세요.');
-    }
-  }, [reconnectGaveUp]);
+            <WifiOff className="w-4 h-4 animate-pulse flex-shrink-0" />
+            <span>
+              {reconnectGaveUp
+                ? '실시간 채팅에 연결할 수 없습니다. 페이지를 새로고침해 주세요. REST API는 계속 사용할 수 있습니다.'
+                : `실시간 채팅 연결 대기 중입니다. REST API는 계속 사용할 수 있습니다. (${reconnectCount}회)`}
+            </span>
+            {!reconnectGaveUp && <RefreshCw className="w-3.5 h-3.5 animate-spin ml-2 flex-shrink-0" />}
 ```
+
+회전 아이콘을 남기면 자동 재시도가 계속되는 것처럼 보여 사용자가 기다리게 된다.
 
 - [ ] **Step 7: 타입 검사와 빌드**
 
