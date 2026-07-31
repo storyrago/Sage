@@ -101,6 +101,15 @@ class WebSocketAuthorizationRulesTest {
     }
 
     @Test
+    void URI_템플릿_목적지도_거부한다() {
+        // AntPathMatcher가 '{'를 패턴으로 취급하므로 브로커에서 다시 패턴이 된다
+        assertThat(granted(loggedIn(), frame(SimpMessageType.SUBSCRIBE, "/sub/chatrooms/1;x={a}"))).isFalse();
+        assertThat(granted(loggedIn(), frame(SimpMessageType.SUBSCRIBE, "/sub/chatrooms;a={b}/1"))).isFalse();
+        assertThat(granted(loggedIn(), frame(SimpMessageType.SUBSCRIBE, "/user/queue/unread;x={a}"))).isFalse();
+        assertThat(granted(loggedIn(), frame(SimpMessageType.SUBSCRIBE, "/user/queue;a={b}/unread"))).isFalse();
+    }
+
+    @Test
     void 개인_큐는_인증되면_구독한다() {
         assertThat(granted(loggedIn(), frame(SimpMessageType.SUBSCRIBE, "/user/queue/unread"))).isTrue();
         assertThat(granted(loggedIn(), frame(SimpMessageType.SUBSCRIBE, "/user/queue/errors"))).isTrue();

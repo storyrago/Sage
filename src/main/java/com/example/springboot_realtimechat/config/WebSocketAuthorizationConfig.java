@@ -59,11 +59,19 @@ public class WebSocketAuthorizationConfig {
         };
     }
 
-    /** 목적지에 패턴 문자가 들어오면 거부한다. 정상 클라이언트는 리터럴 목적지만 보낸다. */
+    /**
+     * 목적지에 패턴 문자가 들어오면 거부한다. 정상 클라이언트는 리터럴 목적지만 보낸다.
+     * AntPathMatcher는 '*'·'?'뿐 아니라 '{'로 시작하는 URI 템플릿 변수도 패턴으로 취급한다.
+     */
     private MessageMatcher<Object> wildcardDestination() {
         return message -> {
             String destination = SimpMessageHeaderAccessor.getDestination(message.getHeaders());
-            return destination != null && (destination.indexOf('*') >= 0 || destination.indexOf('?') >= 0);
+            if (destination == null) {
+                return false;
+            }
+            return destination.indexOf('*') >= 0
+                    || destination.indexOf('?') >= 0
+                    || destination.indexOf('{') >= 0;
         };
     }
 
