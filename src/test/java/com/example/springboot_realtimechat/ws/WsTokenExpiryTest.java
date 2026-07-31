@@ -73,6 +73,15 @@ class WsTokenExpiryTest {
     }
 
     @Test
+    void 만료된_세션의_DISCONNECT는_통과시킨다() {
+        Map<String, Object> attrs = new HashMap<>();
+        attrs.put("tokenExpiresAt", System.currentTimeMillis() - 1L);
+        Message<?> message = frame(StompCommand.DISCONNECT, attrs, null);
+
+        assertThat(interceptor.preSend(message, channel)).isSameAs(message);
+    }
+
+    @Test
     void 만료_기록이_없으면_통과시킨다() {
         Map<String, Object> attrs = new HashMap<>();
         Message<?> message = frame(StompCommand.SEND, attrs, null);

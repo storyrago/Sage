@@ -58,6 +58,11 @@ public class JwtAuthChannelInterceptor implements ChannelInterceptor {
             return message;
         }
 
+        // 세션 종료 시 서버가 만드는 DISCONNECT도 이 채널을 지난다. 막으면 브로커가 구독을 정리하지 못한다.
+        if (StompCommand.DISCONNECT.equals(accessor.getCommand())) {
+            return message;
+        }
+
         // 연결 이후 프레임: 서명 검증 없이 기록된 만료 시각만 비교한다
         Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
         if (sessionAttributes != null
