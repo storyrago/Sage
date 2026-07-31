@@ -233,7 +233,7 @@ export default function App() {
 
     let cancelled = false;
 
-    async function loadMessages() {
+    async function enterRoom() {
       setLoadingMessage('메시지를 불러오는 중입니다.');
 
       try {
@@ -246,6 +246,12 @@ export default function App() {
         }
         return;
       }
+
+      // 방 전환이 겹치면 이전 방을 구독하지 않는다.
+      if (cancelled || selectedChannelRef.current !== selectedChannelId) return;
+
+      // 입장이 확정된 뒤 구독한다. 메시지 로드보다 먼저 해야 그 사이 도착한 메시지를 놓치지 않는다.
+      stompRef.current?.subscribe(selectedChannelId);
 
       try {
         const page = await getMessages(token, selectedChannelId);
@@ -286,8 +292,7 @@ export default function App() {
       }
     }
 
-    loadMessages();
-    stompRef.current?.subscribe(selectedChannelId);
+    enterRoom();
 
     return () => {
       cancelled = true;
