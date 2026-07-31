@@ -18,6 +18,7 @@
 - 목적지는 **명시적으로 나열한다.** `/sub/chatrooms/{id}/**` 같은 와일드카드 규칙을 쓰지 않는다
 - 새 의존성은 `org.springframework.security:spring-security-messaging` **하나뿐이고 버전을 명시하지 않는다**(BOM이 관리)
 - **Task 1 실측 결과(확정, 이후 태스크가 그대로 쓴다):** `AuthorizationManager`의 호출 메서드는 `check(...)`가 아니라 `authorize(Supplier<? extends Authentication>, T)`이고 반환 타입은 `AuthorizationResult`(nullable). `AuthorizationDecision implements AuthorizationResult`이므로 `access(...)`에서는 `new AuthorizationDecision(boolean)`을 반환하고, 호출부는 `result != null && result.isGranted()`로 판정한다. `MessageAuthorizationContext.getVariables()`는 `{chatroomId}`를 정상으로 채운다(실측 확인)
+- **`authorize()`는 일치하는 규칙이 없으면 `null`을 반환한다**(실측 확인). `null`을 허용으로 해석하면 안 된다 — `anyMessage().denyAll()`이 지워지거나 순서가 바뀌는 순간 전부 열린다. 판정은 항상 `result != null && result.isGranted()` 형태로만 쓴다
 - 스키마 변경 없음. Flyway 마이그레이션을 추가하지 않는다
 - 백엔드 검증: `./gradlew test` / 프론트 검증: `cd frontend && npm run lint && npm test && npm run build`
 - 브랜치: develop에서 `feat/ws-authorization`을 새로 딴다. PR 대상은 **develop**
@@ -985,7 +986,8 @@ public class RoomAuthorizationChannelInterceptor implements ChannelInterceptor {
 
         AuthorizationResult result = authorizationManager.authorize(() -> authentication, message);
 
-        if (result == null || result.isGranted()) {
+        // 일치하는 규칙이 없으면 null이 온다. 허용이 아니라 거부로 취급한다.
+        if (result != null && result.isGranted()) {
             return message;
         }
 
