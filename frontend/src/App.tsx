@@ -28,7 +28,7 @@ import {
 } from './lib/api';
 import { SpringStompClient } from './lib/stomp';
 import { useTheme } from './lib/useTheme';
-import { toUserMessage } from './lib/errors';
+import { toUserMessage, isSessionExpiredError } from './lib/errors';
 
 interface StoredSession {
   token: string;
@@ -212,8 +212,13 @@ export default function App() {
           console.error('[Unread] 안읽음 개수 조회 실패(무시하고 계속):', unreadError);
         }
       } catch (error) {
-        console.error('[Auth] Saved token is invalid:', error);
-        if (!cancelled) clearSession();
+        console.error('[Auth] 부트스트랩 실패:', error);
+        if (cancelled) return;
+        // 세션 만료는 api.ts의 401 처리기가 이미 세션 정리와 안내를 마쳤다.
+        // 여기서 clearSession()을 다시 부르면 그 안내를 지운다.
+        if (!isSessionExpiredError(error)) {
+          notify(toUserMessage(error, '계정 정보를 불러오지 못했어요.'));
+        }
       }
     }
 
@@ -221,7 +226,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [token, user?.id, persistSession, refreshRooms, clearSession]);
+  }, [token, user?.id, persistSession, refreshRooms, clearSession, notify]);
 
   useEffect(() => {
     if (!token || !selectedChannelId) return;
