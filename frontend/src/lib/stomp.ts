@@ -166,12 +166,21 @@ export class SpringStompClient {
       }
 
       if (frame.command === 'MESSAGE' && frame.body) {
+        // 본문 파싱 실패가 forEach 밖으로 나가면 같은 배치의 다른 프레임까지 유실된다
+        let payload: unknown;
+        try {
+          payload = JSON.parse(frame.body);
+        } catch {
+          console.error('[STOMP] 본문 파싱 실패:', frame.headers.destination ?? frame.headers.subscription);
+          return;
+        }
+
         const kind = this.subscriptionKinds.get(frame.headers.subscription);
         if (kind === 'roompresence') {
-          const payload = JSON.parse(frame.body) as { roomId: number | string; onlineMemberIds: Array<number | string> };
-          this.options.onPresence?.(String(payload.roomId), payload.onlineMemberIds.map(String));
+          const p = payload as { roomId: number | string; onlineMemberIds: Array<number | string> };
+          this.options.onPresence?.(String(p.roomId), p.onlineMemberIds.map(String));
         } else if (kind === 'typing') {
-          const p = JSON.parse(frame.body) as { chatroomId: number | string; memberId: number | string; nickname: string; typing: boolean };
+          const p = payload as { chatroomId: number | string; memberId: number | string; nickname: string; typing: boolean };
           this.options.onTyping?.({
             chatroomId: String(p.chatroomId),
             memberId: String(p.memberId),
@@ -179,12 +188,11 @@ export class SpringStompClient {
             typing: p.typing,
           });
         } else if (kind === 'unread') {
-          const p = JSON.parse(frame.body) as { chatroomId: number; messageId: number };
-          this.options.onUnread?.(p);
+          this.options.onUnread?.(payload as { chatroomId: number; messageId: number });
         } else if (kind === 'authzerror') {
-          this.options.onAuthzError?.(JSON.parse(frame.body) as WsAuthzError);
+          this.options.onAuthzError?.(payload as WsAuthzError);
         } else {
-          this.options.onMessage(JSON.parse(frame.body) as BackendMessage);
+          this.options.onMessage(payload as BackendMessage);
         }
         return;
       }
