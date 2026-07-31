@@ -65,6 +65,15 @@ public class JwtTokenProvider {
         return parseClaims(token).get("email", String.class);
     }
 
+    /** 토큰의 만료 시각(epoch millis). 파싱할 수 없으면 null. */
+    public Long getExpiresAt(String token) {
+        try {
+            return parseClaims(token).getExpiration().getTime();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private Claims parseClaims(String token) {
         return Jwts.parser()
                 .verifyWith(getSigningKey())

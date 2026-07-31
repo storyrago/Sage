@@ -13,6 +13,8 @@ import java.util.Optional;
 public interface ChatRoomMemberRepository extends JpaRepository<ChatRoomMember, Long> {
     boolean existsByMemberAndChatRoom(Member member, ChatRoom chatRoom);
 
+    boolean existsByMemberIdAndChatRoomId(Long memberId, Long chatRoomId);
+
     Optional<ChatRoomMember> findByMemberAndChatRoom(Member member, ChatRoom chatRoom);
 
     @Query("SELECT cm FROM ChatRoomMember cm JOIN FETCH cm.member WHERE cm.chatRoom = :room")
