@@ -27,6 +27,7 @@ import {
   updateNickname,
 } from './lib/api';
 import { SpringStompClient } from './lib/stomp';
+import { reconnectDelayMs, reconnectExhausted } from './lib/reconnect';
 import { useTheme } from './lib/useTheme';
 import { toUserMessage, isSessionExpiredError } from './lib/errors';
 
@@ -53,6 +54,7 @@ export default function App() {
   const [profileMemberId, setProfileMemberId] = useState<string | null>(null);
   const [warping, setWarping] = useState<boolean>(false);
   const [reconnectCount, setReconnectCount] = useState<number>(0);
+  const [reconnectGaveUp, setReconnectGaveUp] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState<string>('채팅 정보를 불러오는 중입니다.');
   const [unread, setUnread] = useState<Record<string, number>>({});
   const [roomLastRead, setRoomLastRead] = useState<Record<string, number | null>>({});
@@ -304,15 +306,24 @@ export default function App() {
 
     let disposed = false;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let attempt = 0;
 
     const scheduleReconnect = () => {
       if (disposed || reconnectTimer) return;
       setConnected(false);
-      setReconnectCount((count) => count + 1);
+
+      if (reconnectExhausted(attempt)) {
+        setReconnectGaveUp(true);   // 조용한 무한 재시도 대신 사용자에게 알린다
+        return;
+      }
+
+      const delay = reconnectDelayMs(attempt);
+      attempt += 1;
+      setReconnectCount(attempt);
       reconnectTimer = setTimeout(() => {
         reconnectTimer = null;
         connect();
-      }, 3000);
+      }, delay);
     };
 
     const connect = () => {
@@ -320,7 +331,9 @@ export default function App() {
         token,
         onConnect: () => {
           setConnected(true);
+          attempt = 0;
           setReconnectCount(0);
+          setReconnectGaveUp(false);
           if (selectedChannelRef.current) {
             client.subscribe(selectedChannelRef.current);
           }
@@ -392,6 +405,10 @@ export default function App() {
           const roomId = String(chatroomId);
           if (roomId === selectedChannelRef.current) return; // 지금 보는 방은 무시
           setUnread((prev) => ({ ...prev, [roomId]: (prev[roomId] ?? 0) + 1 }));
+        },
+        onAuthzError: ({ message }) => {
+          // 세션은 살아있고 특정 목적지만 거부된 것이므로 재연결하지 않는다.
+          notify(message || '이 채널에 접근할 수 없어요.');
         },
         onDisconnect: scheduleReconnect,
         onError: scheduleReconnect,
@@ -541,8 +558,12 @@ export default function App() {
             className="absolute top-0 inset-x-0 bg-rose-600 border-b border-rose-500 text-white z-50 text-center py-2 px-4 shadow-xl flex items-center justify-center gap-2 text-xs font-bold leading-none"
           >
             <WifiOff className="w-4 h-4 animate-pulse flex-shrink-0" />
-            <span>실시간 채팅 연결 대기 중입니다. REST API는 계속 사용할 수 있습니다. ({reconnectCount}회)</span>
-            <RefreshCw className="w-3.5 h-3.5 animate-spin ml-2 flex-shrink-0" />
+            <span>
+              {reconnectGaveUp
+                ? '실시간 채팅에 연결할 수 없습니다. 페이지를 새로고침해 주세요. REST API는 계속 사용할 수 있습니다.'
+                : `실시간 채팅 연결 대기 중입니다. REST API는 계속 사용할 수 있습니다. (${reconnectCount}회)`}
+            </span>
+            {!reconnectGaveUp && <RefreshCw className="w-3.5 h-3.5 animate-spin ml-2 flex-shrink-0" />}
           </motion.div>
         )}
       </AnimatePresence>
