@@ -7,13 +7,18 @@ import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Component;
+
+import java.util.Map;
 
 /** STOMP CONNECT의 Authorization 헤더를 검증해 세션 사용자로 세운다. */
 @Component
 @RequiredArgsConstructor
 public class JwtAuthChannelInterceptor implements ChannelInterceptor {
+
+    private static final String EXPIRES_AT = "tokenExpiresAt";
 
     private final JwtTokenProvider jwtTokenProvider;
 
@@ -21,8 +26,11 @@ public class JwtAuthChannelInterceptor implements ChannelInterceptor {
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor =
                 MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
+        if (accessor == null) {
+            return message;
+        }
 
-        if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
+        if (StompCommand.CONNECT.equals(accessor.getCommand())) {
             String authorizationHeader = accessor.getFirstNativeHeader("Authorization");
 
             if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
@@ -39,8 +47,23 @@ public class JwtAuthChannelInterceptor implements ChannelInterceptor {
                                     userDetails, null, userDetails.getAuthorities());
 
                     accessor.setUser(authentication);
+
+                    Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
+                    Long expiresAt = jwtTokenProvider.getExpiresAt(token);
+                    if (sessionAttributes != null && expiresAt != null) {
+                        sessionAttributes.put(EXPIRES_AT, expiresAt);
+                    }
                 }
             }
+            return message;
+        }
+
+        // 연결 이후 프레임: 서명 검증 없이 기록된 만료 시각만 비교한다
+        Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
+        if (sessionAttributes != null
+                && sessionAttributes.get(EXPIRES_AT) instanceof Long expiresAt
+                && System.currentTimeMillis() >= expiresAt) {
+            throw new AccessDeniedException("Access Denied");
         }
 
         return message;
