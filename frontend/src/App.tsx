@@ -63,6 +63,8 @@ export default function App() {
 
   const stompRef = useRef<SpringStompClient | null>(null);
   const selectedChannelRef = useRef<string>('');
+  // 재연결 시 구독을 허용할 방 집합 — join API 커밋이 확정된 방만 담는다.
+  const joinedRoomsRef = useRef<Set<string>>(new Set());
   const typingSentAtRef = useRef<number>(0);
   const typingActiveRef = useRef<boolean>(false);
   const typingExpiryRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
@@ -107,6 +109,7 @@ export default function App() {
     typingExpiryRef.current.clear();
     typingActiveRef.current = false;
     typingSentAtRef.current = 0;
+    joinedRoomsRef.current.clear();
     setSelectedChannelId('');
     setConnected(false);
     setWarping(false);   // Welcome이 다시 뜰 때 워프가 켜진 채 시작하면 콘텐츠가 숨겨진다
@@ -249,6 +252,8 @@ export default function App() {
         return;
       }
 
+      joinedRoomsRef.current.add(selectedChannelId);
+
       // 방 전환이 겹치면 이전 방을 구독하지 않는다.
       if (cancelled || selectedChannelRef.current !== selectedChannelId) return;
 
@@ -335,8 +340,9 @@ export default function App() {
           attempt = 0;
           setReconnectCount(0);
           setReconnectGaveUp(false);
-          if (selectedChannelRef.current) {
-            client.subscribe(selectedChannelRef.current);
+          const room = selectedChannelRef.current;
+          if (room && joinedRoomsRef.current.has(room)) {
+            client.subscribe(room);
           }
           // 재연결 중 놓쳤을 수 있는 안읽음 이벤트를 보정 (경계는 건드리지 않음)
           getUnreadCounts(token)
