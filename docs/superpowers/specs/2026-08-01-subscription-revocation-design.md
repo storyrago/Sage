@@ -94,7 +94,7 @@ DELETE /api/chatrooms/3/members
           │            → 같은 프레임으로 SessionUnsubscribeEvent 발행
           │               → PresenceRegistry 정리 + 방 로스터 재방송
           │               → DefaultSimpUserRegistry 구독 제거
-          └ 세션·방 조합마다 /user/queue/errors 로 통지 1건
+          └ 회수한 방마다 /user/queue/errors 로 통지 1건
 ```
 
 **주입 프레임에 싣는 헤더는 세 개뿐이다.** `simpMessageType=UNSUBSCRIBE`(`StompHeaderAccessor.create(StompCommand.UNSUBSCRIBE)`로 생성하면 자동 충족), `simpSessionId`, `simpSubscriptionId`.
@@ -118,6 +118,7 @@ DELETE /api/chatrooms/3/members
 - **삭제된 회원의 소켓과 토큰은 만료까지 살아 있다.** 방 구독은 회수되지만 개인 큐 구독은 유지되고, JWT 서명만 검증하므로 재접속도 성공한다. 계정 삭제 시 토큰 무효화는 별도 논점이다.
 - **다중 인스턴스에서 전파되지 않는다.** `SimpUserRegistry`는 그 인스턴스가 들고 있는 세션만 안다. 지금은 앱 컨테이너가 하나다. 확장 시 이미 있는 Redis pub/sub로 회수 요청을 브로드캐스트한다.
 - **배달 시점 재검사는 여전히 하지 않는다.** 회수는 취소 시점의 일회성 이벤트다. 회수와 배달 사이의 짧은 창에서 메시지 1건이 지나갈 수 있다. 정석은 선행 설계 §9 한계 1이 남긴 그대로다.
+- **레지스트리 등록 직전의 커밋은 회수를 피한다.** `SimpUserRegistry`는 `StompSubProtocolHandler`가 `channel.send()` 성공 후 발행하는 `SessionSubscribeEvent`로 채워진다. 인가를 통과한 직후, 레지스트리 등록이 끝나기 전에 멤버십 취소 트랜잭션의 커밋까지 끝나면 그 구독은 `revoke()`의 열거 대상에 없어 회수를 피하고 세션이 끊길 때까지 남는다.
 - **클라이언트 상태는 서버가 고치지 않는다.** 브로커 구독만 지우므로 클라이언트는 자기가 구독 중이라고 믿는다. R6의 통지로 드러난다.
 - **UI 트리거가 없다.** 프론트에 방 나가기·회원 탈퇴 API 호출이 없다. 두 트리거 모두 현재는 API 직접 호출로만 발생한다.
 
@@ -130,7 +131,7 @@ DELETE /api/chatrooms/3/members
 - 대상 회원의 세션만 처리하고 같은 방의 다른 회원 세션은 건드리지 않는다
 - `revokeAll`이 그 회원의 모든 방 구독을 회수하고, `/user/queue/*` 개인 큐 구독은 남긴다
 - 회수 시 `SessionUnsubscribeEvent`가 발행되어 그 방 접속자 목록에서 빠진다
-- 통지가 회수한 (세션, 방)마다 1건 가고 `destination`이 그 방의 채팅 목적지다
+- 통지가 회수한 방마다 1건 가고 `destination`이 그 방의 채팅 목적지다
 - 주입 프레임이 조립된 인터셉터 체인을 통과해 폐기되지 않는다(만료된 세션 포함)
 - 세션이 없을 때 예외 없이 통과한다
 - 리스너가 `AFTER_COMMIT`에서만 revoker를 부른다(리스너 단위로 검증한다 — `@SpringBootTest @Transactional` 테스트는 커밋 자체가 없어 애너테이션만 있으면 통과한다)
