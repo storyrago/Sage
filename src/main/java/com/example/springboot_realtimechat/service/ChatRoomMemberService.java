@@ -4,11 +4,13 @@ import com.example.springboot_realtimechat.domain.ChatRoom;
 import com.example.springboot_realtimechat.domain.ChatRoomMember;
 import com.example.springboot_realtimechat.domain.Member;
 import com.example.springboot_realtimechat.dto.UnreadCountResponse;
+import com.example.springboot_realtimechat.event.RoomLeftEvent;
 import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.repository.ChatRoomMemberRepository;
 import com.example.springboot_realtimechat.repository.MessageRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +25,7 @@ public class ChatRoomMemberService {
     private final MemberService memberService;
     private final ChatRoomService chatRoomService;
     private final MessageRepository messageRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public ChatRoomMember join(Long memberId, Long chatRoomId){
@@ -58,6 +61,7 @@ public class ChatRoomMemberService {
                         .orElseThrow(()->new CustomException(ErrorCode.NOT_JOINED_ROOM));
 
         chatRoomMemberRepository.delete(chatRoomMember);
+        eventPublisher.publishEvent(new RoomLeftEvent(memberId, chatRoomId));
     }
 
     public List<ChatRoomMember> getChatRoomMembersById(Long chatRoomId){
