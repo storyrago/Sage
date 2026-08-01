@@ -64,8 +64,10 @@ class AccountDeletionTest {
     @Test
     void 탈퇴해도_메시지는_남고_작성자만_비워진다() {
         Member author = memberService.create("del2-author@e.com", "1234", "작성자2");
+        Member other = memberService.create("del2-other@e.com", "1234", "다른회원2");
         ChatRoom room = chatRoomService.create("보존방");
         chatRoomMemberService.join(author.getId(), room.getId());
+        chatRoomMemberService.join(other.getId(), room.getId());
         Message message = messageService.create("남을 내용", null, author.getId(), room.getId(), null);
 
         memberService.delete(author.getId());
@@ -73,6 +75,9 @@ class AccountDeletionTest {
         Message kept = messageRepository.findById(message.getId()).orElseThrow();
         assertThat(kept.getContent()).isEqualTo("남을 내용");
         assertThat(kept.getMember()).isNull();
+
+        MessageService.MessagePage page = messageService.getMessages(room.getId(), other.getId(), null, 30);
+        assertThat(page.messages()).extracting(Message::getId).contains(message.getId());
     }
 
     @Test
