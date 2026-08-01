@@ -510,7 +510,12 @@ export default function ChatArea({
             >
 
               {/* User Avatar Badge */}
-              <button onClick={() => onOpenProfile(msg.userId)} className="cursor-pointer self-start flex-shrink-0" aria-label={`${msg.userName} 프로필`}>
+              <button
+                onClick={() => { if (msg.userId) onOpenProfile(msg.userId); }}
+                disabled={!msg.userId}
+                className="cursor-pointer self-start flex-shrink-0 disabled:cursor-default"
+                aria-label={`${msg.userName} 프로필`}
+              >
                 <Avatar photoUrl={msg.userPhotoUrl} gradient={msg.userAvatar} name={msg.userName} className="w-9 h-9 rounded-xl text-xs font-sans shadow-md" />
               </button>
 
@@ -519,7 +524,12 @@ export default function ChatArea({
 
                 {/* Header Profile Title */}
                 <div className={`flex items-center gap-2 text-[11px] ${isSelf ? 'justify-end' : 'justify-start'}`}>
-                  <button onClick={() => onOpenProfile(msg.userId)} className="font-bold text-text cursor-pointer hover:text-accent-text transition-colors" aria-label={`${msg.userName} 프로필`}>
+                  <button
+                    onClick={() => { if (msg.userId) onOpenProfile(msg.userId); }}
+                    disabled={!msg.userId}
+                    className="font-bold text-text cursor-pointer hover:text-accent-text transition-colors disabled:cursor-default disabled:hover:text-text"
+                    aria-label={`${msg.userName} 프로필`}
+                  >
                     {msg.userName}
                   </button>
                   <span className="text-faint font-medium select-none">{formatTime(msg.createdAt)}{msg.edited && !msg.deleted ? ' · 수정됨' : ''}</span>

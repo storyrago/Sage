@@ -52,8 +52,8 @@ export interface BackendChatRoom {
 export interface BackendMessage {
   messageId: number;
   content: string;
-  memberId: number;
-  nickname: string;
+  memberId: number | null;
+  nickname: string | null;
   profileImageUrl?: string | null;
   chatroomId: number;
   createdAt?: string;
@@ -267,13 +267,15 @@ export function toChannel(room: BackendChatRoom): Channel {
 }
 
 export function toMessage(message: BackendMessage): Message {
+  // 탈퇴한 회원의 메시지는 작성자가 없다. 내용과 대화 구조는 그대로 남는다.
+  const memberId = message.memberId;
   return {
     id: String(message.messageId),
     channelId: String(message.chatroomId),
     text: message.content,
-    userId: String(message.memberId),
-    userName: message.nickname,
-    userAvatar: avatarForId(message.memberId),
+    userId: memberId == null ? '' : String(memberId),
+    userName: memberId == null ? '삭제된 사용자' : (message.nickname ?? ''),
+    userAvatar: memberId == null ? '' : avatarForId(memberId),
     userPhotoUrl: message.profileImageUrl ?? undefined,
     createdAt: message.createdAt ? Date.parse(message.createdAt) : Date.now(),
     replyToId: message.replyToId != null ? String(message.replyToId) : undefined,
