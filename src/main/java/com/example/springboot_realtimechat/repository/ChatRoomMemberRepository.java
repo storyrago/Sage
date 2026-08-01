@@ -11,8 +11,6 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ChatRoomMemberRepository extends JpaRepository<ChatRoomMember, Long> {
-    boolean existsByMemberAndChatRoom(Member member, ChatRoom chatRoom);
-
     boolean existsByMemberIdAndChatRoomId(Long memberId, Long chatRoomId);
 
     Optional<ChatRoomMember> findByMemberAndChatRoom(Member member, ChatRoom chatRoom);

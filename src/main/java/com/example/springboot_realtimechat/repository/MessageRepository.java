@@ -11,8 +11,6 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface MessageRepository extends JpaRepository<Message, Long> {
-    List<Message> findByChatRoomOrderById(ChatRoom chatRoom);
-
     void deleteByMember(Member member);
 
     // 최신 → 과거(id DESC). member는 fetch join으로 페이지 내 N+1 제거.
