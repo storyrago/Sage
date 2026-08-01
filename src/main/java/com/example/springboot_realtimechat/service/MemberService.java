@@ -14,6 +14,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashSet;
+import java.util.Set;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -76,9 +79,19 @@ public class MemberService {
         Member member = memberRepository.findById(id)
                 .orElseThrow(()-> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
 
+        // 삭제 후에는 조회할 수 없으므로 참조하던 이미지 URL을 먼저 모은다.
+        Set<String> imageUrls = new LinkedHashSet<>(messageRepository.findImageUrlsByMember(member));
+        String profileImageUrl = member.getProfileImageUrl();
+        if (profileImageUrl != null && !profileImageUrl.isBlank()) {
+            imageUrls.add(profileImageUrl);
+        }
+
         chatRoomMemberRepository.deleteByMember(member);
         messageRepository.deleteByMember(member);
         memberRepository.delete(member);
+
+        // 보안 동작(구독 회수)을 이미지 정리보다 먼저 실행한다.
         eventPublisher.publishEvent(new MemberDeletedEvent(id));
+        imageUrls.forEach(url -> eventPublisher.publishEvent(new ImageDereferencedEvent(url)));
     }
 }
