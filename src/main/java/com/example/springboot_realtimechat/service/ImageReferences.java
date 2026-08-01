@@ -23,6 +23,7 @@ public class ImageReferences {
             return false;
         }
         return memberRepository.existsByProfileImageUrl(url)
-                || messageRepository.existsByImageUrl(url);
+                || messageRepository.existsByImageUrl(url)
+                || messageRepository.existsByContentContaining(url);
     }
 }

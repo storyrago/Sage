@@ -56,6 +56,16 @@ class ImageReferencesTest {
     }
 
     @Test
+    void 본문에_URL이_포함된_메시지가_있으면_참조된_것이다() {
+        Member member = memberService.create("ref4@e.com", "1234", "ref4");
+        ChatRoom room = chatRoomService.create("본문방");
+        chatRoomMemberService.join(member.getId(), room.getId());
+        messageService.create("사진 공유 " + URL, null, member.getId(), room.getId(), null);
+
+        assertThat(imageReferences.isReferenced(URL)).isTrue();
+    }
+
+    @Test
     void 소프트_삭제된_메시지는_참조로_세지_않는다() {
         Member member = memberService.create("ref3@e.com", "1234", "ref3");
         ChatRoom room = chatRoomService.create("삭제방");

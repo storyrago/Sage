@@ -15,6 +15,8 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 
     boolean existsByImageUrl(String imageUrl);
 
+    boolean existsByContentContaining(String url);
+
     // 최신 → 과거(id DESC). member는 fetch join으로 페이지 내 N+1 제거.
     @Query("SELECT m FROM Message m JOIN FETCH m.member WHERE m.chatRoom = :room ORDER BY m.id DESC")
     List<Message> findLatestByChatRoom(@Param("room") ChatRoom room, Pageable pageable);
