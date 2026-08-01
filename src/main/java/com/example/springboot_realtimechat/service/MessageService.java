@@ -6,7 +6,6 @@ import com.example.springboot_realtimechat.domain.Message;
 import com.example.springboot_realtimechat.event.ImageDereferencedEvent;
 import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
-import com.example.springboot_realtimechat.repository.ChatRoomMemberRepository;
 import com.example.springboot_realtimechat.repository.MessageRepository;
 import com.example.springboot_realtimechat.security.RoomAccess;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +24,6 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class MessageService {
     private final MessageRepository messageRepository;
-    private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final MemberService memberService;
     private final ChatRoomService chatRoomService;
     private final ApplicationEventPublisher eventPublisher;
@@ -42,8 +40,7 @@ public class MessageService {
         Member member = memberService.getMemberById(memberId);
         ChatRoom chatRoom = chatRoomService.getChatRoomById(chatroomId);
 
-        boolean exists = chatRoomMemberRepository.existsByMemberAndChatRoom(member, chatRoom);
-        if(!exists){
+        if (!roomAccess.isMember(memberId, chatroomId)) {
             throw new CustomException(ErrorCode.NOT_JOINED_ROOM);
         }
 
@@ -64,9 +61,8 @@ public class MessageService {
     }
 
     public MessagePage getMessages(Long chatroomId, Long memberId, Long before, int limit) {
-        Member member = memberService.getMemberById(memberId);
         ChatRoom chatRoom = chatRoomService.getChatRoomById(chatroomId);
-        if (!chatRoomMemberRepository.existsByMemberAndChatRoom(member, chatRoom)) {
+        if (!roomAccess.isMember(memberId, chatroomId)) {
             throw new CustomException(ErrorCode.NOT_JOINED_ROOM);
         }
         Pageable pageable = PageRequest.of(0, limit + 1);
