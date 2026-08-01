@@ -3,6 +3,7 @@ package com.example.springboot_realtimechat.s3;
 import com.example.springboot_realtimechat.domain.ChatRoom;
 import com.example.springboot_realtimechat.domain.Member;
 import com.example.springboot_realtimechat.event.ImageDereferencedEvent;
+import com.example.springboot_realtimechat.event.MemberDeletedEvent;
 import com.example.springboot_realtimechat.service.ChatRoomMemberService;
 import com.example.springboot_realtimechat.service.ChatRoomService;
 import com.example.springboot_realtimechat.service.MemberService;
@@ -54,6 +55,20 @@ class MemberDeleteImageCleanupTest {
         memberService.delete(member.getId());
 
         assertThat(publishedUrls()).contains(PROFILE, IMAGE_A, IMAGE_B);
+    }
+
+    @Test
+    void 구독_회수_이벤트가_이미지_정리보다_먼저_발행된다() {
+        Member member = memberService.create("del4@e.com", "1234", "탈퇴자4");
+        memberService.updateProfileImage(member.getId(), PROFILE);
+
+        memberService.delete(member.getId());
+
+        List<Class<?>> order = events.stream(Object.class)
+                .map(Object::getClass)
+                .filter(type -> type == MemberDeletedEvent.class || type == ImageDereferencedEvent.class)
+                .toList();
+        assertThat(order).containsExactly(MemberDeletedEvent.class, ImageDereferencedEvent.class);
     }
 
     @Test
