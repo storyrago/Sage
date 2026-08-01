@@ -7,6 +7,7 @@ import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.repository.MemberRepository;
 import com.example.springboot_realtimechat.security.JwtTokenProvider;
+import com.example.springboot_realtimechat.security.TokenDenylist;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final LoginRateLimiter loginRateLimiter;
+    private final TokenDenylist tokenDenylist;
 
     public LoginResponse login(LoginRequest loginRequest, String clientIp){
         if (loginRateLimiter.isBlocked(clientIp)) {
@@ -30,7 +32,20 @@ public class AuthService {
             throw new CustomException(member == null ? ErrorCode.MEMBER_NOT_FOUND : ErrorCode.INVALID_PASSWORD);
         }
         loginRateLimiter.reset(clientIp);
+        // 회원 단위 무효화를 해제한다. iat는 초 단위라, 지우지 않으면 같은 초의 재로그인이 막힌다.
+        tokenDenylist.clearMember(member.getId());
         String accessToken = jwtTokenProvider.createAccessToken(member.getId(), member.getEmail());
         return new LoginResponse(accessToken);
+    }
+
+    public void logout(String token) {
+        String jti = jwtTokenProvider.getJti(token);
+        Long expiresAt = jwtTokenProvider.getExpiresAt(token);
+        if (jti != null && expiresAt != null) {
+            tokenDenylist.revokeToken(jti, expiresAt);
+            return;
+        }
+        // jti가 없는 토큰은 하나만 지목할 수 없다. 그 회원 전체를 무효화한다.
+        tokenDenylist.revokeMember(jwtTokenProvider.getMemberId(token));
     }
 }

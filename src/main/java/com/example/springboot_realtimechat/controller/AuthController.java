@@ -6,9 +6,11 @@ import com.example.springboot_realtimechat.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -20,6 +22,13 @@ public class AuthController {
     @PostMapping("/login")
     public LoginResponse login(@Valid @RequestBody LoginRequest loginRequest, HttpServletRequest request){
         return authService.login(loginRequest, clientIp(request));
+    }
+
+    @PostMapping("/logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void logout(HttpServletRequest request) {
+        // SecurityConfig가 이 경로를 인증 필수로 두므로, 여기 도달했다면 유효한 Bearer가 있다.
+        authService.logout(request.getHeader("Authorization").substring(7));
     }
 
     // nginx 뒤이므로 X-Forwarded-For의 첫 IP가 실제 클라이언트. 없으면 remoteAddr.

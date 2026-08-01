@@ -9,6 +9,7 @@ import com.example.springboot_realtimechat.security.OAuth2SuccessHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -43,6 +44,8 @@ public class SecurityConfig {
                             session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
+                        // /api/auth/**의 permitAll보다 먼저 등록해야 한다. 뒤에 두면 미인증 요청이 컨트롤러까지 온다.
+                        .requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
                         .requestMatchers(
                                 "/api/auth/**",      // 로그인
                                 "/ws/**",            // WebSocket 핸드셰이크 (인증은 STOMP CONNECT에서)
