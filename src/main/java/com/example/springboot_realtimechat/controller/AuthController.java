@@ -2,6 +2,8 @@ package com.example.springboot_realtimechat.controller;
 
 import com.example.springboot_realtimechat.dto.LoginRequest;
 import com.example.springboot_realtimechat.dto.LoginResponse;
+import com.example.springboot_realtimechat.global.exception.CustomException;
+import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -27,8 +29,11 @@ public class AuthController {
     @PostMapping("/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void logout(HttpServletRequest request) {
-        // SecurityConfig가 이 경로를 인증 필수로 두므로, 여기 도달했다면 유효한 Bearer가 있다.
-        authService.logout(request.getHeader("Authorization").substring(7));
+        String header = request.getHeader("Authorization");
+        if (header == null || !header.startsWith("Bearer ")) {
+            throw new CustomException(ErrorCode.UNAUTHORIZED);
+        }
+        authService.logout(header.substring(7));
     }
 
     // nginx 뒤이므로 X-Forwarded-For의 첫 IP가 실제 클라이언트. 없으면 remoteAddr.
