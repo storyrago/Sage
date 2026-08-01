@@ -79,10 +79,10 @@ public class MessageService {
     public Message update(Long chatroomId, Long messageId, Long memberId, String content) {
         Message message = getMessageById(messageId); // MESSAGE_NOT_FOUND on miss
         requireSameRoom(message, chatroomId);
+        requireMember(memberId, message);
         if (!message.getMember().getId().equals(memberId)) {
             throw new CustomException(ErrorCode.NOT_MESSAGE_OWNER);
         }
-        requireMember(memberId, message);
         if (message.isDeleted()) {
             throw new CustomException(ErrorCode.MESSAGE_NOT_FOUND); // 삭제된 메시지는 수정 불가
         }
@@ -97,10 +97,10 @@ public class MessageService {
     public Message delete(Long chatroomId, Long messageId, Long memberId) {
         Message message = getMessageById(messageId);
         requireSameRoom(message, chatroomId);
+        requireMember(memberId, message);
         if (!message.getMember().getId().equals(memberId)) {
             throw new CustomException(ErrorCode.NOT_MESSAGE_OWNER);
         }
-        requireMember(memberId, message);
         String imageUrl = message.getImageUrl();        // softDelete가 참조를 지우기 전에 읽는다
         message.softDelete();
 

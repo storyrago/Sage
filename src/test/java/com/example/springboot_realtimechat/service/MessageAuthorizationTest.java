@@ -98,4 +98,13 @@ class MessageAuthorizationTest {
 
         assertThat(deleted.isDeleted()).isTrue();
     }
+
+    @Test
+    void 방에_속하지_않은_사용자가_남의_메시지를_수정하면_NOT_JOINED_ROOM() {
+        Member outsider = memberService.create("msg-outsider@test.com", "1234", "비멤버");
+
+        assertThatThrownBy(() -> messageService.update(roomId, message.getId(), outsider.getId(), "고침"))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_JOINED_ROOM);
+    }
 }

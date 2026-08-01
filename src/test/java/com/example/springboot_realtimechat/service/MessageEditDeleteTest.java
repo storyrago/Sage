@@ -27,6 +27,7 @@ public class MessageEditDeleteTest {
         Member other = memberService.create("b@e.com", "1234", "other");
         ChatRoom room = chatRoomService.create("room");
         chatRoomMemberService.join(author.getId(), room.getId());
+        chatRoomMemberService.join(other.getId(), room.getId());
         Message msg = messageService.create("원본", null, author.getId(), room.getId(), null);
 
         // 남이 수정 → NOT_MESSAGE_OWNER
@@ -46,6 +47,7 @@ public class MessageEditDeleteTest {
         Member other = memberService.create("d@e.com", "1234", "other2");
         ChatRoom room = chatRoomService.create("room2");
         chatRoomMemberService.join(author.getId(), room.getId());
+        chatRoomMemberService.join(other.getId(), room.getId());
         Message msg = messageService.create("지울 메시지", null, author.getId(), room.getId(), null);
 
         // 남이 삭제 → NOT_MESSAGE_OWNER
