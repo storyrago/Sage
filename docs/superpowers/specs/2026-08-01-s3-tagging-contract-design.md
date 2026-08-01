@@ -21,7 +21,7 @@
 
 **D1. 태깅 직전에 잔여 참조를 질의한다.**
 
-`members.profile_image_url`과 `messages.image_url`에 그 URL을 참조하는 행이 하나라도 있으면 태깅하지 않는다. 피해자 객체는 피해자 행이 여전히 참조하므로 태깅 대상이 되지 않는다. 같은 검사가 정상 사용의 공유 참조도 함께 막는다.
+`members.profile_image_url`, `messages.image_url`, `messages.content`(본문에 박힌 URL, 프론트가 하위호환으로 이미지 렌더링하는 대상)에 그 URL을 참조하는 행이 하나라도 있으면 태깅하지 않는다. 피해자 객체는 피해자 행이 여전히 참조하므로 태깅 대상이 되지 않는다. 같은 검사가 정상 사용의 공유 참조도 함께 막는다.
 
 `Message.softDelete()`가 `imageUrl`을 `null`로 지우므로(`Message.java:75`) 소프트 삭제된 메시지가 살아 있는 참조로 잡히지 않는다.
 
@@ -54,7 +54,7 @@ URL이 여러 개인 탈퇴 경로에서 하나가 실패해도 나머지는 계
 | `service/ImageReferences.java` (신규) | `boolean isReferenced(String url)` — 참조 여부 판단의 유일한 지점 |
 | `event/ImageCleanupListener.java` (수정) | 태깅 전 `isReferenced` 확인 |
 | `repository/MemberRepository.java` (수정) | `boolean existsByProfileImageUrl(String url)` |
-| `repository/MessageRepository.java` (수정) | `boolean existsByImageUrl(String url)`, 탈퇴용 이미지 URL 조회 |
+| `repository/MessageRepository.java` (수정) | `boolean existsByImageUrl(String url)`, `boolean existsByContentContaining(String url)`, 탈퇴용 이미지 URL 조회 |
 | `service/MemberService.java` (수정) | `delete()`에서 프로필·메시지 이미지 URL마다 이벤트 발행 |
 
 `ImageReferences`는 `S3Service`와 같은 `service` 패키지에 둔다(메인 코드에 `s3` 패키지가 없다). 새 이벤트 타입을 만들지 않는다 — `ImageDereferencedEvent` 하나를 계속 쓴다(선행 설계 D6).
@@ -84,7 +84,7 @@ URL이 여러 개인 탈퇴 경로에서 하나가 실패해도 나머지는 계
 
 - **남의 URL을 자기 리소스에 붙이는 것 자체는 여전히 가능하다.** 프로필·메시지 저장에 URL 소유권 검증이 없다. 공개 버킷 URL이라 핫링크·사칭은 원래 열려 있던 성질이고, 이번 변경이 막는 것은 **남의 객체를 만료시키는 것**이다. 진짜 차단은 업로드 시 업로더를 기록하는 귀속 설계에 달려 있다 — 별도 과제.
 - **질의와 태깅 사이에 창이 있다.** 참조가 0인 것을 확인한 직후 누군가 그 URL을 새로 참조하기 시작하면 태그가 붙은 채 남는다. 태그 제거 경로가 없다는 것은 선행 설계 §7의 한계 그대로다.
-- **인덱스를 넣지 않는다.** `members.profile_image_url`·`messages.image_url` 모두 인덱스가 없어 `EXISTS`가 풀스캔이다. 현재 규모에서는 무해하다. 메시지가 수십만 행이 되면 `image_url` 인덱스가 필요하다.
+- **인덱스를 넣지 않는다.** `members.profile_image_url`·`messages.image_url`·`messages.content` 모두 인덱스가 없어 `EXISTS`가 풀스캔이다(`content`는 `LIKE` 검색이라 인덱스가 있어도 활용되지 않는다). 현재 규모에서는 무해하다. 메시지가 수십만 행이 되면 `image_url` 인덱스가 필요하다.
 - **확정되지 않은 업로드는 여전히 남는다.** 업로드했지만 어디에도 붙이지 않은 객체는 참조가 애초에 없어 이벤트도 발생하지 않는다(선행 설계 §7).
 - **이미 쌓인 누적분은 그대로다.** 이번 변경은 앞으로 발생하는 것만 처리한다.
 
@@ -94,6 +94,7 @@ URL이 여러 개인 탈퇴 경로에서 하나가 실패해도 나머지는 계
 
 - 다른 회원이 같은 URL을 프로필로 쓰고 있으면 태깅하지 않는다
 - 다른 메시지가 같은 URL을 참조하고 있으면 태깅하지 않는다
+- 다른 메시지 본문에 그 URL이 포함되어 있으면 태깅하지 않는다
 - 아무도 참조하지 않으면 태깅한다
 - **공격 재현**: 남의 URL을 자기 프로필에 넣었다 다른 URL로 바꿔도 피해자 객체가 태깅되지 않는다
 - **공격 재현**: 남의 URL을 자기 메시지에 붙였다 삭제해도 피해자 객체가 태깅되지 않는다
