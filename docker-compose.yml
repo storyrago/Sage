@@ -48,3 +48,11 @@ services:
   redis:
     image: redis:7
     restart: unless-stopped
+    # 거부목록은 재연결로 복구되지 않는다. 컨테이너가 재생성돼도 살아남아야 한다.
+    # maxmemory-policy는 기본값(noeviction)을 유지한다 — allkeys-lru로 바꾸면 거부목록 키가 조용히 evict된다.
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+
+volumes:
+  redis-data:
