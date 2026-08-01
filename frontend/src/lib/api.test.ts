@@ -46,8 +46,17 @@ describe('logout', () => {
     expect(new Headers(init.headers).get('Authorization')).toBe('Bearer tok-123');
   });
 
-  it('실패하면 예외를 던지되 전역 401 처리기는 부르지 않는다', async () => {
+  it('401이면 이미 무효화된 토큰이므로 성공으로 본다', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 401 })));
+    const onUnauthorized = vi.fn();
+    setUnauthorizedHandler(onUnauthorized);
+
+    await expect(logout('tok-123')).resolves.toBeUndefined();
+    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+
+  it('서버 오류는 예외를 던지되 전역 401 처리기는 부르지 않는다', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 500 })));
     const onUnauthorized = vi.fn();
     setUnauthorizedHandler(onUnauthorized);
 
