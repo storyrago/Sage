@@ -160,6 +160,17 @@ class RoomSubscriptionRevokerTest {
     }
 
     @Test
+    void 다른_회원의_세션은_건드리지_않는다() {
+        online(7L, session("s1", subscription("sub-1", "/sub/chatrooms/3")));
+        online(8L, session("s2", subscription("sub-8", "/sub/chatrooms/3")));
+
+        revoker.revokeRoom(7L, 3L);
+
+        assertThat(revokedSubscriptionIds()).containsExactly("sub-1");
+        verify(messagingTemplate, never()).convertAndSendToUser(eq("8"), any(), any());
+    }
+
+    @Test
     void 같은_방을_두_세션이_구독해도_통지는_한_번만_나간다() {
         online(7L,
                 session("s1", subscription("sub-1", "/sub/chatrooms/3")),

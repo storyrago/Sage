@@ -79,7 +79,7 @@ public class RoomSubscriptionRevoker {
                 }
                 // 구독 하나의 회수 실패가 나머지 구독 회수를 막지 않게 격리한다.
                 try {
-                    if (unsubscribe(session.getId(), subscription.getId(), subscription.getDestination())) {
+                    if (unsubscribe(session.getId(), subscription.getId())) {
                         revokedRooms.add(roomId);
                     }
                 } catch (Exception e) {
@@ -99,11 +99,12 @@ public class RoomSubscriptionRevoker {
         }
     }
 
-    private boolean unsubscribe(String sessionId, String subscriptionId, String destination) {
+    private boolean unsubscribe(String sessionId, String subscriptionId) {
+        // 브로커·프레즌스·사용자 레지스트리 모두 sessionId와 subscriptionId만 읽는다.
+        // destination을 실으면 브로커의 목적지 접두사 검사를 통과해야 하므로 싣지 않는다.
         StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.UNSUBSCRIBE);
         accessor.setSessionId(sessionId);
         accessor.setSubscriptionId(subscriptionId);
-        accessor.setDestination(destination);
         accessor.setLeaveMutable(true);
         Message<byte[]> frame = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
 
@@ -114,7 +115,13 @@ public class RoomSubscriptionRevoker {
 
         // 채널에 직접 넣은 프레임은 SessionUnsubscribeEvent를 만들지 않는다.
         // 이 이벤트로 프레즌스와 사용자 레지스트리가 갱신되므로 직접 발행한다.
-        eventPublisher.publishEvent(new SessionUnsubscribeEvent(this, frame));
+        // send() 성공 시점에 브로커 구독은 이미 지워졌으므로, 이 발행이 실패해도
+        // 회수 자체는 성공으로 취급하고 통지는 그대로 내보낸다.
+        try {
+            eventPublisher.publishEvent(new SessionUnsubscribeEvent(this, frame));
+        } catch (Exception e) {
+            log.warn("구독 해제 이벤트 발행 실패: sessionId={}, subscriptionId={}", sessionId, subscriptionId, e);
+        }
         return true;
     }
 
