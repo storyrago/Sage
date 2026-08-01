@@ -6,6 +6,7 @@ import com.example.springboot_realtimechat.domain.Member;
 import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.repository.ChatRoomMemberRepository;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -22,6 +23,7 @@ public class UnreadCountTest {
     @Autowired ChatRoomService chatRoomService;
     @Autowired ChatRoomMemberService chatRoomMemberService;
     @Autowired ChatRoomMemberRepository chatRoomMemberRepository;
+    @Autowired EntityManager entityManager;
 
     @Test
     void 가입시_lastRead가_방_최신메시지id로_세팅() {
@@ -114,6 +116,26 @@ public class UnreadCountTest {
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.NOT_JOINED_ROOM);
+    }
+
+    @Test
+    void 작성자가_없는_메시지도_안읽음_집계에_포함된다() {
+        Member a = memberService.create("una@e.com", "1234", "una");
+        Member b = memberService.create("unb@e.com", "1234", "unb");
+        ChatRoom room = chatRoomService.create("room");
+        chatRoomMemberService.join(a.getId(), room.getId());
+        chatRoomMemberService.join(b.getId(), room.getId());
+
+        var anon = messageService.create("탈퇴자 메시지", null, b.getId(), room.getId(), null);
+        // 탈퇴 시 작성자 참조만 끊는 것과 동일한 상태를 만든다(AnonymousAuthorTest와 같은 방식).
+        entityManager.createQuery("UPDATE Message m SET m.member = null WHERE m.id = :id")
+                .setParameter("id", anon.getId())
+                .executeUpdate();
+        entityManager.clear();
+
+        var counts = chatRoomMemberService.getUnreadCounts(a.getId());
+        var forRoom = counts.stream().filter(c -> c.getChatroomId().equals(room.getId())).findFirst().orElseThrow();
+        assertThat(forRoom.getUnreadCount()).isEqualTo(1L);
     }
 
     @Test
