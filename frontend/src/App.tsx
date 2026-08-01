@@ -422,9 +422,12 @@ export default function App() {
           if (roomId === selectedChannelRef.current) return; // 지금 보는 방은 무시
           setUnread((prev) => ({ ...prev, [roomId]: (prev[roomId] ?? 0) + 1 }));
         },
-        onAuthzError: ({ message, destination }) => {
+        onAuthzError: ({ code, message, destination }) => {
           // 세션은 살아있고 특정 목적지만 거부된 것이므로 재연결하지 않는다.
-          notify(message || '이 채널에 접근할 수 없어요.');
+          // 회수는 본인이 방을 나간 결과이므로 오류로 알리지 않는다.
+          if (code !== 'ROOM_MEMBERSHIP_REVOKED') {
+            notify(message || '이 채널에 접근할 수 없어요.');
+          }
           const deniedRoom = roomIdFromDestination(destination);
           if (deniedRoom && deniedRoom === selectedChannelRef.current) {
             setSelectedChannelId('');   // 볼 수 없는 방에 머무르지 않는다
