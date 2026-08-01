@@ -35,8 +35,7 @@ public class ChatRoomMemberService {
         ChatRoom chatRoom = chatRoomService.getChatRoomById(chatRoomId);
 
         //이미 존재하는 지 확인하는거. (중복 방지)
-        boolean exists = chatRoomMemberRepository
-                .existsByMemberAndChatRoom(member, chatRoom);
+        boolean exists = roomAccess.isMember(memberId, chatRoomId);
 
         if(exists){
             throw new CustomException(ErrorCode.ALREADY_JOINED_ROOM);
