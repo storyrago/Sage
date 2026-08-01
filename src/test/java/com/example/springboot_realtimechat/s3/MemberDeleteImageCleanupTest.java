@@ -44,7 +44,7 @@ class MemberDeleteImageCleanupTest {
     }
 
     @Test
-    void 탈퇴하면_프로필과_이미지_메시지_URL마다_이벤트가_발행된다() {
+    void 탈퇴하면_프로필_URL로만_이벤트가_발행된다() {
         Member member = memberService.create("del1@e.com", "1234", "탈퇴자");
         memberService.updateProfileImage(member.getId(), PROFILE);
         ChatRoom room = chatRoomService.create("탈퇴방");
@@ -54,7 +54,7 @@ class MemberDeleteImageCleanupTest {
 
         memberService.delete(member.getId());
 
-        assertThat(publishedUrls()).contains(PROFILE, IMAGE_A, IMAGE_B);
+        assertThat(publishedUrls()).containsExactly(PROFILE);
     }
 
     @Test
@@ -69,19 +69,6 @@ class MemberDeleteImageCleanupTest {
                 .filter(type -> type == MemberDeletedEvent.class || type == ImageDereferencedEvent.class)
                 .toList();
         assertThat(order).containsExactly(MemberDeletedEvent.class, ImageDereferencedEvent.class);
-    }
-
-    @Test
-    void 같은_URL을_여러_메시지가_쓰면_한_번만_발행된다() {
-        Member member = memberService.create("del2@e.com", "1234", "탈퇴자2");
-        ChatRoom room = chatRoomService.create("중복방");
-        chatRoomMemberService.join(member.getId(), room.getId());
-        messageService.create(null, IMAGE_A, member.getId(), room.getId(), null);
-        messageService.create(null, IMAGE_A, member.getId(), room.getId(), null);
-
-        memberService.delete(member.getId());
-
-        assertThat(publishedUrls()).filteredOn(url -> url.equals(IMAGE_A)).hasSize(1);
     }
 
     @Test

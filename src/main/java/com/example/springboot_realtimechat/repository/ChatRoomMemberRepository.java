@@ -27,7 +27,7 @@ public interface ChatRoomMemberRepository extends JpaRepository<ChatRoomMember, 
         FROM ChatRoomMember cm
         LEFT JOIN Message m
             ON m.chatRoom = cm.chatRoom
-           AND m.member <> cm.member
+           AND (m.member IS NULL OR m.member <> cm.member)
            AND m.deleted = false
            AND (cm.lastReadMessageId IS NULL OR m.id > cm.lastReadMessageId)
         WHERE cm.member.id = :memberId
