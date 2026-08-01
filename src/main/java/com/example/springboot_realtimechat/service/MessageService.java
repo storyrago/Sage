@@ -51,7 +51,8 @@ public class MessageService {
             replyTo = null; // 다른 방 메시지엔 답장 링크하지 않음
         }
 
-        Message message = new Message(content, imageUrl, member, chatRoom, replyTo);
+        // content 컬럼은 NOT NULL이므로, 이미지 전용 메시지(content=null)를 저장하려면 빈 문자열로 정규화한다
+        Message message = new Message(content == null ? "" : content, imageUrl, member, chatRoom, replyTo);
         return messageRepository.save(message);
     }
 
