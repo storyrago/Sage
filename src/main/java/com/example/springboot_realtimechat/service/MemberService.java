@@ -90,7 +90,8 @@ public class MemberService {
         messageRepository.deleteByMember(member);
         memberRepository.delete(member);
 
-        imageUrls.forEach(url -> eventPublisher.publishEvent(new ImageDereferencedEvent(url)));
+        // 보안 동작(구독 회수)을 이미지 정리보다 먼저 실행한다.
         eventPublisher.publishEvent(new MemberDeletedEvent(id));
+        imageUrls.forEach(url -> eventPublisher.publishEvent(new ImageDereferencedEvent(url)));
     }
 }
