@@ -275,7 +275,7 @@ export function toMessage(message: BackendMessage): Message {
     text: message.content,
     userId: memberId == null ? '' : String(memberId),
     userName: memberId == null ? '삭제된 사용자' : (message.nickname ?? ''),
-    userAvatar: memberId == null ? '' : avatarForId(memberId),
+    userAvatar: memberId == null ? avatarForId('deleted') : avatarForId(memberId),
     userPhotoUrl: message.profileImageUrl ?? undefined,
     createdAt: message.createdAt ? Date.parse(message.createdAt) : Date.now(),
     replyToId: message.replyToId != null ? String(message.replyToId) : undefined,
