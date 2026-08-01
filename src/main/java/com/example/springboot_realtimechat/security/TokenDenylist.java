@@ -69,7 +69,10 @@ public class TokenDenylist {
                 Duration.ofMillis(accessTokenExpirationMs));
     }
 
-    /** 회원 단위 무효화를 해제한다. 재로그인이 같은 초에 일어나도 새 토큰이 막히지 않게 한다. */
+    /**
+     * 회원 단위 무효화를 해제한다. 재로그인이 같은 초에 일어나도 새 토큰이 막히지 않게 한다.
+     * 부작용: 이 회원에게 걸려 있던 회원 단위 무효화를 통째로 해제한다 — 다른 기기의 구 토큰도 함께 되살아난다.
+     */
     public void clearMember(Long memberId) {
         try {
             redis.delete(MEMBER_PREFIX + memberId);
