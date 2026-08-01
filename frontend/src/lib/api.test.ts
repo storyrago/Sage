@@ -44,6 +44,7 @@ describe('logout', () => {
     expect(String(url)).toContain('/api/auth/logout');
     expect(init.method).toBe('POST');
     expect(new Headers(init.headers).get('Authorization')).toBe('Bearer tok-123');
+    expect(init.signal).toBeInstanceOf(AbortSignal);
   });
 
   it('401이면 이미 무효화된 토큰이므로 성공으로 본다', async () => {
