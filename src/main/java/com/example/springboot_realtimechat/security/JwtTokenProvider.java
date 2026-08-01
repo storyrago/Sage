@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.UUID;
 
 /*
 * JWT 인증 흐름
@@ -40,6 +41,7 @@ public class JwtTokenProvider {
         Date expiration = new Date(now.getTime() + accessTokenExpirationMs);
 
         return Jwts.builder()
+                .id(UUID.randomUUID().toString())   // jti — 토큰 하나를 지목해 무효화하는 식별자
                 .subject(String.valueOf(memberId))
                 .claim("email", email)
                 .issuedAt(now)
@@ -69,6 +71,25 @@ public class JwtTokenProvider {
     public Long getExpiresAt(String token) {
         try {
             return parseClaims(token).getExpiration().getTime();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** 토큰의 식별자(jti). 없거나 파싱할 수 없으면 null. */
+    public String getJti(String token) {
+        try {
+            return parseClaims(token).getId();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** 토큰의 발급 시각(epoch millis). 없거나 파싱할 수 없으면 null. */
+    public Long getIssuedAt(String token) {
+        try {
+            Date issuedAt = parseClaims(token).getIssuedAt();
+            return issuedAt != null ? issuedAt.getTime() : null;
         } catch (Exception e) {
             return null;
         }
