@@ -40,7 +40,8 @@ public class MessageServiceTest {
         messageService.create("3번", null, member.getId(), chatRoom.getId(), null);
 
         // when
-        List<Message> messages = messageService.getAllChatRoomMessages(chatRoom.getId());
+        List<Message> messages =
+                messageService.getMessages(chatRoom.getId(), member.getId(), null, 30).messages();
 
         // then
         assertThat(messages.size()).isEqualTo(3);

@@ -61,11 +61,6 @@ public class MessageService {
                 .orElseThrow(() -> new CustomException(ErrorCode.MESSAGE_NOT_FOUND));
     }
 
-    public List<Message> getAllChatRoomMessages(Long chatroomId){
-        ChatRoom chatRoom = chatRoomService.getChatRoomById(chatroomId);
-        return messageRepository.findByChatRoomOrderById(chatRoom);
-    }
-
     public MessagePage getMessages(Long chatroomId, Long memberId, Long before, int limit) {
         Member member = memberService.getMemberById(memberId);
         ChatRoom chatRoom = chatRoomService.getChatRoomById(chatroomId);

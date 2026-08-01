@@ -12,21 +12,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/members")
 public class MemberController {
     private final MemberService memberService;
-
-    @GetMapping
-    public List<MemberResponse> getAllMembers(){
-        List<Member> memberList = memberService.getMemberList();
-        return memberList.stream()
-                .map(MemberResponse::from)
-                .toList();
-    }
 
     @GetMapping("/me")
     public MemberResponse getMe(@AuthenticationPrincipal CustomUserDetails customUserDetails){
