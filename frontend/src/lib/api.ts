@@ -33,7 +33,7 @@ export interface BackendMember {
   onboarded: boolean;
 }
 
-export type RoomMemberProfile = Omit<BackendMember, 'onboarded'>;
+export type RoomMemberProfile = BackendPublicMember;
 
 /** 타인 조회 응답. 이메일이 없다. */
 export interface BackendPublicMember {
@@ -205,7 +205,6 @@ export async function getRoomMemberProfiles(token: string, chatroomId: string): 
   const members = await getChatRoomMembers(token, chatroomId);
   return members.map((m) => ({
     id: m.memberId,
-    email: '',
     nickname: m.nickname,
     profileImageUrl: m.profileImageUrl,
   }));
