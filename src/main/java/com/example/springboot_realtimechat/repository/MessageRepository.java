@@ -5,13 +5,17 @@ import com.example.springboot_realtimechat.domain.Member;
 import com.example.springboot_realtimechat.domain.Message;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
 public interface MessageRepository extends JpaRepository<Message, Long> {
-    void deleteByMember(Member member);
+    // 탈퇴해도 대화는 남긴다. 작성자 참조만 끊는다.
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Message m SET m.member = null WHERE m.member = :member")
+    int anonymizeByMember(@Param("member") Member member);
 
     boolean existsByImageUrl(String imageUrl);
 
