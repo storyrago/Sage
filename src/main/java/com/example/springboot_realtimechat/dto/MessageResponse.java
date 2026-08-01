@@ -1,5 +1,6 @@
 package com.example.springboot_realtimechat.dto;
 
+import com.example.springboot_realtimechat.domain.Member;
 import com.example.springboot_realtimechat.domain.Message;
 import lombok.Getter;
 import lombok.Setter;
@@ -36,13 +37,14 @@ public class MessageResponse {
     }
 
     public static MessageResponse from(Message message){
+        Member author = message.getMember();   // 탈퇴한 회원의 메시지는 작성자가 없다
         return new MessageResponse(
                 message.getId(),
                 message.getContent(),
                 message.getImageUrl(),
-                message.getMember().getId(),
-                message.getMember().getNickname(),
-                message.getMember().getProfileImageUrl(),
+                author != null ? author.getId() : null,
+                author != null ? author.getNickname() : null,
+                author != null ? author.getProfileImageUrl() : null,
                 message.getChatRoom().getId(),
                 message.getCreatedAt(),
                 message.getReplyTo() != null ? message.getReplyTo().getId() : null,

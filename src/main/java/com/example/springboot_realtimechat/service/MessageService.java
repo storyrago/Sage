@@ -81,7 +81,8 @@ public class MessageService {
         Message message = getMessageById(messageId); // MESSAGE_NOT_FOUND on miss
         requireSameRoom(message, chatroomId);
         requireMember(memberId, message);
-        if (!message.getMember().getId().equals(memberId)) {
+        // 작성자가 없는 메시지(탈퇴자)는 아무도 수정·삭제할 수 없다.
+        if (message.getMember() == null || !message.getMember().getId().equals(memberId)) {
             throw new CustomException(ErrorCode.NOT_MESSAGE_OWNER);
         }
         if (message.isDeleted()) {
@@ -99,7 +100,8 @@ public class MessageService {
         Message message = getMessageById(messageId);
         requireSameRoom(message, chatroomId);
         requireMember(memberId, message);
-        if (!message.getMember().getId().equals(memberId)) {
+        // 작성자가 없는 메시지(탈퇴자)는 아무도 수정·삭제할 수 없다.
+        if (message.getMember() == null || !message.getMember().getId().equals(memberId)) {
             throw new CustomException(ErrorCode.NOT_MESSAGE_OWNER);
         }
         String imageUrl = message.getImageUrl();        // softDelete가 참조를 지우기 전에 읽는다
