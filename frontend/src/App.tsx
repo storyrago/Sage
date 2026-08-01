@@ -429,8 +429,11 @@ export default function App() {
             notify(message || '이 채널에 접근할 수 없어요.');
           }
           const deniedRoom = roomIdFromDestination(destination);
-          if (deniedRoom && deniedRoom === selectedChannelRef.current) {
-            setSelectedChannelId('');   // 볼 수 없는 방에 머무르지 않는다
+          if (deniedRoom) {
+            joinedRoomsRef.current.delete(deniedRoom);   // 재연결 때 다시 구독하지 않는다
+            if (deniedRoom === selectedChannelRef.current) {
+              setSelectedChannelId('');   // 볼 수 없는 방에 머무르지 않는다
+            }
           }
         },
         onDisconnect: scheduleReconnect,
