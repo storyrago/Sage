@@ -81,7 +81,7 @@ class ImageDereferenceEventTest {
         // content: DB의 messages.content는 NOT NULL이라 빈 문자열을 쓴다(Message.softDelete()와 동일한 관례).
         Message message = messageService.create("", OLD, author.getId(), room.getId(), null);
 
-        messageService.delete(message.getId(), author.getId());
+        messageService.delete(room.getId(), message.getId(), author.getId());
 
         assertThat(publishedUrls()).containsExactly(OLD);
     }
@@ -106,7 +106,7 @@ class ImageDereferenceEventTest {
         chatRoomMemberService.join(author.getId(), room.getId());
         Message message = messageService.create("글만 있는 메시지", null, author.getId(), room.getId(), null);
 
-        messageService.delete(message.getId(), author.getId());
+        messageService.delete(room.getId(), message.getId(), author.getId());
 
         assertThat(publishedUrls()).isEmpty();
     }

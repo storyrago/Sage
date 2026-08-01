@@ -76,7 +76,6 @@
 | Method | Path | 인증 | 설명 |
 |:---:|---|:---:|---|
 | `POST` | `/api/auth/login` | — | 로그인 → `{ tokenType, accessToken }` |
-| `GET` | `/api/members` | ✅ | 회원 목록 |
 | `GET` | `/api/members/me` | ✅ | 내 정보 |
 | `GET` | `/api/members/{id}` | ✅ | 회원 단건 조회 |
 | `PATCH` | `/api/members/me/profile-image` | ✅ | 프로필 이미지 변경 |
@@ -88,9 +87,8 @@
 |:---:|---|:---:|---|
 | `POST` | `/api/chatrooms` | ✅ | 채팅방 생성 |
 | `GET` | `/api/chatrooms` | ✅ | 채팅방 목록 |
-| `GET` | `/api/chatrooms/{id}` | ✅ | 채팅방 조회 |
 | `POST` | `/api/chatrooms/{chatroomId}/members` | ✅ | 채팅방 입장 |
-| `GET` | `/api/chatrooms/{chatroomId}/members` | ✅ | 참여자 목록 |
+| `GET` | `/api/chatrooms/{chatroomId}/members` | ✅ | 참여자 목록 (해당 방 멤버만 조회 가능) |
 | `DELETE` | `/api/chatrooms/{chatroomId}/members` | ✅ | 채팅방 나가기 |
 
 ### 메시지 / 이미지

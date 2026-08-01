@@ -33,7 +33,15 @@ export interface BackendMember {
   onboarded: boolean;
 }
 
-export type RoomMemberProfile = Omit<BackendMember, 'onboarded'>;
+export type RoomMemberProfile = BackendPublicMember;
+
+/** 타인 조회 응답. 이메일이 없다. */
+export interface BackendPublicMember {
+  id: number;
+  nickname: string;
+  profileImageUrl?: string | null;
+  createdAt?: string;
+}
 
 export interface BackendChatRoom {
   id: number;
@@ -177,7 +185,7 @@ export async function deleteMessage(token: string, chatroomId: string, messageId
 }
 
 export async function getMemberById(token: string, id: string) {
-  return request<BackendMember>(`/api/members/${id}`, {}, token);
+  return request<BackendPublicMember>(`/api/members/${id}`, {}, token);
 }
 
 export interface BackendChatRoomMember {
@@ -197,7 +205,6 @@ export async function getRoomMemberProfiles(token: string, chatroomId: string): 
   const members = await getChatRoomMembers(token, chatroomId);
   return members.map((m) => ({
     id: m.memberId,
-    email: '',
     nickname: m.nickname,
     profileImageUrl: m.profileImageUrl,
   }));

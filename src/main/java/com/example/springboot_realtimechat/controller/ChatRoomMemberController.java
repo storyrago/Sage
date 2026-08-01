@@ -30,8 +30,10 @@ public class ChatRoomMemberController {
 
         @GetMapping
         public List<ChatRoomMemberResponse> getAllChatRoomMembers(
-                        @PathVariable Long chatroomId) {
-                List<ChatRoomMember> chatRoomMemberList = chatRoomMemberService.getChatRoomMembersById(chatroomId);
+                        @PathVariable Long chatroomId,
+                        @AuthenticationPrincipal CustomUserDetails customUserDetails) {
+                List<ChatRoomMember> chatRoomMemberList =
+                                chatRoomMemberService.getChatRoomMembersById(chatroomId, customUserDetails.getMemberId());
                 return chatRoomMemberList.stream()
                                 .map(ChatRoomMemberResponse::from)
                                 .toList();

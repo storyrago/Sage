@@ -39,12 +39,6 @@ public class ChatRoomController {
         chatRoomMemberService.markRead(user.getMemberId(), id);
     }
 
-    @GetMapping("/{id}")
-    public ChatRoomResponse getChatRoom(@PathVariable Long id){
-        ChatRoom chatRoom = chatRoomService.getChatRoomById(id);
-        return ChatRoomResponse.from(chatRoom);
-    }
-
     @GetMapping
     public List<ChatRoomResponse> getChatRooms(){
         List<ChatRoom> chatRoomList = chatRoomService.getAllChatRooms();

@@ -14,8 +14,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -25,10 +23,6 @@ public class MemberService {
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final MessageRepository messageRepository;
     private final ApplicationEventPublisher eventPublisher;
-
-    public List<Member> getMemberList(){
-        return memberRepository.findAll();
-    }
 
     public Member getMemberById(Long id){
         return memberRepository.findById(id)

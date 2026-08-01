@@ -9,6 +9,7 @@ import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.repository.ChatRoomMemberRepository;
 import com.example.springboot_realtimechat.repository.MessageRepository;
+import com.example.springboot_realtimechat.security.RoomAccess;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -26,6 +27,7 @@ public class ChatRoomMemberService {
     private final ChatRoomService chatRoomService;
     private final MessageRepository messageRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final RoomAccess roomAccess;
 
     @Transactional
     public ChatRoomMember join(Long memberId, Long chatRoomId){
@@ -33,8 +35,7 @@ public class ChatRoomMemberService {
         ChatRoom chatRoom = chatRoomService.getChatRoomById(chatRoomId);
 
         //이미 존재하는 지 확인하는거. (중복 방지)
-        boolean exists = chatRoomMemberRepository
-                .existsByMemberAndChatRoom(member, chatRoom);
+        boolean exists = roomAccess.isMember(memberId, chatRoomId);
 
         if(exists){
             throw new CustomException(ErrorCode.ALREADY_JOINED_ROOM);
@@ -64,7 +65,10 @@ public class ChatRoomMemberService {
         eventPublisher.publishEvent(new RoomLeftEvent(memberId, chatRoomId));
     }
 
-    public List<ChatRoomMember> getChatRoomMembersById(Long chatRoomId){
+    public List<ChatRoomMember> getChatRoomMembersById(Long chatRoomId, Long requesterId){
+        if (!roomAccess.isMember(requesterId, chatRoomId)) {
+            throw new CustomException(ErrorCode.NOT_JOINED_ROOM);
+        }
         ChatRoom chatRoom = chatRoomService.getChatRoomById(chatRoomId);
 
         return chatRoomMemberRepository.findByChatRoom(chatRoom);
