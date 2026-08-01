@@ -28,7 +28,7 @@ public class ChatRoomMemberN1Test {
         chatRoomMemberService.join(a.getId(), room.getId());
         chatRoomMemberService.join(b.getId(), room.getId());
 
-        List<ChatRoomMember> members = chatRoomMemberService.getChatRoomMembersById(room.getId());
+        List<ChatRoomMember> members = chatRoomMemberService.getChatRoomMembersById(room.getId(), a.getId());
         assertThat(members).hasSize(2);
 
         List<ChatRoomMemberResponse> res = members.stream().map(ChatRoomMemberResponse::from).toList();
