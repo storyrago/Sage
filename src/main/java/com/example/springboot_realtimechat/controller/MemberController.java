@@ -4,6 +4,7 @@ import com.example.springboot_realtimechat.domain.Member;
 import com.example.springboot_realtimechat.dto.MemberResponse;
 import com.example.springboot_realtimechat.dto.NicknameRequest;
 import com.example.springboot_realtimechat.dto.ProfileImageRequest;
+import com.example.springboot_realtimechat.dto.PublicMemberResponse;
 import com.example.springboot_realtimechat.security.CustomUserDetails;
 import com.example.springboot_realtimechat.service.MemberService;
 import jakarta.validation.Valid;
@@ -25,9 +26,9 @@ public class MemberController {
     }
 
     @GetMapping("/{id}")
-    public MemberResponse getMemberById(@PathVariable Long id){
+    public PublicMemberResponse getMemberById(@PathVariable Long id){
         Member member = memberService.getMemberById(id);
-        return MemberResponse.from(member);
+        return PublicMemberResponse.from(member);
     }
 
     @PatchMapping("/me")

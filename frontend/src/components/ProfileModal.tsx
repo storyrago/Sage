@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import Avatar from './Avatar';
-import { getMemberById, BackendMember } from '../lib/api';
+import { getMemberById, BackendPublicMember } from '../lib/api';
 import { avatarForId } from '../lib/avatar';
 
 interface ProfileModalProps {
@@ -12,7 +12,7 @@ interface ProfileModalProps {
 }
 
 export default function ProfileModal({ open, memberId, token, onClose }: ProfileModalProps) {
-  const [member, setMember] = useState<BackendMember | null>(null);
+  const [member, setMember] = useState<BackendPublicMember | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
