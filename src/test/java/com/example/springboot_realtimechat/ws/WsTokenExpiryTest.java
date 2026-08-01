@@ -2,6 +2,7 @@ package com.example.springboot_realtimechat.ws;
 
 import com.example.springboot_realtimechat.security.JwtAuthChannelInterceptor;
 import com.example.springboot_realtimechat.security.JwtTokenProvider;
+import com.example.springboot_realtimechat.security.TokenDenylist;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.messaging.Message;
@@ -29,7 +30,9 @@ class WsTokenExpiryTest {
     @BeforeEach
     void setUp() {
         provider = new JwtTokenProvider(SECRET, 3600000L);
-        interceptor = new JwtAuthChannelInterceptor(provider);
+        // 이 테스트는 만료 처리만 본다. 거부목록 판정은 RevokedTokenRejectionTest가 본다.
+        TokenDenylist denylist = mock(TokenDenylist.class);
+        interceptor = new JwtAuthChannelInterceptor(provider, denylist);
     }
 
     private Message<?> frame(StompCommand command, Map<String, Object> sessionAttributes, String bearer) {

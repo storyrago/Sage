@@ -21,6 +21,7 @@ public class JwtAuthChannelInterceptor implements ChannelInterceptor {
     private static final String EXPIRES_AT = "tokenExpiresAt";
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final TokenDenylist tokenDenylist;
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -40,18 +41,26 @@ public class JwtAuthChannelInterceptor implements ChannelInterceptor {
                     Long memberId = jwtTokenProvider.getMemberId(token);
                     String email = jwtTokenProvider.getEmail(token);
 
-                    CustomUserDetails userDetails = new CustomUserDetails(memberId, email);
+                    // REST와 같은 판정이다. 한쪽만 막으면 다른 쪽이 열린 채 남는다.
+                    boolean revoked = tokenDenylist.isRevoked(
+                            jwtTokenProvider.getJti(token),
+                            memberId,
+                            jwtTokenProvider.getIssuedAt(token));
 
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(
-                                    userDetails, null, userDetails.getAuthorities());
+                    if (!revoked) {
+                        CustomUserDetails userDetails = new CustomUserDetails(memberId, email);
 
-                    accessor.setUser(authentication);
+                        UsernamePasswordAuthenticationToken authentication =
+                                new UsernamePasswordAuthenticationToken(
+                                        userDetails, null, userDetails.getAuthorities());
 
-                    Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
-                    Long expiresAt = jwtTokenProvider.getExpiresAt(token);
-                    if (sessionAttributes != null && expiresAt != null) {
-                        sessionAttributes.put(EXPIRES_AT, expiresAt);
+                        accessor.setUser(authentication);
+
+                        Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
+                        Long expiresAt = jwtTokenProvider.getExpiresAt(token);
+                        if (sessionAttributes != null && expiresAt != null) {
+                            sessionAttributes.put(EXPIRES_AT, expiresAt);
+                        }
                     }
                 }
             }

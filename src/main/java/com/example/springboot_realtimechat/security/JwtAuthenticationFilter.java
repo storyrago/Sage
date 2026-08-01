@@ -16,6 +16,7 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtTokenProvider jwtTokenProvider;
+    private final TokenDenylist tokenDenylist;
 
     protected void doFilterInternal(
             HttpServletRequest request,
@@ -29,15 +30,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 Long memberId = jwtTokenProvider.getMemberId(token);
                 String email = jwtTokenProvider.getEmail(token);
 
-                CustomUserDetails customUserDetails = new CustomUserDetails(memberId, email);
+                // 서명과 만료를 통과해도 로그아웃·탈퇴로 무효화된 토큰은 인증하지 않는다.
+                boolean revoked = tokenDenylist.isRevoked(
+                        jwtTokenProvider.getJti(token),
+                        memberId,
+                        jwtTokenProvider.getIssuedAt(token));
 
-                UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken =
-                        new UsernamePasswordAuthenticationToken(
-                                customUserDetails,
-                                null,
-                                customUserDetails.getAuthorities()
-                        );
-                SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);
+                if (!revoked) {
+                    CustomUserDetails customUserDetails = new CustomUserDetails(memberId, email);
+
+                    UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken =
+                            new UsernamePasswordAuthenticationToken(
+                                    customUserDetails,
+                                    null,
+                                    customUserDetails.getAuthorities()
+                            );
+                    SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);
+                }
             }
         }
 
