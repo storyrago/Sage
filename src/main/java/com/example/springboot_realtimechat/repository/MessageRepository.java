@@ -31,7 +31,4 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 
     @Query("SELECT MAX(m.id) FROM Message m WHERE m.chatRoom = :room")
     Long findMaxIdByChatRoom(@Param("room") ChatRoom room);
-
-    @Query("SELECT m.imageUrl FROM Message m WHERE m.member = :member AND m.imageUrl IS NOT NULL")
-    List<String> findImageUrlsByMember(@Param("member") Member member);
 }
