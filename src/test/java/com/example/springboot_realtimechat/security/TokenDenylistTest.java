@@ -1,12 +1,21 @@
 package com.example.springboot_realtimechat.security;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 // 실제 Redis를 쓴다. TTL과 키 수명이 이 기능의 핵심이라 mock으로는 검증되지 않는다.
 @SpringBootTest
@@ -134,5 +143,30 @@ class TokenDenylistTest {
         denylist.revokeMember(MEMBER_ID);
 
         assertThat(denylist.isRevoked(null, MEMBER_ID, null)).isFalse();
+    }
+
+    // 실제 Redis 대신 mock으로 조회 실패를 흉내낸다 — 위 테스트들의 @Autowired denylist는
+    // 실제 Redis를 쓰므로 장애를 재현할 수 없다.
+    @Test
+    void redis_조회가_실패하면_통과시키고_경고_로그를_남긴다() {
+        StringRedisTemplate brokenRedis = mock(StringRedisTemplate.class);
+        when(brokenRedis.hasKey(anyString()))
+                .thenThrow(new RedisConnectionFailureException("connection refused"));
+        TokenDenylist denylistWithBrokenRedis = new TokenDenylist(brokenRedis, 3_600_000L);
+
+        Logger logger = (Logger) LoggerFactory.getLogger(TokenDenylist.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            boolean revoked = denylistWithBrokenRedis.isRevoked(JTI, MEMBER_ID, System.currentTimeMillis());
+
+            assertThat(revoked).isFalse();
+            assertThat(appender.list).anyMatch(event ->
+                    event.getLevel() == Level.WARN && event.getFormattedMessage().contains("거부목록 조회 실패"));
+        } finally {
+            logger.detachAppender(appender);
+        }
     }
 }
