@@ -2,6 +2,7 @@ package com.example.springboot_realtimechat.service;
 
 import com.example.springboot_realtimechat.domain.Member;
 import com.example.springboot_realtimechat.event.ImageDereferencedEvent;
+import com.example.springboot_realtimechat.event.MemberDeletedEvent;
 import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.repository.ChatRoomMemberRepository;
@@ -84,5 +85,6 @@ public class MemberService {
         chatRoomMemberRepository.deleteByMember(member);
         messageRepository.deleteByMember(member);
         memberRepository.delete(member);
+        eventPublisher.publishEvent(new MemberDeletedEvent(id));
     }
 }
