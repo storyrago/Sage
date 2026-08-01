@@ -20,12 +20,19 @@ public class ImageCleanupListener {
     // 여전히 사용 중인 객체가 수명주기 규칙으로 만료된다.
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onImageDereferenced(ImageDereferencedEvent event) {
+        boolean referenced;
         try {
             // 다른 행이 아직 이 URL을 참조하면 살아있는 객체다.
+            referenced = imageReferences.isReferenced(event.url());
+        } catch (Exception e) {
             // 판단할 수 없을 때(질의 실패)도 태깅하지 않는 쪽이 안전하다.
-            if (imageReferences.isReferenced(event.url())) {
-                return;
-            }
+            log.warn("이미지 참조 질의 실패: url={}", event.url(), e);
+            return;
+        }
+        if (referenced) {
+            return;
+        }
+        try {
             s3Service.tagAsOrphan(event.url());
         } catch (Exception e) {
             log.warn("이미지 orphan 태깅 실패: url={}", event.url(), e);
