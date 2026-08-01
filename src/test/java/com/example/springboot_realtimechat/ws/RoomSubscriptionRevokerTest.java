@@ -160,6 +160,18 @@ class RoomSubscriptionRevokerTest {
     }
 
     @Test
+    void 같은_방을_두_세션이_구독해도_통지는_한_번만_나간다() {
+        online(7L,
+                session("s1", subscription("sub-1", "/sub/chatrooms/3")),
+                session("s2", subscription("sub-9", "/sub/chatrooms/3")));
+
+        revoker.revokeRoom(7L, 3L);
+
+        verify(messagingTemplate, org.mockito.Mockito.times(1))
+                .convertAndSendToUser(eq("7"), eq("/queue/errors"), any());
+    }
+
+    @Test
     void 세션이_없으면_아무것도_하지_않는다() {
         when(userRegistry.getUser("7")).thenReturn(null);
 

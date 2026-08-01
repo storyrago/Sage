@@ -77,14 +77,26 @@ public class RoomSubscriptionRevoker {
                 if (roomId == null || !roomFilter.test(roomId)) {
                     continue;
                 }
-                if (unsubscribe(session.getId(), subscription.getId(), subscription.getDestination())) {
-                    revokedRooms.add(roomId);
+                // 구독 하나의 회수 실패가 나머지 구독 회수를 막지 않게 격리한다.
+                try {
+                    if (unsubscribe(session.getId(), subscription.getId(), subscription.getDestination())) {
+                        revokedRooms.add(roomId);
+                    }
+                } catch (Exception e) {
+                    log.warn("구독 회수 실패: sessionId={}, subscriptionId={}", session.getId(), subscription.getId(), e);
                 }
             }
         }
 
         // 개인 목적지 전송은 그 회원의 모든 세션에 배달된다. 방마다 한 번만 보낸다.
-        revokedRooms.forEach(roomId -> notifyRevoked(memberId, roomId));
+        // 통지 하나의 실패가 나머지 방 통지를 막지 않게 격리한다.
+        for (Long roomId : revokedRooms) {
+            try {
+                notifyRevoked(memberId, roomId);
+            } catch (Exception e) {
+                log.warn("구독 회수 통지 실패: roomId={}", roomId, e);
+            }
+        }
     }
 
     private boolean unsubscribe(String sessionId, String subscriptionId, String destination) {
