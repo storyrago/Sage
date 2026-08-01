@@ -31,11 +31,11 @@ public class MessageEditDeleteTest {
 
         // 남이 수정 → NOT_MESSAGE_OWNER
         CustomException denied = catchThrowableOfType(CustomException.class,
-                () -> messageService.update(msg.getId(), other.getId(), "해킹"));
+                () -> messageService.update(room.getId(), msg.getId(), other.getId(), "해킹"));
         assertThat(denied.getErrorCode()).isEqualTo(ErrorCode.NOT_MESSAGE_OWNER);
 
         // 작성자 수정 → content 변경 + editedAt 세팅
-        Message edited = messageService.update(msg.getId(), author.getId(), "수정본");
+        Message edited = messageService.update(room.getId(), msg.getId(), author.getId(), "수정본");
         assertThat(edited.getContent()).isEqualTo("수정본");
         assertThat(edited.getEditedAt()).isNotNull();
     }
@@ -50,11 +50,11 @@ public class MessageEditDeleteTest {
 
         // 남이 삭제 → NOT_MESSAGE_OWNER
         CustomException denied = catchThrowableOfType(CustomException.class,
-                () -> messageService.delete(msg.getId(), other.getId()));
+                () -> messageService.delete(room.getId(), msg.getId(), other.getId()));
         assertThat(denied.getErrorCode()).isEqualTo(ErrorCode.NOT_MESSAGE_OWNER);
 
         // 작성자 삭제 → deleted=true, content 비움
-        Message deleted = messageService.delete(msg.getId(), author.getId());
+        Message deleted = messageService.delete(room.getId(), msg.getId(), author.getId());
         assertThat(deleted.isDeleted()).isTrue();
         assertThat(deleted.getContent()).isEmpty();
     }

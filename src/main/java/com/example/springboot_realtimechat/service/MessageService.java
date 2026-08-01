@@ -8,6 +8,7 @@ import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.repository.ChatRoomMemberRepository;
 import com.example.springboot_realtimechat.repository.MessageRepository;
+import com.example.springboot_realtimechat.security.RoomAccess;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
@@ -28,6 +29,7 @@ public class MessageService {
     private final MemberService memberService;
     private final ChatRoomService chatRoomService;
     private final ApplicationEventPublisher eventPublisher;
+    private final RoomAccess roomAccess;
 
     public record MessagePage(List<Message> messages, boolean hasMore) {}
 
@@ -78,11 +80,13 @@ public class MessageService {
     }
 
     @Transactional
-    public Message update(Long messageId, Long memberId, String content) {
+    public Message update(Long chatroomId, Long messageId, Long memberId, String content) {
         Message message = getMessageById(messageId); // MESSAGE_NOT_FOUND on miss
+        requireSameRoom(message, chatroomId);
         if (!message.getMember().getId().equals(memberId)) {
             throw new CustomException(ErrorCode.NOT_MESSAGE_OWNER);
         }
+        requireMember(memberId, message);
         if (message.isDeleted()) {
             throw new CustomException(ErrorCode.MESSAGE_NOT_FOUND); // 삭제된 메시지는 수정 불가
         }
@@ -94,11 +98,13 @@ public class MessageService {
     }
 
     @Transactional
-    public Message delete(Long messageId, Long memberId) {
+    public Message delete(Long chatroomId, Long messageId, Long memberId) {
         Message message = getMessageById(messageId);
+        requireSameRoom(message, chatroomId);
         if (!message.getMember().getId().equals(memberId)) {
             throw new CustomException(ErrorCode.NOT_MESSAGE_OWNER);
         }
+        requireMember(memberId, message);
         String imageUrl = message.getImageUrl();        // softDelete가 참조를 지우기 전에 읽는다
         message.softDelete();
 
@@ -106,5 +112,18 @@ public class MessageService {
             eventPublisher.publishEvent(new ImageDereferencedEvent(imageUrl));
         }
         return message;
+    }
+
+    /** 전파 목적지는 엔티티의 방이므로 인가도 엔티티의 방을 기준으로 한다. */
+    private void requireSameRoom(Message message, Long chatroomId) {
+        if (!message.getChatRoom().getId().equals(chatroomId)) {
+            throw new CustomException(ErrorCode.MESSAGE_NOT_FOUND);
+        }
+    }
+
+    private void requireMember(Long memberId, Message message) {
+        if (!roomAccess.isMember(memberId, message.getChatRoom().getId())) {
+            throw new CustomException(ErrorCode.NOT_JOINED_ROOM);
+        }
     }
 }

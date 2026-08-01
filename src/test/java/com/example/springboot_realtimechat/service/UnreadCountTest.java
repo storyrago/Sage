@@ -51,7 +51,7 @@ public class UnreadCountTest {
         messageService.create("mine", null, a.getId(), room.getId(), null);
         // b의 1개 삭제 → 안읽음에서 빠짐
         var del = messageService.create("del", null, b.getId(), room.getId(), null);
-        messageService.delete(del.getId(), b.getId());
+        messageService.delete(room.getId(), del.getId(), b.getId());
 
         var counts = chatRoomMemberService.getUnreadCounts(a.getId());
         var forRoom = counts.stream().filter(c -> c.getChatroomId().equals(room.getId())).findFirst().orElseThrow();
