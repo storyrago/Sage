@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { toMessage, BackendMessage } from './api';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { toMessage, BackendMessage, logout, setUnauthorizedHandler } from './api';
 
 const base: BackendMessage = {
   messageId: 1,
@@ -25,5 +25,33 @@ describe('toMessage', () => {
     expect(message.userName).toBe('삭제된 사용자');
     expect(message.userId).toBe('');
     expect(message.userAvatar).not.toBe('');
+  });
+});
+
+describe('logout', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    setUnauthorizedHandler(null);
+  });
+
+  it('토큰을 Authorization 헤더로 보낸다', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await logout('tok-123');
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain('/api/auth/logout');
+    expect(init.method).toBe('POST');
+    expect(new Headers(init.headers).get('Authorization')).toBe('Bearer tok-123');
+  });
+
+  it('실패하면 예외를 던지되 전역 401 처리기는 부르지 않는다', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 401 })));
+    const onUnauthorized = vi.fn();
+    setUnauthorizedHandler(onUnauthorized);
+
+    await expect(logout('tok-123')).rejects.toThrow();
+    expect(onUnauthorized).not.toHaveBeenCalled();
   });
 });

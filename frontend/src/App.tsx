@@ -17,6 +17,7 @@ import {
   getMessages,
   getUnreadCounts,
   joinChatRoom,
+  logout,
   markRoomRead,
   sendMessage,
   setUnauthorizedHandler,
@@ -498,8 +499,20 @@ export default function App() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // 서버 무효화가 실패해도 이 기기의 세션은 정리한다. 남겨두면 사용자가 갇힌다.
+    let serverLogoutFailed = false;
+    if (token) {
+      try {
+        await logout(token);
+      } catch {
+        serverLogoutFailed = true;
+      }
+    }
     clearSession();
+    if (serverLogoutFailed) {
+      setNotice('로그아웃 요청이 서버에 닿지 않았어요. 이 기기에서만 로그아웃됩니다.');
+    }
   };
 
   const loadOlderMessages = useCallback(async (roomId: string) => {
