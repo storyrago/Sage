@@ -2,6 +2,7 @@ package com.example.springboot_realtimechat.ws;
 
 import com.example.springboot_realtimechat.security.CustomUserDetails;
 import com.example.springboot_realtimechat.security.RoomSubscriptionRevoker;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -12,10 +13,13 @@ import org.springframework.messaging.simp.broker.AbstractBrokerMessageHandler;
 import org.springframework.messaging.simp.broker.SimpleBrokerMessageHandler;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
+import org.springframework.messaging.simp.user.SimpUserRegistry;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.messaging.SessionConnectedEvent;
+import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 import org.springframework.web.socket.messaging.SessionSubscribeEvent;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -32,6 +36,7 @@ class SubscriptionRevocationIntegrationTest {
 
     @Autowired RoomSubscriptionRevoker revoker;
     @Autowired ApplicationEventPublisher eventPublisher;
+    @Autowired SimpUserRegistry simpUserRegistry;
 
     // 빈 정의의 반환 타입이 AbstractBrokerMessageHandler라 타입만으로는 주입되지 않을 수 있다.
     @Autowired @Qualifier("simpleBrokerMessageHandler") AbstractBrokerMessageHandler brokerMessageHandler;
@@ -73,6 +78,18 @@ class SubscriptionRevocationIntegrationTest {
         for (int i = 0; i < 50 && subscribed(destination); i++) {
             Thread.sleep(20);
         }
+    }
+
+    /**
+     * SessionConnectedEvent로 SimpUserRegistry에 등록한 합성 세션을 정리한다.
+     * SimpUserRegistry는 싱글턴이라 정리하지 않으면 이 세션이 JVM 수명 동안 레지스트리에 남는다.
+     */
+    @AfterEach
+    void disconnectSession() {
+        eventPublisher.publishEvent(new SessionDisconnectEvent(
+                this, frame(StompCommand.DISCONNECT, null, null), SESSION_ID, CloseStatus.NORMAL, user()));
+
+        assertThat(simpUserRegistry.getUser(String.valueOf(MEMBER_ID))).isNull();
     }
 
     @Test
