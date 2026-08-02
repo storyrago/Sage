@@ -46,9 +46,9 @@ EC2 스크립트가 `git fetch` 직후 `git rev-parse origin/develop`과 `$DEPLO
 *대가*: 짧은 간격으로 두 번 푸시하면 뒤처진 실행이 빨간불이 된다. 이는 "이 실행은 배포하지 않았다"는 정직한 신호이므로 그대로 둔다. 일반적인 겹침은 기존 `concurrency`가 먼저 취소한다.
 
 **D4. 기동 검증은 actuator 헬스로 한다.**
-`spring-boot-starter-actuator`를 추가하고 `/actuator/health`를 `SecurityConfig`의 permitAll 목록에 넣는다. 현재 `anyRequest().authenticated()`이므로 빠뜨리면 헬스 체크가 401을 받는다.
+`spring-boot-starter-actuator`를 추가하고, 배포 게이트는 `/actuator/health/readiness`로 하며 `SecurityConfig`의 permitAll 목록에 넣는다. 현재 `anyRequest().authenticated()`이므로 빠뜨리면 헬스 체크가 401을 받는다.
 
-기본 헬스 인디케이터에 DataSource·Redis가 포함되므로, 이번 같은 스키마 불일치는 기동 실패로 즉시 드러난다.
+`readiness` 그룹은 `management.endpoint.health.group.readiness.include`로 `readinessState, db, diskSpace`를 명시한다. Redis는 그룹에서 뺀다 — `TokenDenylist`·`LoginRateLimiter`가 fail-open으로 설계돼 있어 Redis가 죽어도 API는 계속 응답하고(실시간 배달·프레즌스만 죽는다), 그걸로 배포를 막으면 정작 그 장애를 고치는 배포조차 나가지 못한다. 무응답 Redis는 어차피 `RedisConfig.messageListenerContainer` 빈 생성 단계에서 부팅 자체를 막으므로, 게이트에서 빠져도 실질 구멍은 작다. 이번 같은 스키마 불일치는 `db`가 그룹에 남아 있어 여전히 기동 실패로 드러난다.
 
 **D5. 헬스 체크는 컨테이너 `healthcheck`로 정의하고, 배포 스크립트는 `app`·`web` 둘 다의 상태를 기다린다.**
 `Dockerfile`(app)과 `frontend/Dockerfile`(web, nginx 스테이지)에 curl을 설치하고(`eclipse-temurin:17-jre`·`nginx:1.27-alpine` 둘 다 없다) compose의 `app`·`web`에 각각 `healthcheck`를 선언한다. 배포 스크립트는 `app`, `web` 순서로 `docker inspect`로 `healthy`를 기다리며, 컨테이너가 아예 없거나 `unhealthy`이거나 타임아웃이면 **해당 서비스 로그 마지막 50줄을 출력하고 잡을 실패시킨다.**
