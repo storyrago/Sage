@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { User } from '../types';
 import Avatar from './Avatar';
 import { useProfilePhotoDraft } from '../lib/useProfilePhotoDraft';
+import { toUserMessage } from '../lib/errors';
 
 interface SettingsModalProps {
   open: boolean;
@@ -11,14 +12,18 @@ interface SettingsModalProps {
   token: string;
   onUpdateName: (name: string) => void | Promise<void>;
   onUpdatePhoto: (url: string) => void;
+  onDeleteAccount: () => void | Promise<void>;
 }
 
-export default function SettingsModal({ open, onClose, currentUser, token, onUpdateName, onUpdatePhoto }: SettingsModalProps) {
+export default function SettingsModal({ open, onClose, currentUser, token, onUpdateName, onUpdatePhoto, onDeleteAccount }: SettingsModalProps) {
   const [name, setName] = useState(currentUser.displayName);
   const [saved, setSaved] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
   const [nameError, setNameError] = useState('');
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const {
     previewUrl,
@@ -39,6 +44,9 @@ export default function SettingsModal({ open, onClose, currentUser, token, onUpd
       setName(currentUser.displayName);
       setSaved(false);
       setNameError('');
+      setConfirmingDelete(false);
+      setDeleting(false);
+      setDeleteError('');
     } else {
       resetPhoto();
     }
@@ -78,6 +86,17 @@ export default function SettingsModal({ open, onClose, currentUser, token, onUpd
       setSaved(false);
       onClose();
     }, 700);
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleteError('');
+    setDeleting(true);
+    try {
+      await onDeleteAccount();
+    } catch (err) {
+      setDeleteError(toUserMessage(err, '탈퇴에 실패했어요. 다시 시도해 주세요.'));
+      setDeleting(false);
+    }
   };
 
   const inputCls =
@@ -130,6 +149,43 @@ export default function SettingsModal({ open, onClose, currentUser, token, onUpd
           >
             {saving ? '저장 중…' : saved ? '저장됨 ✓' : '저장'}
           </button>
+        </div>
+
+        <div className="px-5 py-4 border-t border-border">
+          <div className="text-[11px] font-bold tracking-wider uppercase text-muted mb-3">계정</div>
+          {!confirmingDelete ? (
+            <button
+              onClick={() => setConfirmingDelete(true)}
+              disabled={saving}
+              className="text-[13px] text-muted hover:text-red-400 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-default"
+            >
+              회원 탈퇴
+            </button>
+          ) : (
+            <div>
+              <div className="text-[13px] font-semibold text-text mb-1.5">정말 탈퇴할까요?</div>
+              <p className="text-[12px] text-muted mb-3">
+                보낸 메시지는 대화에 남고 작성자만 "삭제된 사용자"로 바뀝니다. 프로필과 계정 정보는 삭제되며 되돌릴 수 없어요.
+              </p>
+              {deleteError && <p className="text-[12px] text-red-300 mb-3">{deleteError}</p>}
+              <div className="flex gap-2.5">
+                <button
+                  onClick={() => setConfirmingDelete(false)}
+                  disabled={deleting}
+                  className="flex-1 rounded-xl py-2.5 text-[13px] font-semibold border border-border text-text hover:border-accent transition-all cursor-pointer disabled:opacity-60 disabled:cursor-default"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={deleting || saving}
+                  className="flex-1 rounded-xl py-2.5 text-[13px] font-bold border border-red-500/40 text-red-400 hover:bg-red-500/10 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-default"
+                >
+                  {deleting ? '탈퇴 중…' : '탈퇴하기'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
