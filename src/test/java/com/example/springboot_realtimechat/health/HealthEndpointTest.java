@@ -24,4 +24,11 @@ class HealthEndpointTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"));
     }
+
+    @Test
+    void readiness는_인증_없이_UP을_반환한다() throws Exception {   // 컨테이너 healthcheck가 때리는 경로
+        mockMvc.perform(get("/actuator/health/readiness"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"));
+    }
 }
