@@ -50,3 +50,47 @@ describe('layoutStamps', () => {
     }
   });
 });
+
+// 겹침/경계/결정성만으로는 "격자처럼 보이는지"를 못 잡는다 — 해시가 약해 좌표가
+// 거의 등차수열로 나오는 회귀를 여기서 고정한다. 실제 채널 id는 DB 숫자 id 문자열
+// ("1","2","3"…)이라 그 형태도 반드시 함께 검증한다.
+describe('layoutStamps — 격자처럼 보이지 않는다(분산 회귀)', () => {
+  const numericIds = (n: number) => Array.from({ length: n }, (_, i) => `${i + 1}`);
+  const roomIds = (n: number) => Array.from({ length: n }, (_, i) => `room-${i + 1}`);
+  const cases: [string, (n: number) => string[]][] = [
+    ['숫자 문자열 id', numericIds],
+    ['room- 접두 id', roomIds],
+  ];
+
+  function rowGroup(positions: StampPosition[], cols: number, row: number) {
+    return positions.filter((_, i) => Math.floor(i / cols) === row);
+  }
+  function colGroup(positions: StampPosition[], cols: number, col: number) {
+    return positions.filter((_, i) => i % cols === col);
+  }
+  function spread(vals: number[]) {
+    return Math.max(...vals) - Math.min(...vals);
+  }
+
+  it.each(cases)('%s — n=12에서 회전각이 최소 6가지 이상 나온다', (_label, makeIds) => {
+    const rots = layoutStamps(makeIds(12)).map((p) => p.rot);
+    expect(new Set(rots).size).toBeGreaterThanOrEqual(6);
+  });
+
+  it.each(cases)('%s — n=8, 같은 행 안에서 top이 흔들린다', (_label, makeIds) => {
+    // n=8 → cols=3, rows=3 (gridDims와 같은 공식: cols=max(3,ceil(sqrt(n))))
+    const positions = layoutStamps(makeIds(8));
+    for (const row of [0, 1]) { // row 2는 2칸뿐이라 표본이 적어 제외
+      const tops = rowGroup(positions, 3, row).map((p) => parseFloat(p.top));
+      expect(spread(tops)).toBeGreaterThan(0.8); // 옛 해시: ~0.18%p, 고친 해시: 1.3%p대 이상
+    }
+  });
+
+  it.each(cases)('%s — n=8, 같은 열 안에서 left도 흔들린다', (_label, makeIds) => {
+    const positions = layoutStamps(makeIds(8));
+    for (const col of [0, 1]) { // col 2는 2칸뿐이라 표본이 적어 제외
+      const lefts = colGroup(positions, 3, col).map((p) => parseFloat(p.left));
+      expect(spread(lefts)).toBeGreaterThan(2.6); // 옛 해시: ~2.40%p, 고친 해시: 3.6%p대 이상
+    }
+  });
+});

@@ -3,16 +3,16 @@ import { Plus, Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell, X, Log
 import { Channel, User } from '../types';
 import Avatar from './Avatar';
 import { toUserMessage } from '../lib/errors';
-import { hash, layoutStamps, boardHeightPx } from '../lib/stampLayout';
+import { hash, unit, layoutStamps, boardHeightPx } from '../lib/stampLayout';
 
 const ICONS = [Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell];
 
-// 우표 우상단 마스킹테이프의 각도·길이·오프셋을 채널마다 은근하게 흔든다(같은 hash 재사용).
-function tapeVars(id: string): CSSProperties {
-  const h = hash(id);
-  const rot = 45 + (((h * 13) % 25) - 12); // 45deg ±12deg
-  const scale = 1 + (((h * 29) % 51) - 25) / 100; // ±25%
-  const offset = ((h * 7) % 7) - 3; // ±3px
+// 우표 우상단 마스킹테이프의 각도·길이·오프셋을 채널마다 은근하게 흔든다(unit()으로 축마다 독립적인 값).
+// (테스트에서 회귀 검증용으로 직접 import)
+export function tapeVars(id: string): CSSProperties {
+  const rot = 45 + Math.round((unit(id, 13) * 2 - 1) * 12); // 45deg ±12deg
+  const scale = 1 + (unit(id, 29) * 2 - 1) * 0.25; // ±25%
+  const offset = Math.round((unit(id, 101) * 2 - 1) * 3); // ±3px
 
   return {
     '--tape-rot': `${rot}deg`,

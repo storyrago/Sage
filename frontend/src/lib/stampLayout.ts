@@ -17,8 +17,26 @@ const MIN_BOARD_H = 560; // 기존 최소 보드 높이 유지
 const JITTER_SAFETY = 0.8; // 셀 경계에 딱 붙지 않도록 흔들림 폭을 여유 있게 줄인다
 
 // id로부터 결정적 값(아이콘/틴트/산포 위치/테이프 변주) — 컴포넌트와 공유
+// FNV-1a(32비트): 문자 코드 단순 합과 달리 눈사태 효과가 있어, id가 1 차이나는
+// 문자열(DB 숫자 id "1","2","3"…)끼리도 해시가 크게 갈린다.
 export function hash(id: string): number {
-  return [...id].reduce((s, c) => s + c.charCodeAt(0), 0);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
+// 32비트 정수를 한 번 더 흩는다(murmur3 finalizer) — unit()이 salt를 여기로 흘려보내
+// 축(좌표/회전)마다 서로 독립적인 값을 얻는 데 쓴다.
+function avalanche(x: number): number {
+  x ^= x >>> 16;
+  x = Math.imul(x, 0x85ebca6b);
+  x ^= x >>> 13;
+  x = Math.imul(x, 0xc2b2ae35);
+  x ^= x >>> 16;
+  return x >>> 0;
 }
 
 function gridDims(n: number): { cols: number; rows: number } {
@@ -34,9 +52,12 @@ export function boardHeightPx(n: number): number {
   return Math.max(MIN_BOARD_H, rows * ROW_H);
 }
 
-// hash(id)를 서로 다른 배수로 투영해 0~1 사이 결정적 값을 뽑는다(좌표축마다 다른 값이 나오게).
-function unit(id: string, salt: number): number {
-  return ((hash(id) * salt) % 1000) / 1000;
+// hash(id)에 salt를 섞어 넣고 다시 흩어 0~1 사이 결정적 값을 뽑는다.
+// salt를 단순 곱하기만 하면 해시에 선형이라(해시가 1 차이나면 결과도 salt/1000만큼만 차이)
+// 축마다 거의 같은 값이 나온다 — XOR로 섞은 뒤 avalanche를 한 번 더 거쳐 축(salt)마다
+// 서로 무관해 보이는 값이 나오게 한다.
+export function unit(id: string, salt: number): number {
+  return avalanche(hash(id) ^ Math.imul(salt, 0x9e3779b1)) / 0xffffffff;
 }
 
 function clamp(v: number, min: number, max: number): number {
