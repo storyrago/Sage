@@ -84,6 +84,14 @@ class OAuthCodeExchangeTest {
     }
 
     @Test
+    void 빈_코드는_400이다() throws Exception {
+        mockMvc.perform(post("/api/auth/oauth/token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body("")))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void 존재하지_않는_코드는_401이다() throws Exception {
         mockMvc.perform(post("/api/auth/oauth/token")
                         .contentType(MediaType.APPLICATION_JSON)
