@@ -12,6 +12,7 @@ import { WifiOff, RefreshCw } from 'lucide-react';
 import {
   createChatRoom,
   deleteMessage,
+  exchangeOAuthCode,
   getChatRooms,
   getMe,
   getMessages,
@@ -154,10 +155,10 @@ export default function App() {
     const hash = window.location.hash;
     if (!hash) return;
     const params = new URLSearchParams(hash.slice(1));
-    const oauthToken = params.get('token');
+    const oauthCode = params.get('code');
     const errCode = params.get('oauth_error');
-    // 해시 즉시 제거(토큰이 URL/히스토리에 남지 않게)
-    if (oauthToken || errCode) {
+    // 해시 즉시 제거(코드가 URL/히스토리에 남지 않게)
+    if (oauthCode || errCode) {
       history.replaceState(null, '', window.location.pathname + window.location.search);
     }
     if (errCode) {
@@ -168,7 +169,7 @@ export default function App() {
       );
       return;
     }
-    if (!oauthToken) return;
+    if (!oauthCode) return;
     (async () => {
       // 워프 연출이 눈에 보이도록 최소 노출 시간을 둔다.
       // 요청이 이미 그보다 오래 걸리면 추가로 기다리지 않는다.
@@ -181,12 +182,13 @@ export default function App() {
         setNotice('로그인 처리가 지연되고 있어요. 다시 시도해 주세요.');
       }, 10000);
       try {
-        const member = await getMe(oauthToken);
+        const accessToken = await exchangeOAuthCode(oauthCode);
+        const member = await getMe(accessToken);
         const elapsed = Date.now() - startedAt;
         if (elapsed < WARP_MIN_MS) {
           await new Promise((resolve) => setTimeout(resolve, WARP_MIN_MS - elapsed));
         }
-        persistSession(oauthToken, toUser(member));
+        persistSession(accessToken, toUser(member));
       } catch (e) {
         console.error('[OAuth] 핸드오프 실패:', e);
         setWarping(false);
