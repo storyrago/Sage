@@ -160,6 +160,8 @@ export default function App() {
     const errCode = params.get('oauth_error');
     const legacyToken = params.has('token');
     // 해시 즉시 제거(코드가 URL/히스토리에 남지 않게)
+    // 반드시 아래 교환의 첫 await보다 앞에 있어야 한다 — 뒤로 옮기면 StrictMode의 이중 실행에서
+    // 같은 코드로 교환이 두 번 나가고(코드는 1회용이므로) 두 번째 요청이 401을 받는다.
     if (oauthCode || errCode || legacyToken) {
       history.replaceState(null, '', window.location.pathname + window.location.search);
     }
