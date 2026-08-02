@@ -1,21 +1,11 @@
-import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react';
 import { Plus, Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell, X, LogOut } from 'lucide-react';
 import { Channel, User } from '../types';
 import Avatar from './Avatar';
 import { toUserMessage } from '../lib/errors';
+import { hash, layoutStamps, boardHeightPx } from '../lib/stampLayout';
 
 const ICONS = [Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell];
-
-// id로부터 결정적 값(아이콘/틴트/산포 위치)
-function hash(id: string) {
-  return [...id].reduce((s, c) => s + c.charCodeAt(0), 0);
-}
-const POS = [
-  { left: '8%', top: '18%', rot: -8 }, { left: '27%', top: '10%', rot: 6 },
-  { left: '20%', top: '52%', rot: -4 }, { left: '46%', top: '24%', rot: 9 },
-  { left: '42%', top: '58%', rot: -7 }, { left: '66%', top: '14%', rot: 5 },
-  { left: '70%', top: '50%', rot: -10 }, { left: '55%', top: '6%', rot: 3 },
-];
 
 // 확대 우표 크기 (반응형 — 좁은 폭에서 넘치지 않게)
 function calcBig() {
@@ -192,6 +182,9 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
     return `translate(${origin.cx - big.w / 2}px, ${origin.cy - big.h / 2}px) scale(${origin.scale}) rotate(${origin.rot}deg)`;
   };
 
+  // 채널 수에 맞춰 겹치지 않는 산포 위치를 결정적으로 계산 (데스크톱 절대배치 전용)
+  const positions = layoutStamps(channels.map((c) => c.id));
+
   return (
     <div className="relative h-full w-full overflow-auto" style={{ background: '#141917' }}>
       <svg width="0" height="0" className="absolute" aria-hidden="true">
@@ -234,9 +227,12 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
           <button onClick={() => setCreating(true)} className="btn-label inline-flex items-center gap-1.5 px-4 py-2.5 text-[14px] font-bold cursor-pointer"><Plus className="w-4 h-4" /> 첫 채널 만들기</button>
         </div>
       ) : (
-        <div className="grid grid-cols-2 justify-items-center gap-x-3 gap-y-8 px-4 pt-6 pb-12 md:block md:relative md:h-[560px] md:gap-0 md:p-0">
+        <div
+          className="stamp-board grid grid-cols-2 justify-items-center gap-x-3 gap-y-8 px-4 pt-6 pb-12 md:block md:relative md:gap-0 md:p-0"
+          style={{ '--board-h': `${boardHeightPx(channels.length)}px` } as CSSProperties}
+        >
           {channels.map((ch, i) => {
-            const p = POS[i % POS.length];
+            const p = positions[i];
             const dim = (hoveredId !== null && hoveredId !== ch.id) || (focusedId !== null && focusedId !== ch.id);
             const hidden = focusedId === ch.id; // 확대 클론이 대신 표시되는 동안 원본 숨김
             const count = unread?.[ch.id] ?? 0;
