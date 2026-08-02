@@ -7,6 +7,26 @@ import { hash, layoutStamps, boardHeightPx } from '../lib/stampLayout';
 
 const ICONS = [Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell];
 
+// 우표 우상단 마스킹테이프의 각도·길이·오프셋을 채널마다 은근하게 흔든다(같은 hash 재사용).
+function tapeVars(id: string): CSSProperties {
+  const h = hash(id);
+  const rot = 45 + (((h * 13) % 25) - 12); // 45deg ±12deg
+  const scale = 1 + (((h * 29) % 51) - 25) / 100; // ±25%
+  const offset = ((h * 7) % 7) - 3; // ±3px
+
+  return {
+    '--tape-rot': `${rot}deg`,
+    '--tape-w': `${Math.round(34 * scale)}px`,
+    '--tape-h': `${Math.round(13 * scale)}px`,
+    '--tape-top': `${-5 + offset}px`,
+    '--tape-right': `${-5 + offset}px`,
+    '--tape-w-md': `${Math.round(46 * scale)}px`,
+    '--tape-h-md': `${Math.round(17 * scale)}px`,
+    '--tape-top-md': `${-7 + offset}px`,
+    '--tape-right-md': `${-7 + offset}px`,
+  } as CSSProperties;
+}
+
 // 확대 우표 크기 (반응형 — 좁은 폭에서 넘치지 않게)
 function calcBig() {
   const w = typeof window !== 'undefined' ? window.innerWidth : 1200;
@@ -262,7 +282,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
                   }}
                 >
                   <StampFace ch={ch} />
-                  <span className="stamp-tape" aria-hidden="true" />
+                  <span className="stamp-tape" aria-hidden="true" style={tapeVars(ch.id)} />
                   {count > 0 && (
                     <span key={count} className="contents">
                       <Postmark count={count} />
