@@ -1,5 +1,6 @@
 package com.example.springboot_realtimechat.presence;
 
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.Cursor;
@@ -80,7 +81,9 @@ public class PresenceRegistry {
      * 실패해도 기동을 막지 않는다 — 삼키고 경고만 남긴다.
      * ponytail: app 인스턴스 1대를 전제로 한 정리다. 2대 이상으로 늘리면 늦게 뜬 인스턴스가
      * 다른 인스턴스의 살아있는 프레즌스를 지운다 — 그때는 세션 단위 TTL 갱신으로 바꿔야 한다.
+     * 빈 생성 시점에 돈다 — 톰캣이 포트를 열기 전이라 방금 붙은 클라이언트를 지우지 않는다.
      */
+    @PostConstruct
     public void cleanupStaleEntries() {
         try {
             ScanOptions options = ScanOptions.scanOptions().match("presence:*").build();

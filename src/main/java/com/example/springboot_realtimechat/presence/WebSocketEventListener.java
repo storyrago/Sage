@@ -4,7 +4,6 @@ import com.example.springboot_realtimechat.dto.PresenceResponse;
 import com.example.springboot_realtimechat.redis.RedisPublisher;
 import com.example.springboot_realtimechat.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.security.core.Authentication;
@@ -27,12 +26,6 @@ public class WebSocketEventListener {
 
     private final PresenceRegistry presenceRegistry;
     private final RedisPublisher redisPublisher;
-
-    // 기동 완료 시 남은 유령 프레즌스를 정리한다. 실패해도 기동은 막지 않는다(PresenceRegistry 쪽에서 삼킴).
-    @EventListener
-    public void onReady(ApplicationReadyEvent event) {
-        presenceRegistry.cleanupStaleEntries();
-    }
 
     @EventListener
     public void onSubscribe(SessionSubscribeEvent event) {
