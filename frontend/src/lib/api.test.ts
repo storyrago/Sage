@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { toMessage, BackendMessage, logout, exchangeOAuthCode, setUnauthorizedHandler } from './api';
+import { toMessage, BackendMessage, deleteAccount, logout, exchangeOAuthCode, setUnauthorizedHandler } from './api';
 
 const base: BackendMessage = {
   messageId: 1,
@@ -81,6 +81,25 @@ describe('logout', () => {
     await vi.advanceTimersByTimeAsync(8000);
 
     await assertion;
+  });
+});
+
+describe('deleteAccount', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    setUnauthorizedHandler(null);
+  });
+
+  it('DELETE 메서드로 /api/members/me를 호출하고 토큰을 Authorization 헤더로 보낸다', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await deleteAccount('tok-123');
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain('/api/members/me');
+    expect(init.method).toBe('DELETE');
+    expect(new Headers(init.headers).get('Authorization')).toBe('Bearer tok-123');
   });
 });
 
