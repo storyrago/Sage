@@ -280,6 +280,10 @@ export async function updateNickname(token: string, nickname: string) {
   }, token);
 }
 
+export async function deleteAccount(token: string): Promise<void> {
+  await request('/api/members/me', { method: 'DELETE' }, token);
+}
+
 export async function completeOnboarding(token: string) {
   return request<BackendMember>('/api/members/me/onboarding', {
     method: 'POST',

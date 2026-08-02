@@ -12,6 +12,7 @@ import { WifiOff, RefreshCw } from 'lucide-react';
 import {
   ApiError,
   createChatRoom,
+  deleteAccount,
   deleteMessage,
   exchangeOAuthCode,
   getChatRooms,
@@ -692,6 +693,13 @@ export default function App() {
             if (token) persistSession(token, next);
             return next;
           });
+        }}
+        onDeleteAccount={async () => {
+          if (!token) return;
+          await deleteAccount(token);
+          setSettingsOpen(false);
+          clearSession();
+          setNotice('탈퇴가 완료됐어요. 그동안 이용해 주셔서 감사합니다.');
         }}
       />
 
