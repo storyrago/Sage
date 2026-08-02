@@ -66,17 +66,23 @@ EC2 스크립트가 `git fetch` 직후 `git rev-parse origin/develop`과 `$DEPLO
 **D8. 배포 후 러너에서 공개 URL로 스모크 테스트한다.**
 컨테이너 헬스체크는 컨테이너 내부에서 `localhost`로 검사하므로, DNS·TLS 인증서·80/443 포트 바인딩이 깨져도 healthy로 잡힐 수 있다. SSH 배포 스텝 다음에 별도 스텝으로 `https://sagertc.duckdns.org/`(200), `/api/chatrooms`(302 또는 401), `/actuator/health`(404)를 curl로 확인하고, 기대와 다르면 잡을 실패시킨다. 사용자가 실제로 들어오는 경로로 직접 확인하는 것이 실서비스 관행이다. `/api/chatrooms`는 현재 미인증 요청을 302(로그인 리다이렉트)로 응답하는데, 이후 `/api/**`에 401 엔트리포인트를 넣으면 응답이 401로 바뀌므로 둘 다 허용한다. curl은 `-sS`로 호출해 연결 실패 시에도 에러 메시지가 로그에 남게 한다.
 
+**D9. 운영은 `SPRING_PROFILES_ACTIVE: prod`로 뜬다.**
+`application.yaml`의 `spring.profiles.active`는 `${SPRING_PROFILES_ACTIVE:local}`이라, compose `environment`에 값이 없으면 운영도 기본값인 `local`로 뜬다. 지금은 `application-local.yaml`이 `.gitignore` 대상이라 CI 이미지에 안 들어가 우연히 base 설정 그대로 돌지만, 그 파일을 가진 개발자가 로컬에서 빌드한 이미지가 운영에 닿으면 `ddl-auto: update`가 base의 `validate`를 덮어써 RDS 스키마가 엔티티에 맞춰 자동 변경된다.
+
+`docker-compose.yml`의 `app` 서비스 `environment`에 `SPRING_PROFILES_ACTIVE: prod`를 리터럴로 추가하고, `application-prod.yaml`을 신설해 `ddl-auto: validate`·`show-sql: false`를 프로파일 레벨에서 한 번 더 고정한다. 값 자체는 base와 같으므로 오늘 기준 동작 변화는 없다 — 로컬 개발 이미지가 잘못 배포되는 경로를 막는 가드다.
+
 ## 3. 변경 파일
 
 | 파일 | 변경 |
 |---|---|
-| `docker-compose.yml` | `image:` 태그 필수화(D1), `app`·`web` 모두 `healthcheck`(D5) |
+| `docker-compose.yml` | `image:` 태그 필수화(D1), `app`·`web` 모두 `healthcheck`(D5), `SPRING_PROFILES_ACTIVE: prod`(D9) |
 | `.github/workflows/cd.yml` | `envs`로 `DEPLOY_SHA` 전달, SHA 검사(D3), SHA 체크아웃(D2), `IMAGE_TAG` export 및 `.env` 원자적 기록(D1), `app`·`web` 헬스 대기·실패 처리(D5), 이미지 정리 정책 변경(§6), 배포 후 스모크 테스트(D8) |
 | `Dockerfile` | curl 설치(D5) |
 | `frontend/Dockerfile` | curl 설치(D5) |
 | `build.gradle` | `spring-boot-starter-actuator`(D4) |
 | `SecurityConfig.java` | permitAll에 `/actuator/health`(D4) |
 | `frontend/nginx.conf` | `location /actuator/ { return 404; }`(D7) |
+| `application-prod.yaml` | 신규. 운영 프로파일에서 `ddl-auto: validate` 고정(D9) |
 
 ## 4. 배포 스크립트 흐름
 

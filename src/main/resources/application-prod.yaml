@@ -1,0 +1,7 @@
+# 운영 프로파일. 개발자의 application-local.yaml이 운영 이미지에 섞여 들어와도
+# 이 프로파일이 활성이면 그 파일은 로드되지 않는다.
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate   # 스키마는 Flyway 마이그레이션으로만 바꾼다
+    show-sql: false
