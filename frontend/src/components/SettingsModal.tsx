@@ -142,9 +142,10 @@ export default function SettingsModal({ open, onClose, currentUser, token, onUpd
         </div>
 
         <div className="px-5 py-4 flex gap-2.5">
+          {/* 탈퇴가 진행 중이면 다른 쓰기 요청을 내보내지 않는다 */}
           <button
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || deleting}
             className="flex-1 rounded-xl py-3 text-[14px] font-bold bg-accent text-accent-fg hover:bg-accent-hover transition-all cursor-pointer disabled:opacity-60 disabled:cursor-default"
           >
             {saving ? '저장 중…' : saved ? '저장됨 ✓' : '저장'}
@@ -170,7 +171,7 @@ export default function SettingsModal({ open, onClose, currentUser, token, onUpd
               {deleteError && <p className="text-[12px] text-red-300 mb-3">{deleteError}</p>}
               <div className="flex gap-2.5">
                 <button
-                  onClick={() => setConfirmingDelete(false)}
+                  onClick={() => { setConfirmingDelete(false); setDeleteError(''); }}
                   disabled={deleting}
                   className="flex-1 rounded-xl py-2.5 text-[13px] font-semibold border border-border text-text hover:border-accent transition-all cursor-pointer disabled:opacity-60 disabled:cursor-default"
                 >
