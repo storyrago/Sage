@@ -39,6 +39,10 @@ function unit(id: string, salt: number): number {
   return ((hash(id) * salt) % 1000) / 1000;
 }
 
+function clamp(v: number, min: number, max: number): number {
+  return Math.min(Math.max(v, min), max);
+}
+
 export function layoutStamps(ids: string[]): StampPosition[] {
   const n = ids.length;
   if (n === 0) return [];
@@ -58,8 +62,13 @@ export function layoutStamps(ids: string[]): StampPosition[] {
     const jy = (unit(id, 17) * 2 - 1) * jitterYpx;
     const rot = Math.round((unit(id, 7) * 2 - 1) * 10); // -10~10도
 
-    const leftPct = ((centerXpx + jx) / MIN_BOARD_W) * 100;
-    const topPct = ((centerYpx + jy) / boardH) * 100;
+    // 컴포넌트는 left/top을 우표의 좌상단 모서리로 그대로 쓴다(translate 보정 없음).
+    // 중심 좌표를 모서리로 바꾸고 보드 경계 안으로 clamp한다.
+    const leftPx = clamp(centerXpx + jx - STAMP_W / 2, 0, MIN_BOARD_W - STAMP_W);
+    const topPx = clamp(centerYpx + jy - STAMP_H / 2, 0, boardH - STAMP_H);
+
+    const leftPct = (leftPx / MIN_BOARD_W) * 100;
+    const topPct = (topPx / boardH) * 100;
 
     return { left: `${leftPct.toFixed(2)}%`, top: `${topPct.toFixed(2)}%`, rot };
   });
