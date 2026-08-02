@@ -158,8 +158,9 @@ export default function App() {
     const params = new URLSearchParams(hash.slice(1));
     const oauthCode = params.get('code');
     const errCode = params.get('oauth_error');
+    const legacyToken = params.has('token');
     // 해시 즉시 제거(코드가 URL/히스토리에 남지 않게)
-    if (oauthCode || errCode) {
+    if (oauthCode || errCode || legacyToken) {
       history.replaceState(null, '', window.location.pathname + window.location.search);
     }
     if (errCode) {
@@ -168,6 +169,12 @@ export default function App() {
           ? '이미 등록된 이메일이에요. 기존에 사용하던 소셜 계정으로 로그인해 주세요.'
           : '소셜 로그인에 실패했어요. 다시 시도해 주세요.',
       );
+      return;
+    }
+    // 배포 전환·롤백 중 옛 백엔드가 이 형식으로 보낼 수 있다. 새 프론트는 code만 읽으므로
+    // 안내 없이 두면 사용자는 주소창에 토큰이 남은 채 이유 없이 로그인 화면에 머무른다.
+    if (legacyToken) {
+      setNotice('소셜 로그인에 실패했어요. 다시 시도해 주세요.');
       return;
     }
     if (!oauthCode) return;
