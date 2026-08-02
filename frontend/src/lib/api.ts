@@ -108,6 +108,29 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
   return response.json() as Promise<T>;
 }
 
+/**
+ * 서버가 이 토큰을 즉시 무효화한다. 세션을 지우기 전에 부른다.
+ * 전역 401 처리기가 "세션이 만료되었어요"를 띄우면 안 되므로 request()를 쓰지 않는다.
+ */
+export async function logout(token: string): Promise<void> {
+  // 서버가 답하지 않아도 세션 정리가 막히면 안 된다. 끊기면 아래 catch가 안내를 띄운다.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal,
+    });
+    // 401은 서버가 이 토큰을 이미 받지 않는다는 뜻이다. 무효화의 목적은 달성됐으므로 실패가 아니다.
+    if (!response.ok && response.status !== 401) {
+      throw new ApiError('로그아웃에 실패했습니다.', response.status);
+    }
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function getMe(token: string) {
   return request<BackendMember>('/api/members/me', {}, token);
 }

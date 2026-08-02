@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { toMessage, BackendMessage } from './api';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { toMessage, BackendMessage, logout, setUnauthorizedHandler } from './api';
 
 const base: BackendMessage = {
   messageId: 1,
@@ -25,5 +25,61 @@ describe('toMessage', () => {
     expect(message.userName).toBe('삭제된 사용자');
     expect(message.userId).toBe('');
     expect(message.userAvatar).not.toBe('');
+  });
+});
+
+describe('logout', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    setUnauthorizedHandler(null);
+    vi.useRealTimers();
+  });
+
+  it('토큰을 Authorization 헤더로 보낸다', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await logout('tok-123');
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain('/api/auth/logout');
+    expect(init.method).toBe('POST');
+    expect(new Headers(init.headers).get('Authorization')).toBe('Bearer tok-123');
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('401이면 이미 무효화된 토큰이므로 성공으로 본다', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 401 })));
+    const onUnauthorized = vi.fn();
+    setUnauthorizedHandler(onUnauthorized);
+
+    await expect(logout('tok-123')).resolves.toBeUndefined();
+    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+
+  it('서버 오류는 예외를 던지되 전역 401 처리기는 부르지 않는다', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 500 })));
+    const onUnauthorized = vi.fn();
+    setUnauthorizedHandler(onUnauthorized);
+
+    await expect(logout('tok-123')).rejects.toThrow();
+    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+
+  it('8초 안에 응답이 없으면 요청을 끊고 reject한다', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn((_url: string, init?: RequestInit) => {
+      return new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          reject(new DOMException('The operation was aborted.', 'AbortError'));
+        });
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const assertion = expect(logout('tok-123')).rejects.toThrow();
+    await vi.advanceTimersByTimeAsync(8000);
+
+    await assertion;
   });
 });

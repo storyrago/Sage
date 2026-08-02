@@ -20,6 +20,7 @@ import java.io.IOException;
 public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
     private final MemberRepository memberRepository;
     private final JwtTokenProvider jwtTokenProvider;
+    private final TokenDenylist tokenDenylist;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -33,6 +34,8 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
         var member = memberRepository.findByProviderAndProviderId(provider, oidcUser.getSubject())
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
+        // 이메일 로그인과 같은 이유로 회원 단위 무효화를 해제한다(AuthService.login).
+        tokenDenylist.clearMember(member.getId());
         String token = jwtTokenProvider.createAccessToken(member.getId(), member.getEmail());
         response.sendRedirect(frontendUrl + "/#token=" + token);
     }
