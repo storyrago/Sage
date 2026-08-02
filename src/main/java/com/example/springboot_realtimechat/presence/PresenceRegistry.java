@@ -1,6 +1,9 @@
 package com.example.springboot_realtimechat.presence;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.Cursor;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -8,6 +11,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class PresenceRegistry {
@@ -68,5 +72,25 @@ public class PresenceRegistry {
     private Long parseRoom(String state) {
         String[] parts = state.split("\\|");
         return parts.length > 0 ? Long.valueOf(parts[0]) : null;
+    }
+
+    /**
+     * 기동 시 남아 있는 presence:* 항목을 전부 지운다. app이 막 재시작됐다면 이 인스턴스가
+     * 들고 있던 WebSocket 세션은 이미 전멸했으므로, 기동 시점의 프레즌스 항목은 전부 유령이다.
+     * 실패해도 기동을 막지 않는다 — 삼키고 경고만 남긴다.
+     * ponytail: app 인스턴스 1대를 전제로 한 정리다. 2대 이상으로 늘리면 늦게 뜬 인스턴스가
+     * 다른 인스턴스의 살아있는 프레즌스를 지운다 — 그때는 세션 단위 TTL 갱신으로 바꿔야 한다.
+     */
+    public void cleanupStaleEntries() {
+        try {
+            ScanOptions options = ScanOptions.scanOptions().match("presence:*").build();
+            try (Cursor<String> cursor = redis.scan(options)) {
+                while (cursor.hasNext()) {
+                    redis.delete(cursor.next());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("기동 시 프레즌스 정리 실패", e);
+        }
     }
 }
