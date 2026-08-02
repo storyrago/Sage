@@ -74,3 +74,12 @@ server:
   forward-headers-strategy: framework   # nginx(X-Forwarded-*) 뒤에서 OAuth redirect_uri를 https 원본 host로 생성
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}   # OAuth 성공 후 JWT 핸드오프 대상
+management:
+  endpoint:
+    health:
+      group:
+        readiness:
+          # 배포 게이트(컨테이너 healthcheck)에서 Redis만 제외한다. Redis는 fail-open으로 설계돼
+          # 있어 죽어도 API는 계속 응답하고(실시간 배달·프레즌스만 죽는다), 그걸로 배포를 막으면
+          # 정작 그 문제를 고치는 배포조차 나가지 못한다. db·diskSpace는 게이트에 남긴다.
+          include: readinessState, db, diskSpace
