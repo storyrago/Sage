@@ -4,11 +4,12 @@ import com.example.springboot_realtimechat.domain.Member;
 import com.example.springboot_realtimechat.repository.MemberRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InOrder;
-import org.mockito.InjectMocks;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.InjectMocks;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
@@ -16,46 +17,67 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.inOrder;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-// 설계 D3: 소셜 로그인도 이메일 로그인과 같은 이유로 회원 단위 무효화를 해제해야 한다.
-// 여기서 빠지면 로그아웃 → 소셜 재로그인 경로가 같은 경계에 걸린다.
+// 리다이렉트에 자격증명을 싣지 않는다. 302의 Location 헤더는 로그에 남는다.
 @ExtendWith(MockitoExtension.class)
 class OAuth2SuccessHandlerTest {
 
     @Mock MemberRepository memberRepository;
-    @Mock JwtTokenProvider jwtTokenProvider;
-    @Mock TokenDenylist tokenDenylist;
+    @Mock OAuthCodeStore oAuthCodeStore;
     @InjectMocks OAuth2SuccessHandler handler;
 
-    @Test
-    void 소셜_로그인_성공시_토큰_발급보다_먼저_회원_단위_무효화를_해제한다() throws Exception {
+    private OAuth2AuthenticationToken authToken;
+    private HttpServletResponse response;
+
+    @BeforeEach
+    void setUp() {
         ReflectionTestUtils.setField(handler, "frontendUrl", "https://app.example.com");
 
         Member member = mock(Member.class);
         given(member.getId()).willReturn(42L);
-        given(member.getEmail()).willReturn("oauth@example.com");
 
-        OAuth2AuthenticationToken authToken = mock(OAuth2AuthenticationToken.class);
         OidcUser oidcUser = mock(OidcUser.class);
+        authToken = mock(OAuth2AuthenticationToken.class);
         given(authToken.getAuthorizedClientRegistrationId()).willReturn("google");
         given(authToken.getPrincipal()).willReturn(oidcUser);
         given(oidcUser.getSubject()).willReturn("google-subject-1");
         given(memberRepository.findByProviderAndProviderId("GOOGLE", "google-subject-1"))
                 .willReturn(Optional.of(member));
-        given(jwtTokenProvider.createAccessToken(42L, "oauth@example.com")).willReturn("issued-token");
 
-        HttpServletRequest request = mock(HttpServletRequest.class);
-        HttpServletResponse response = mock(HttpServletResponse.class);
+        response = mock(HttpServletResponse.class);
+    }
 
-        handler.onAuthenticationSuccess(request, response, authToken);
+    @Test
+    void 리다이렉트에_토큰이_아니라_코드를_싣는다() throws Exception {
+        given(oAuthCodeStore.issue(42L)).willReturn("one-time-code");
 
-        InOrder inOrder = inOrder(tokenDenylist, jwtTokenProvider);
-        inOrder.verify(tokenDenylist).clearMember(42L);
-        inOrder.verify(jwtTokenProvider).createAccessToken(42L, "oauth@example.com");
-        verify(response).sendRedirect("https://app.example.com/#token=issued-token");
+        handler.onAuthenticationSuccess(mock(HttpServletRequest.class), response, authToken);
+
+        verify(response).sendRedirect("https://app.example.com/#code=one-time-code");
+    }
+
+    @Test
+    void 리다이렉트_URL에_JWT가_들어가지_않는다() throws Exception {
+        given(oAuthCodeStore.issue(42L)).willReturn("one-time-code");
+
+        handler.onAuthenticationSuccess(mock(HttpServletRequest.class), response, authToken);
+
+        ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+        verify(response).sendRedirect(captor.capture());
+        assertThat(captor.getValue()).doesNotContain("token=");
+    }
+
+    @Test
+    void 코드_발급에_실패하면_오류로_리다이렉트한다() throws Exception {
+        willThrow(new RuntimeException("redis down")).given(oAuthCodeStore).issue(42L);
+
+        handler.onAuthenticationSuccess(mock(HttpServletRequest.class), response, authToken);
+
+        verify(response).sendRedirect("https://app.example.com/#oauth_error=oauth_failed");
     }
 }

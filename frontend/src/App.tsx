@@ -10,8 +10,10 @@ import ChannelLanding from './components/ChannelLanding';
 import Toast from './components/Toast';
 import { WifiOff, RefreshCw } from 'lucide-react';
 import {
+  ApiError,
   createChatRoom,
   deleteMessage,
+  exchangeOAuthCode,
   getChatRooms,
   getMe,
   getMessages,
@@ -154,10 +156,13 @@ export default function App() {
     const hash = window.location.hash;
     if (!hash) return;
     const params = new URLSearchParams(hash.slice(1));
-    const oauthToken = params.get('token');
+    const oauthCode = params.get('code');
     const errCode = params.get('oauth_error');
-    // 해시 즉시 제거(토큰이 URL/히스토리에 남지 않게)
-    if (oauthToken || errCode) {
+    const legacyToken = params.has('token');
+    // 해시 즉시 제거(코드가 URL/히스토리에 남지 않게)
+    // 반드시 아래 교환의 첫 await보다 앞에 있어야 한다 — 뒤로 옮기면 StrictMode의 이중 실행에서
+    // 같은 코드로 교환이 두 번 나가고(코드는 1회용이므로) 두 번째 요청이 401을 받는다.
+    if (oauthCode || errCode || legacyToken) {
       history.replaceState(null, '', window.location.pathname + window.location.search);
     }
     if (errCode) {
@@ -168,7 +173,13 @@ export default function App() {
       );
       return;
     }
-    if (!oauthToken) return;
+    // 배포 전환·롤백 중 옛 백엔드가 이 형식으로 보낼 수 있다. 새 프론트는 code만 읽으므로
+    // 안내 없이 두면 사용자는 주소창에 토큰이 남은 채 이유 없이 로그인 화면에 머무른다.
+    if (legacyToken) {
+      setNotice('소셜 로그인에 실패했어요. 다시 시도해 주세요.');
+      return;
+    }
+    if (!oauthCode) return;
     (async () => {
       // 워프 연출이 눈에 보이도록 최소 노출 시간을 둔다.
       // 요청이 이미 그보다 오래 걸리면 추가로 기다리지 않는다.
@@ -181,16 +192,22 @@ export default function App() {
         setNotice('로그인 처리가 지연되고 있어요. 다시 시도해 주세요.');
       }, 10000);
       try {
-        const member = await getMe(oauthToken);
+        const accessToken = await exchangeOAuthCode(oauthCode);
+        const member = await getMe(accessToken);
         const elapsed = Date.now() - startedAt;
         if (elapsed < WARP_MIN_MS) {
           await new Promise((resolve) => setTimeout(resolve, WARP_MIN_MS - elapsed));
         }
-        persistSession(oauthToken, toUser(member));
+        persistSession(accessToken, toUser(member));
       } catch (e) {
         console.error('[OAuth] 핸드오프 실패:', e);
         setWarping(false);
-        setNotice('로그인 처리에 실패했어요. 다시 시도해 주세요.');
+        // 5xx는 사용자의 재시도로 해결되지 않는다(서버 쪽 장애) — 4xx와 문구를 분리한다.
+        setNotice(
+          e instanceof ApiError && e.status >= 500
+            ? '지금 로그인 서버에 문제가 있어요. 잠시 후 다시 시도해 주세요.'
+            : '로그인 처리에 실패했어요. 다시 시도해 주세요.',
+        );
       } finally {
         clearTimeout(guard);
       }

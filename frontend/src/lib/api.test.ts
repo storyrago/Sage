@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { toMessage, BackendMessage, logout, setUnauthorizedHandler } from './api';
+import { toMessage, BackendMessage, logout, exchangeOAuthCode, setUnauthorizedHandler } from './api';
 
 const base: BackendMessage = {
   messageId: 1,
@@ -81,5 +81,52 @@ describe('logout', () => {
     await vi.advanceTimersByTimeAsync(8000);
 
     await assertion;
+  });
+});
+
+describe('exchangeOAuthCode', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    setUnauthorizedHandler(null);
+  });
+
+  it('코드를 본문으로 보내고 액세스 토큰을 돌려준다', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ accessToken: 'tok-abc', tokenType: 'Bearer' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(exchangeOAuthCode('code-123')).resolves.toBe('tok-abc');
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain('/api/auth/oauth/token');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body)).toEqual({ code: 'code-123' });
+  });
+
+  it('코드를 URL에 싣지 않는다', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ accessToken: 'tok-abc' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await exchangeOAuthCode('code-123');
+
+    expect(String(fetchMock.mock.calls[0][0])).not.toContain('code-123');
+  });
+
+  it('실패하면 예외를 던지되 전역 401 처리기는 부르지 않는다', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 401 })));
+    const onUnauthorized = vi.fn();
+    setUnauthorizedHandler(onUnauthorized);
+
+    await expect(exchangeOAuthCode('code-123')).rejects.toThrow();
+    expect(onUnauthorized).not.toHaveBeenCalled();
   });
 });

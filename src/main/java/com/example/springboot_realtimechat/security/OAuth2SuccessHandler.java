@@ -6,6 +6,7 @@ import com.example.springboot_realtimechat.repository.MemberRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
@@ -14,13 +15,15 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
     private final MemberRepository memberRepository;
-    private final JwtTokenProvider jwtTokenProvider;
-    private final TokenDenylist tokenDenylist;
+    private final OAuthCodeStore oAuthCodeStore;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -34,9 +37,17 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
         var member = memberRepository.findByProviderAndProviderId(provider, oidcUser.getSubject())
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
-        // 이메일 로그인과 같은 이유로 회원 단위 무효화를 해제한다(AuthService.login).
-        tokenDenylist.clearMember(member.getId());
-        String token = jwtTokenProvider.createAccessToken(member.getId(), member.getEmail());
-        response.sendRedirect(frontendUrl + "/#token=" + token);
+
+        // 토큰을 URL에 싣지 않는다. 리다이렉트를 만드는 302의 Location 헤더는 로그에 남는다.
+        String code;
+        try {
+            code = oAuthCodeStore.issue(member.getId());
+        } catch (Exception e) {
+            // 코드를 저장하지 못하면 로그인이 성립하지 않는다. 실패 경로와 같은 형태로 안내한다.
+            log.error("소셜 로그인 코드 발급 실패: memberId={}", member.getId(), e);
+            response.sendRedirect(frontendUrl + "/#oauth_error=oauth_failed");
+            return;
+        }
+        response.sendRedirect(frontendUrl + "/#code=" + URLEncoder.encode(code, StandardCharsets.UTF_8));
     }
 }

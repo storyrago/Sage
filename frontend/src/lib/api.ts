@@ -131,6 +131,24 @@ export async function logout(token: string): Promise<void> {
   }
 }
 
+/**
+ * 소셜 로그인 리다이렉트가 실어 온 일회용 코드를 액세스 토큰으로 바꾼다.
+ * 코드도 토큰도 URL에 싣지 않는다 — 쿼리에 넣으면 액세스 로그에 남는다.
+ * 실패는 이 흐름 안에서 안내하므로 전역 401 처리기를 타지 않게 request()를 쓰지 않는다.
+ */
+export async function exchangeOAuthCode(code: string): Promise<string> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/oauth/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  });
+  if (!response.ok) {
+    throw new ApiError('소셜 로그인에 실패했습니다.', response.status);
+  }
+  const body = (await response.json()) as { accessToken: string };
+  return body.accessToken;
+}
+
 export async function getMe(token: string) {
   return request<BackendMember>('/api/members/me', {}, token);
 }
