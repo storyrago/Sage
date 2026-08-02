@@ -10,6 +10,7 @@ import ChannelLanding from './components/ChannelLanding';
 import Toast from './components/Toast';
 import { WifiOff, RefreshCw } from 'lucide-react';
 import {
+  ApiError,
   createChatRoom,
   deleteMessage,
   exchangeOAuthCode,
@@ -192,7 +193,12 @@ export default function App() {
       } catch (e) {
         console.error('[OAuth] 핸드오프 실패:', e);
         setWarping(false);
-        setNotice('로그인 처리에 실패했어요. 다시 시도해 주세요.');
+        // 5xx는 사용자의 재시도로 해결되지 않는다(서버 쪽 장애) — 4xx와 문구를 분리한다.
+        setNotice(
+          e instanceof ApiError && e.status >= 500
+            ? '지금 로그인 서버에 문제가 있어요. 잠시 후 다시 시도해 주세요.'
+            : '로그인 처리에 실패했어요. 다시 시도해 주세요.',
+        );
       } finally {
         clearTimeout(guard);
       }
