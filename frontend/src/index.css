@@ -159,28 +159,37 @@ body {
   .postmark-strike { animation: none; }
 }
 
+/* 채널 랜딩 우표 보드 — 행 수에 따라 늘어나는 높이(--board-h, 컴포넌트가 채널 수로 계산해 넘긴다).
+   모바일은 grid 흐름 배치라 이 높이와 무관 — md 이상에서만 적용한다. */
+@media (min-width: 768px) {
+  .stamp-board {
+    height: var(--board-h, 560px);
+  }
+}
+
 /* 우표를 게시판에 붙인 마스킹테이프 — 갤러리 타일 우상단 1곳에만.
-   안읽음 소인이 좌상단이라 겹치지 않는다. 크기는 96×128(모바일)→132×176(데스크톱) 타일 비율에 맞춰 확대 */
+   안읽음 소인이 좌상단이라 겹치지 않는다. 크기는 96×128(모바일)→132×176(데스크톱) 타일 비율에 맞춰 확대.
+   각도/길이/오프셋은 채널마다 컴포넌트가 커스텀 프로퍼티로 흔든다 — 변수가 없으면 기존 모양 그대로. */
 .stamp-tape {
   position: absolute;
-  top: -5px;
-  right: -5px;
-  width: 34px;
-  height: 13px;
+  top: var(--tape-top, -5px);
+  right: var(--tape-right, -5px);
+  width: var(--tape-w, 34px);
+  height: var(--tape-h, 13px);
   pointer-events: none;
   background:
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.09) 0 3px, transparent 3px 7px),
     linear-gradient(180deg, rgba(244, 240, 226, 0.90), rgba(226, 220, 202, 0.82));
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
   clip-path: polygon(4% 0, 96% 5%, 100% 95%, 2% 100%);
-  transform: rotate(45deg);   /* 모서리 대각선과 나란히 — 절반은 종이, 절반은 보드를 문다 */
+  transform: rotate(var(--tape-rot, 45deg));   /* 모서리 대각선과 나란히 — 절반은 종이, 절반은 보드를 문다 */
 }
 @media (min-width: 768px) {
   .stamp-tape {
-    top: -7px;
-    right: -7px;
-    width: 46px;
-    height: 17px;
+    top: var(--tape-top-md, -7px);
+    right: var(--tape-right-md, -7px);
+    width: var(--tape-w-md, 46px);
+    height: var(--tape-h-md, 17px);
   }
 }
 
