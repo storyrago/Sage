@@ -33,7 +33,9 @@ public class MessageController {
                 customUserDetails.getMemberId(),
                 chatroomId,
                 messageRequest.getReplyToId());
-        return MessageResponse.from(message);
+        MessageResponse response = MessageResponse.from(message);
+        redisPublisher.publish(response); // 새 메시지를 방 전체에 실시간 전파
+        return response;
     }
 
     @GetMapping
