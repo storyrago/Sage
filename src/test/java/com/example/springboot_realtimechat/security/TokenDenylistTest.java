@@ -169,4 +169,17 @@ class TokenDenylistTest {
             logger.detachAppender(appender);
         }
     }
+
+    // jti가 없으면 hasKey를 타지 않고 opsForValue()로 바로 넘어간다 — 위 테스트와 mock을 나눠
+    // 회원 단위 조회 분기가 실패해도 통과되는지 직접 검증한다.
+    @Test
+    void redis_조회가_실패하면_회원_단위_판정도_통과시킨다() {
+        StringRedisTemplate brokenRedis = mock(StringRedisTemplate.class);
+        when(brokenRedis.opsForValue()).thenThrow(new RedisConnectionFailureException("connection refused"));
+        TokenDenylist denylistWithBrokenRedis = new TokenDenylist(brokenRedis, 3_600_000L);
+
+        boolean revoked = denylistWithBrokenRedis.isRevoked(null, MEMBER_ID, System.currentTimeMillis());
+
+        assertThat(revoked).isFalse();
+    }
 }
