@@ -32,6 +32,7 @@ describe('logout', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     setUnauthorizedHandler(null);
+    vi.useRealTimers();
   });
 
   it('토큰을 Authorization 헤더로 보낸다', async () => {
@@ -63,5 +64,22 @@ describe('logout', () => {
 
     await expect(logout('tok-123')).rejects.toThrow();
     expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+
+  it('8초 안에 응답이 없으면 요청을 끊고 reject한다', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn((_url: string, init?: RequestInit) => {
+      return new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          reject(new DOMException('The operation was aborted.', 'AbortError'));
+        });
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const assertion = expect(logout('tok-123')).rejects.toThrow();
+    await vi.advanceTimersByTimeAsync(8000);
+
+    await assertion;
   });
 });
