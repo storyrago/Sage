@@ -25,6 +25,10 @@ spring:
     redis:
       host: localhost
       port: 6379
+      # Redis 응답 없음(TCP는 연결되나 무응답) 상황에서 Lettuce 기본 타임아웃(60초)이 그대로 걸리는 것을 막는다.
+      # 정상 응답은 2~3ms이므로 500ms는 100배 이상의 여유. 미설정 시 요청마다 워커 스레드가 60초 점유된다.
+      connect-timeout: 500ms
+      timeout: 500ms
   security:
     oauth2:
       client:
@@ -70,3 +74,12 @@ server:
   forward-headers-strategy: framework   # nginx(X-Forwarded-*) 뒤에서 OAuth redirect_uri를 https 원본 host로 생성
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}   # OAuth 성공 후 JWT 핸드오프 대상
+management:
+  endpoint:
+    health:
+      group:
+        readiness:
+          # 배포 게이트(컨테이너 healthcheck)에서 Redis만 제외한다. Redis는 fail-open으로 설계돼
+          # 있어 죽어도 API는 계속 응답하고(실시간 배달·프레즌스만 죽는다), 그걸로 배포를 막으면
+          # 정작 그 문제를 고치는 배포조차 나가지 못한다. db·diskSpace는 게이트에 남긴다.
+          include: readinessState, db, diskSpace

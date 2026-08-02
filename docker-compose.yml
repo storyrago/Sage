@@ -18,8 +18,8 @@ services:
       KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID}           # OAuth: Kakao REST API 키 (값은 .env)
       KAKAO_CLIENT_SECRET: ${KAKAO_CLIENT_SECRET}
       FRONTEND_URL: ${FRONTEND_URL}                 # OAuth 성공 후 JWT 핸드오프 대상 프론트 주소
-    healthcheck:                                    # 배포 스크립트가 이 상태로 기동 성공을 판정한다
-      test: ["CMD", "curl", "-sf", "http://localhost:8080/actuator/health"]
+    healthcheck:                                    # 배포 스크립트가 이 상태로 기동 성공을 판정한다 (readiness: db·diskSpace 확인, Redis는 fail-open이라 게이트에서 제외)
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/actuator/health/readiness"]
       interval: 10s
       timeout: 3s
       retries: 12

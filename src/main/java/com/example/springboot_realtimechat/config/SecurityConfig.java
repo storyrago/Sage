@@ -53,7 +53,8 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/oauth2/**",        // OAuth 진입
                                 "/login/oauth2/**",  // OAuth 콜백
-                                "/actuator/health"   // 배포 기동 검증 (health만, 다른 actuator 경로는 인증 필요)
+                                "/actuator/health",  // 전체 상태 (health만, 다른 actuator 경로는 인증 필요)
+                                "/actuator/health/readiness"   // 컨테이너 헬스체크 (db·diskSpace 확인, Redis는 fail-open이라 그룹에서 제외)
                         ).permitAll()
                         .anyRequest().authenticated() // 나머지는 인증 필요
                 )
