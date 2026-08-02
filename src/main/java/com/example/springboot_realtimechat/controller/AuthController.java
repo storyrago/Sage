@@ -2,6 +2,7 @@ package com.example.springboot_realtimechat.controller;
 
 import com.example.springboot_realtimechat.dto.LoginRequest;
 import com.example.springboot_realtimechat.dto.LoginResponse;
+import com.example.springboot_realtimechat.dto.OAuthCodeRequest;
 import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.service.AuthService;
@@ -34,6 +35,11 @@ public class AuthController {
             throw new CustomException(ErrorCode.UNAUTHORIZED);
         }
         authService.logout(header.substring(7));
+    }
+
+    @PostMapping("/oauth/token")
+    public LoginResponse exchangeOAuthCode(@Valid @RequestBody OAuthCodeRequest request) {
+        return authService.exchangeOAuthCode(request.getCode());
     }
 
     // nginx 뒤이므로 X-Forwarded-For의 첫 IP가 실제 클라이언트. 없으면 remoteAddr.
