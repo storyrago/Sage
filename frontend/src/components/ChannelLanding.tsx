@@ -1,9 +1,35 @@
-import { useEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { Plus, Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell, X, LogOut } from 'lucide-react';
 import { Channel, User } from '../types';
 import Avatar from './Avatar';
 import { toUserMessage } from '../lib/errors';
-import { hash, unit, layoutStamps, boardHeightPx } from '../lib/stampLayout';
+import { hash, unit, boardHeightPx, STAMP_W, STAMP_H, MIN_BOARD_W } from '../lib/stampLayout';
+import { parseSavedPositions, resolveStampPositions, stampStorageKey, type SavedPositionMap } from '../lib/stampPlacement';
+
+// 우표를 옮기다 놓친 게 아니라 진짜 드래그했다고 볼 최소 이동 거리(px) — 이 밑이면 클릭(확대)으로 본다.
+const DRAG_THRESHOLD = 5;
+
+interface DragState {
+  id: string;
+  pointerId: number;
+  grabDX: number; // 포인터가 우표를 잡은 지점의 우표 내부 오프셋(px)
+  grabDY: number;
+  startX: number; // 드래그 판정용 시작 좌표(clientX/Y)
+  startY: number;
+  moved: boolean; // DRAG_THRESHOLD를 넘어 실제 드래그로 확정됐는지
+  leftPct: number;
+  topPct: number;
+}
+
+// localStorage는 회원별로 분리해서 읽는다 — 접근 자체가 막혀 있거나(프라이빗 모드 등)
+// 저장값이 깨져 있어도 앱이 죽지 않고 빈 배치(=자동 배치)로 떨어진다.
+function readSavedPositions(userId: string): SavedPositionMap {
+  try {
+    return parseSavedPositions(window.localStorage.getItem(stampStorageKey(userId)));
+  } catch {
+    return {};
+  }
+}
 
 const ICONS = [Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell];
 
@@ -127,6 +153,13 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
   const [big, setBig] = useState(calcBig);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // 우표 드래그 배치 (개인용 — localStorage, 회원별 키)
+  const boardRef = useRef<HTMLDivElement>(null);
+  const [boardW, setBoardW] = useState(MIN_BOARD_W);
+  const [savedPositions, setSavedPositions] = useState<SavedPositionMap>(() => readSavedPositions(currentUser.id));
+  const [drag, setDrag] = useState<DragState | null>(null);
+  const suppressClickRef = useRef(false); // 드래그 직후 이어지는 click을 openFocus로 새지 않게 막는다
+
   const focused = channels.find((c) => c.id === focusedId) || null;
 
   useEffect(() => {
@@ -134,6 +167,23 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  // 계정이 바뀌면(같은 브라우저에서 다른 회원으로 로그인) 그 회원의 저장 배치를 새로 읽는다.
+  useEffect(() => {
+    setSavedPositions(readSavedPositions(currentUser.id));
+  }, [currentUser.id]);
+
+  // 보드의 실제 렌더링 폭을 재서 드래그 시 경계 가두기에 쓴다 — 보드 폭이 유동이라
+  // 창 크기가 바뀌면 다시 잰다.
+  useEffect(() => {
+    const el = boardRef.current;
+    if (!el) return;
+    const measure = () => setBoardW(el.clientWidth || MIN_BOARD_W);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [channels.length]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && focusedId) closeFocus(); };
@@ -202,8 +252,68 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
     return `translate(${origin.cx - big.w / 2}px, ${origin.cy - big.h / 2}px) scale(${origin.scale}) rotate(${origin.rot}deg)`;
   };
 
-  // 채널 수에 맞춰 겹치지 않는 산포 위치를 결정적으로 계산 (데스크톱 절대배치 전용)
-  const positions = layoutStamps(channels.map((c) => c.id));
+  // 우표 드래그: 클릭과 구분하기 위해 DRAG_THRESHOLD를 넘어야 실제 이동으로 확정한다.
+  const onStampPointerDown = (e: ReactPointerEvent<HTMLDivElement>, channelId: string) => {
+    if (window.innerWidth < MIN_BOARD_W) return; // 모바일(md 미만)은 grid 배치라 드래그 대상 아님
+    const board = boardRef.current;
+    if (!board) return;
+    const boardRect = board.getBoundingClientRect();
+    const stampRect = e.currentTarget.getBoundingClientRect();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDrag({
+      id: channelId,
+      pointerId: e.pointerId,
+      grabDX: e.clientX - stampRect.left,
+      grabDY: e.clientY - stampRect.top,
+      startX: e.clientX,
+      startY: e.clientY,
+      moved: false,
+      leftPct: ((stampRect.left - boardRect.left) / boardRect.width) * 100,
+      topPct: ((stampRect.top - boardRect.top) / boardRect.height) * 100,
+    });
+  };
+
+  const onStampPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    setDrag((prev) => {
+      if (!prev || prev.pointerId !== e.pointerId) return prev;
+      const dx = e.clientX - prev.startX;
+      const dy = e.clientY - prev.startY;
+      if (!prev.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return prev; // 아직 클릭인지 드래그인지 불명 — 자리 유지
+      const board = boardRef.current;
+      if (!board) return prev;
+      const boardRect = board.getBoundingClientRect();
+      // 우표 사각형(132×176) 전체가 보드 안에 들어가도록 가둔다.
+      const leftPx = Math.min(Math.max(e.clientX - boardRect.left - prev.grabDX, 0), Math.max(0, boardRect.width - STAMP_W));
+      const topPx = Math.min(Math.max(e.clientY - boardRect.top - prev.grabDY, 0), Math.max(0, boardRect.height - STAMP_H));
+      return { ...prev, moved: true, leftPct: (leftPx / boardRect.width) * 100, topPct: (topPx / boardRect.height) * 100 };
+    });
+  };
+
+  const onStampPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    setDrag((prev) => {
+      if (!prev || prev.pointerId !== e.pointerId) return null;
+      if (prev.moved) {
+        suppressClickRef.current = true; // 이 드래그 뒤에 이어질 click은 openFocus로 새지 않게 막는다
+        const next: SavedPositionMap = {
+          ...savedPositions,
+          [prev.id]: { left: `${prev.leftPct.toFixed(2)}%`, top: `${prev.topPct.toFixed(2)}%` },
+        };
+        setSavedPositions(next);
+        try {
+          window.localStorage.setItem(stampStorageKey(currentUser.id), JSON.stringify(next));
+        } catch {
+          // 저장 실패(프라이빗 모드, 용량 초과 등) — 화면엔 이미 반영됐으니 무시
+        }
+      }
+      return null;
+    });
+  };
+
+  const onStampPointerCancel = () => setDrag(null); // 취소되면 반영하지 않는다
+
+  // 채널 수에 맞춰 겹치지 않는 산포 위치를 결정적으로 계산하고, 사용자가 옮겨놓은
+  // 자리(저장값)와 합친다 (데스크톱 절대배치 전용).
+  const positions = resolveStampPositions(channels.map((c) => c.id), savedPositions, boardW, boardHeightPx(channels.length));
 
   return (
     <div className="relative h-full w-full overflow-auto" style={{ background: '#141917' }}>
@@ -248,6 +358,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
         </div>
       ) : (
         <div
+          ref={boardRef}
           className="stamp-board grid grid-cols-2 justify-items-center gap-x-3 gap-y-8 px-4 pt-6 pb-12 md:block md:relative md:gap-0 md:p-0"
           style={{ '--board-h': `${boardHeightPx(channels.length)}px` } as CSSProperties}
         >
@@ -256,22 +367,33 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
             const dim = (hoveredId !== null && hoveredId !== ch.id) || (focusedId !== null && focusedId !== ch.id);
             const hidden = focusedId === ch.id; // 확대 클론이 대신 표시되는 동안 원본 숨김
             const count = unread?.[ch.id] ?? 0;
+            const dragging = drag !== null && drag.id === ch.id && drag.moved;
+            const left = dragging ? `${drag!.leftPct.toFixed(2)}%` : p.left;
+            const top = dragging ? `${drag!.topPct.toFixed(2)}%` : p.top;
             return (
               <div
                 key={ch.id}
                 data-rot={p.rot}
                 className="stamp-in w-[96px] h-[128px] md:absolute md:w-[132px] md:h-[176px] hover:z-20"
                 style={{
-                  left: p.left,
-                  top: p.top,
+                  left,
+                  top,
+                  zIndex: dragging ? 30 : undefined,
                   animationDelay: `${i * 0.06}s`,
                   filter: dim ? 'blur(3px)' : 'none',
                   opacity: hidden ? 0 : (dim ? 0.5 : 1),
-                  transition: 'filter .25s ease, opacity .25s ease',
+                  transition: dragging ? 'none' : 'filter .25s ease, opacity .25s ease',
                 }}
                 onMouseEnter={() => setHoveredId(ch.id)}
                 onMouseLeave={() => setHoveredId(null)}
-                onClick={(e) => openFocus(ch, e.currentTarget)}
+                onPointerDown={(e) => onStampPointerDown(e, ch.id)}
+                onPointerMove={onStampPointerMove}
+                onPointerUp={onStampPointerUp}
+                onPointerCancel={onStampPointerCancel}
+                onClick={(e) => {
+                  if (suppressClickRef.current) { suppressClickRef.current = false; return; }
+                  openFocus(ch, e.currentTarget);
+                }}
               >
                 <div
                   className="relative w-full h-full cursor-pointer hover:!rotate-0 hover:scale-105"
