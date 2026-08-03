@@ -71,11 +71,24 @@ EC2 스크립트가 `git fetch` 직후 `git rev-parse origin/develop`과 `$DEPLO
 
 `docker-compose.yml`의 `app` 서비스 `environment`에 `SPRING_PROFILES_ACTIVE: prod`를 리터럴로 추가하고, `application-prod.yaml`을 신설해 `ddl-auto: validate`·`show-sql: false`를 프로파일 레벨에서 한 번 더 고정한다. 값 자체는 base와 같으므로 오늘 기준 동작 변화는 없다 — 로컬 개발 이미지가 잘못 배포되는 경로를 막는 가드다.
 
+**D10. 컨테이너 로그는 CloudWatch로 보낸다.**
+`app`·`web`·`redis`의 로깅 드라이버를 `awslogs`로 바꾸고 로그 그룹을 `/sage/{서비스}`로 나눈다. 컨테이너가 재생성되면 로컬 로그는 사라지므로, 장애 원인을 나중에 찾으려면 밖에 남아 있어야 한다.
+
+자격증명은 **컨테이너가 아니라 Docker 데몬**이 EC2 인스턴스 역할(`sage-ec2-role`)에서 가져온다. `.env`의 `AWS_ACCESS_KEY_ID`는 app 컨테이너 안으로만 들어가므로 로그 드라이버와 무관하다. 역할 권한은 `logs:CreateLogGroup`·`CreateLogStream`·`PutLogEvents`이고 리소스를 `/sage/*`로 좁혔다.
+
+**로그 그룹은 콘솔에서 보존 기간과 함께 미리 만든다.** `awslogs-create-group`을 켜지 않았으므로 그룹이 없으면 컨테이너가 뜨지 않고 배포가 실패한다 — 의도한 것이다. 자동 생성을 켜면 오타 난 그룹이 조용히 만들어지고, 그 그룹은 보존 기간이 "만료 없음"으로 붙어 요금이 샌다.
+
+`app`에는 `awslogs-multiline-pattern`으로 시각(`^\d{4}-\d{2}-\d{2}`)을 앵커로 준다. 없으면 자바 스택트레이스가 줄마다 별개 이벤트로 쪼개져 읽을 수 없다. `logback-spring.xml`의 패턴이 시각으로 시작하는 것이 이 전제다 — **그 패턴을 바꾸면 이 앵커도 함께 바꿔야 한다.**
+
+Docker 20.10+의 이중 로깅 덕에 `docker compose logs`는 그대로 동작한다(운영 인스턴스는 29.6.1). 그 로컬 캐시도 디스크를 쓰므로 `cache-max-size`·`cache-max-file`로 서비스당 30MB로 묶는다.
+
+*대가*: IAM 역할이나 로그 그룹이 어긋나면 **세 컨테이너가 모두 기동에 실패해 사이트가 내려간다.** 그래서 배포 전에 EC2에서 `docker run --rm --log-driver=awslogs --log-opt awslogs-region=ap-northeast-2 --log-opt awslogs-group=/sage/app alpine echo ok`로 데몬이 실제로 쓸 수 있는지 먼저 확인한다.
+
 ## 3. 변경 파일
 
 | 파일 | 변경 |
 |---|---|
-| `docker-compose.yml` | `image:` 태그 필수화(D1), `app`·`web` 모두 `healthcheck`(D5), `SPRING_PROFILES_ACTIVE: prod`(D9) |
+| `docker-compose.yml` | `image:` 태그 필수화(D1), `app`·`web` 모두 `healthcheck`(D5), `SPRING_PROFILES_ACTIVE: prod`(D9), 로깅 드라이버 `awslogs`(D10) |
 | `.github/workflows/cd.yml` | `envs`로 `DEPLOY_SHA` 전달, SHA 검사(D3), SHA 체크아웃(D2), `IMAGE_TAG` export 및 `.env` 원자적 기록(D1), `app`·`web` 헬스 대기·실패 처리(D5), 이미지 정리 정책 변경(§6), 배포 후 스모크 테스트(D8) |
 | `Dockerfile` | curl 설치(D5) |
 | `frontend/Dockerfile` | curl 설치(D5) |
