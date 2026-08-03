@@ -1,6 +1,7 @@
 package com.example.springboot_realtimechat.security;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 import java.util.Map;
 
 /** STOMP CONNECT의 Authorization 헤더를 검증해 세션 사용자로 세운다. */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class JwtAuthChannelInterceptor implements ChannelInterceptor {
@@ -32,38 +34,7 @@ public class JwtAuthChannelInterceptor implements ChannelInterceptor {
         }
 
         if (StompCommand.CONNECT.equals(accessor.getCommand())) {
-            String authorizationHeader = accessor.getFirstNativeHeader("Authorization");
-
-            if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
-                String token = authorizationHeader.substring(7);
-
-                if (jwtTokenProvider.validateToken(token)) {
-                    Long memberId = jwtTokenProvider.getMemberId(token);
-                    String email = jwtTokenProvider.getEmail(token);
-
-                    // REST와 같은 판정이다. 한쪽만 막으면 다른 쪽이 열린 채 남는다.
-                    boolean revoked = tokenDenylist.isRevoked(
-                            jwtTokenProvider.getJti(token),
-                            memberId,
-                            jwtTokenProvider.getIssuedAt(token));
-
-                    if (!revoked) {
-                        CustomUserDetails userDetails = new CustomUserDetails(memberId, email);
-
-                        UsernamePasswordAuthenticationToken authentication =
-                                new UsernamePasswordAuthenticationToken(
-                                        userDetails, null, userDetails.getAuthorities());
-
-                        accessor.setUser(authentication);
-
-                        Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
-                        Long expiresAt = jwtTokenProvider.getExpiresAt(token);
-                        if (sessionAttributes != null && expiresAt != null) {
-                            sessionAttributes.put(EXPIRES_AT, expiresAt);
-                        }
-                    }
-                }
-            }
+            authenticateConnect(accessor);
             return message;
         }
 
@@ -77,9 +48,61 @@ public class JwtAuthChannelInterceptor implements ChannelInterceptor {
         if (sessionAttributes != null
                 && sessionAttributes.get(EXPIRES_AT) instanceof Long expiresAt
                 && System.currentTimeMillis() >= expiresAt) {
+            // 토큰 수명이 다한 정상적인 사건이라 WARN이 아니라 INFO로 남긴다.
+            log.info("STOMP 세션 토큰 만료: command={}, principal={}, sessionId={}",
+                    accessor.getCommand(), principalName(accessor), accessor.getSessionId());
             throw new AccessDeniedException("Access Denied");
         }
 
         return message;
+    }
+
+    // 정상 클라이언트라면 나지 않아야 하는 실패라 각 탈출 지점을 WARN으로 남긴다.
+    private void authenticateConnect(StompHeaderAccessor accessor) {
+        String authorizationHeader = accessor.getFirstNativeHeader("Authorization");
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            log.warn("STOMP 인증 실패: 사유=NO_TOKEN, sessionId={}", accessor.getSessionId());
+            return;
+        }
+        String token = authorizationHeader.substring(7);
+
+        if (!jwtTokenProvider.validateToken(token)) {
+            log.warn("STOMP 인증 실패: 사유=INVALID_TOKEN, sessionId={}", accessor.getSessionId());
+            return;
+        }
+
+        Long memberId = jwtTokenProvider.getMemberId(token);
+        String email = jwtTokenProvider.getEmail(token);
+
+        // REST와 같은 판정이다. 한쪽만 막으면 다른 쪽이 열린 채 남는다.
+        boolean revoked = tokenDenylist.isRevoked(
+                jwtTokenProvider.getJti(token),
+                memberId,
+                jwtTokenProvider.getIssuedAt(token));
+
+        if (revoked) {
+            log.warn("STOMP 인증 실패: 사유=REVOKED_TOKEN, memberId={}, sessionId={}", memberId, accessor.getSessionId());
+            return;
+        }
+
+        CustomUserDetails userDetails = new CustomUserDetails(memberId, email);
+
+        UsernamePasswordAuthenticationToken authentication =
+                new UsernamePasswordAuthenticationToken(
+                        userDetails, null, userDetails.getAuthorities());
+
+        accessor.setUser(authentication);
+
+        Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
+        Long expiresAt = jwtTokenProvider.getExpiresAt(token);
+        if (sessionAttributes != null && expiresAt != null) {
+            sessionAttributes.put(EXPIRES_AT, expiresAt);
+        }
+
+        log.info("STOMP 연결 인증: memberId={}, sessionId={}", memberId, accessor.getSessionId());
+    }
+
+    private String principalName(StompHeaderAccessor accessor) {
+        return accessor.getUser() == null ? null : accessor.getUser().getName();
     }
 }
