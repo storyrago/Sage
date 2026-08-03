@@ -27,6 +27,11 @@ services:
       start_period: 30s
     depends_on:
       - redis
+    logging:                                        # json-file 기본값은 무제한이라 1GB 박스의 디스크를 채울 수 있다
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   web:
     image: ghcr.io/storyrago/realtimechat-backend-web:${IMAGE_TAG:?IMAGE_TAG required}
@@ -45,6 +50,11 @@ services:
       start_period: 5s
     depends_on:
       - app
+    logging:                                        # json-file 기본값은 무제한이라 1GB 박스의 디스크를 채울 수 있다
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   redis:
     image: redis:7
@@ -54,6 +64,11 @@ services:
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis-data:/data
+    logging:                                        # json-file 기본값은 무제한이라 1GB 박스의 디스크를 채울 수 있다
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   redis-data:
