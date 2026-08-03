@@ -5,3 +5,10 @@ spring:
     hibernate:
       ddl-auto: validate   # 스키마는 Flyway 마이그레이션으로만 바꾼다
     show-sql: false
+management:
+  endpoints:
+    web:
+      # 운영에는 이 엔드포인트를 긁어갈 주체(로컬 Prometheus)가 없고, 노출하면 내부 URI 구조·에러율이 드러난다.
+      # health만 남겨 기본값(application.yaml의 health,prometheus)을 덮어쓴다.
+      exposure:
+        include: health

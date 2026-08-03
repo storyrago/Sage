@@ -23,6 +23,8 @@ dependencies {
 
 	//actuator (배포 기동 검증용 헬스 엔드포인트)
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	//prometheus 레지스트리 (로컬 관측 스택이 /actuator/prometheus로 긁어감, 버전은 micrometer BOM이 관리)
+	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'com.mysql:mysql-connector-j'
 

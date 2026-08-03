@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: "sage-app"
+    metrics_path: /actuator/prometheus
+    static_configs:
+      # Prometheus는 컨테이너 안에서 돌고 앱은 호스트에서 ./gradlew bootRun으로 도는 것을 기본 형태로 본다.
+      # 컨테이너 안에서 localhost는 컨테이너 자신을 가리키므로 host.docker.internal로 호스트를 가리킨다.
+      - targets: ["host.docker.internal:8080"]
