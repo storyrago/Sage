@@ -23,6 +23,11 @@ dependencies {
 
 	//actuator (배포 기동 검증용 헬스 엔드포인트)
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	//otlp 메트릭 레지스트리 (actuator가 이미 수집한 메트릭을 OTLP로 내보냄, 버전은 micrometer BOM이 관리)
+	runtimeOnly 'io.micrometer:micrometer-registry-otlp'
+	//OtlpMetricsExportAutoConfiguration이 OpenTelemetryProperties 빈을 요구한다 — 없으면 enabled 값과 무관하게
+	//레지스트리 빈 자체가 생성되지 않는다(자동설정 클래스가 아예 조건 불충족으로 스킵됨)
+	runtimeOnly 'org.springframework.boot:spring-boot-opentelemetry'
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'com.mysql:mysql-connector-j'
 
@@ -35,6 +40,8 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testRuntimeOnly 'com.h2database:h2'
 	testCompileOnly 'org.projectlombok:lombok'
+	//OTLP 익스포트가 꺼져 있는지 빈 타입으로 직접 검증하기 위한 테스트 전용 컴파일 의존성
+	testCompileOnly 'io.micrometer:micrometer-registry-otlp'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testAnnotationProcessor 'org.projectlombok:lombok'
 

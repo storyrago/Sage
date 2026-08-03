@@ -5,3 +5,8 @@ spring:
     hibernate:
       ddl-auto: validate   # 스키마는 Flyway 마이그레이션으로만 바꾼다
     show-sql: false
+management:
+  metrics:
+    tags:
+      # OTLP_METRICS_ENV를 안 넣고 배포해도 prod로 태깅되게 프로파일별 기본값을 바꾼다
+      environment: ${OTLP_METRICS_ENV:prod}

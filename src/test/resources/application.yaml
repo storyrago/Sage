@@ -39,3 +39,11 @@ aws:
 
 app:
   frontend-url: http://localhost:5173
+
+management:
+  otlp:
+    metrics:
+      export:
+        # 이 파일은 main의 application.yaml을 대체하고 상속하지 않는다. micrometer-registry-otlp가
+        # 테스트 런타임에도 있어 명시적으로 꺼두지 않으면 빈 URL로 주기적 푸시를 시도해 에러 로그가 난다.
+        enabled: false
