@@ -1,9 +1,12 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
+/* 폰트 체인은 글리프 단위로 앞에서부터 찾는다 — 영문은 Plus Jakarta Sans, 한글은 Pretendard로 갈려서
+   맥·윈도우가 같은 한글 폰트를 쓰게 된다.
+   mono 체인에도 Pretendard를 넣은 이유: 채널 이름·버튼 라벨처럼 한글이 mono 자리에 오는 곳이 있는데,
+   그대로 두면 윈도우에서 굴림이 잡힌다. 숫자·영문은 앞의 JetBrains Mono가 먼저 잡아 mono 느낌은 유지된다. */
 @theme {
-  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-sans: "Plus Jakarta Sans", "Pretendard Variable", Pretendard, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "Pretendard Variable", Pretendard, monospace;
 }
 
 /* Semantic sage tokens — light default, dark override */
@@ -93,13 +96,15 @@ body {
 }
 
 /* Custom gorgeous scrollbar styles for clean visual density */
+/* 맥은 오버레이 스크롤바라 공간을 안 먹지만, 윈도우는 공간을 차지하고 마우스로 드래그하는 일이 많아
+   6px은 잡기 어렵고 트랙이 안 보이면 스크롤 가능 영역인지 알 수 없다. */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgba(148, 163, 184, 0.07);
 }
 
 ::-webkit-scrollbar-thumb {
