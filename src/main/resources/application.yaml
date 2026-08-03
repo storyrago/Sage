@@ -75,6 +75,11 @@ server:
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}   # OAuth 성공 후 JWT 핸드오프 대상
 management:
+  endpoints:
+    web:
+      # 기본은 열고 운영(application-prod.yaml)에서 닫는다. 로컬 Prometheus가 긁어갈 수 있어야 한다.
+      exposure:
+        include: health,prometheus
   endpoint:
     health:
       group:

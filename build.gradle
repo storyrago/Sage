@@ -28,6 +28,9 @@ dependencies {
 	//OtlpMetricsExportAutoConfiguration이 OpenTelemetryProperties 빈을 요구한다 — 없으면 enabled 값과 무관하게
 	//레지스트리 빈 자체가 생성되지 않는다(자동설정 클래스가 아예 조건 불충족으로 스킵됨)
 	runtimeOnly 'org.springframework.boot:spring-boot-opentelemetry'
+	//prometheus 레지스트리 (로컬 관측 스택이 /actuator/prometheus로 긁어감). 같은 수집 결과를
+	//push(OTLP)와 pull(Prometheus) 두 방향으로 내보내는 것뿐이라 둘은 공존한다
+	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'com.mysql:mysql-connector-j'
 
