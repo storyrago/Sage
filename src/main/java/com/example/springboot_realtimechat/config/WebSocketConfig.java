@@ -1,5 +1,7 @@
 package com.example.springboot_realtimechat.config;
 
+import com.example.springboot_realtimechat.logging.WsRequestIdChannelInterceptor;
+import com.example.springboot_realtimechat.logging.WsRequestIdHandshakeInterceptor;
 import com.example.springboot_realtimechat.security.JwtAuthChannelInterceptor;
 import com.example.springboot_realtimechat.security.RoomAuthorizationChannelInterceptor;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +19,8 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private final JwtAuthChannelInterceptor jwtAuthChannelInterceptor;
     private final RoomAuthorizationChannelInterceptor roomAuthorizationChannelInterceptor;
+    private final WsRequestIdHandshakeInterceptor wsRequestIdHandshakeInterceptor;
+    private final WsRequestIdChannelInterceptor wsRequestIdChannelInterceptor;
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry){
@@ -27,13 +31,16 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry){
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*");
+                .setAllowedOriginPatterns("*")
+                .addInterceptors(wsRequestIdHandshakeInterceptor);
     }
 
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
         // 순서가 곧 인가다. 토큰 검증으로 사용자를 세운 뒤 SecurityContext를 채우고, 그다음 규칙을 평가한다.
+        // 추적 ID는 맨 앞이어야 뒤따르는 인터셉터들의 로그(인가 거부 경고 등)에도 실린다.
         registration.interceptors(
+                wsRequestIdChannelInterceptor,
                 jwtAuthChannelInterceptor,
                 new SecurityContextChannelInterceptor(),
                 roomAuthorizationChannelInterceptor

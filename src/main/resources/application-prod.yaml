@@ -10,5 +10,10 @@ management:
     web:
       # 운영에는 이 엔드포인트를 긁어갈 주체(로컬 Prometheus)가 없고, 노출하면 내부 URI 구조·에러율이 드러난다.
       # health만 남겨 기본값(application.yaml의 health,prometheus)을 덮어쓴다.
+      # 메트릭은 여기서 노출하는 대신 OTLP로 내보낸다.
       exposure:
         include: health
+  metrics:
+    tags:
+      # OTLP_METRICS_ENV를 안 넣고 배포해도 prod로 태깅되게 프로파일별 기본값을 바꾼다
+      environment: ${OTLP_METRICS_ENV:prod}
