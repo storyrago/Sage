@@ -33,7 +33,7 @@ public class ChatRoom {
     @Column(name = "is_private", nullable = false)
     private boolean isPrivate;
 
-    @Column(name = "invite_code", length = 12)
+    @Column(name = "invite_code", length = 12, unique = true)
     private String inviteCode;
 
     @Column(name = "deleted_at")

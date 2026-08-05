@@ -49,12 +49,15 @@ public class ChatRoomService {
             return chatRoomRepository.save(ChatRoom.publicRoom(name, owner));
         }
         for (int attempt = 0; attempt < CODE_RETRY; attempt++) {
+            String code = inviteCodeGenerator.generate();
+            if (chatRoomRepository.existsByInviteCode(code)) {
+                continue;
+            }
             try {
                 // 코드는 로그에 남기지 않는다. 예외 메시지도 싣지 않고 조용히 재생성한다.
-                return chatRoomRepository.saveAndFlush(
-                        ChatRoom.privateRoom(name, owner, inviteCodeGenerator.generate()));
+                return chatRoomRepository.saveAndFlush(ChatRoom.privateRoom(name, owner, code));
             } catch (DataIntegrityViolationException ignored) {
-                // 코드가 겹쳤다. 다시 뽑는다.
+                // 사전 확인 이후 저장 사이의 경합으로 여전히 겹칠 수 있다. 다시 뽑는다.
             }
         }
         throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);

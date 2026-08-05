@@ -11,4 +11,6 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
     List<ChatRoom> findByDeletedAtIsNull();
 
     Optional<ChatRoom> findByIdAndDeletedAtIsNull(Long id);
+
+    boolean existsByInviteCode(String inviteCode);
 }
