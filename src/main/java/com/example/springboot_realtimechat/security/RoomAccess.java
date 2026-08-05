@@ -23,6 +23,6 @@ public class RoomAccess {
             log.warn("멤버십 판정에 필요한 식별자가 없음: memberId={}, chatRoomId={}", memberId, chatRoomId);
             return false;
         }
-        return chatRoomMemberRepository.existsByMemberIdAndChatRoomId(memberId, chatRoomId);
+        return chatRoomMemberRepository.existsActiveMembership(memberId, chatRoomId);
     }
 }

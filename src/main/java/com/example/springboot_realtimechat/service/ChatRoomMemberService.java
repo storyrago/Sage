@@ -80,7 +80,14 @@ public class ChatRoomMemberService {
     @Transactional
     public void leave(Long memberId, Long chatRoomId){
         Member member = memberService.getMemberById(memberId);
-        ChatRoom chatRoom = chatRoomService.getChatRoomById(chatRoomId);
+        // 삭제된 방도 조회한다. 못 찾으면 멤버십 행이 영영 남는다.
+        ChatRoom chatRoom = chatRoomService.getChatRoomByIdIncludingDeleted(chatRoomId);
+
+        Member owner = chatRoom.getCreatedBy();
+        if (owner != null && owner.getId().equals(memberId)) {
+            throw new CustomException(ErrorCode.OWNER_CANNOT_LEAVE);
+        }
+
         ChatRoomMember chatRoomMember = chatRoomMemberRepository
                 .findByMemberAndChatRoom(member, chatRoom)
                         .orElseThrow(()->new CustomException(ErrorCode.NOT_JOINED_ROOM));
