@@ -49,7 +49,7 @@ class AccountDeletionTest {
     void 답장을_받은_회원도_탈퇴할_수_있다() {
         Member author = memberService.create("del-author@e.com", "1234", "작성자");
         Member replier = memberService.create("del-replier@e.com", "1234", "답장자");
-        ChatRoom room = chatRoomService.create("답장방");
+        ChatRoom room = chatRoomService.create("답장방", false, null);
         chatRoomMemberService.join(author.getId(), room.getId());
         chatRoomMemberService.join(replier.getId(), room.getId());
 
@@ -65,7 +65,7 @@ class AccountDeletionTest {
     void 탈퇴해도_메시지는_남고_작성자만_비워진다() {
         Member author = memberService.create("del2-author@e.com", "1234", "작성자2");
         Member other = memberService.create("del2-other@e.com", "1234", "다른회원2");
-        ChatRoom room = chatRoomService.create("보존방");
+        ChatRoom room = chatRoomService.create("보존방", false, null);
         chatRoomMemberService.join(author.getId(), room.getId());
         chatRoomMemberService.join(other.getId(), room.getId());
         Message message = messageService.create("남을 내용", null, author.getId(), room.getId(), null);
@@ -84,7 +84,7 @@ class AccountDeletionTest {
     void 답장이_가리키던_원본이_그대로_남는다() {
         Member author = memberService.create("del3-author@e.com", "1234", "작성자3");
         Member replier = memberService.create("del3-replier@e.com", "1234", "답장자3");
-        ChatRoom room = chatRoomService.create("링크방");
+        ChatRoom room = chatRoomService.create("링크방", false, null);
         chatRoomMemberService.join(author.getId(), room.getId());
         chatRoomMemberService.join(replier.getId(), room.getId());
         Message original = messageService.create("원본", null, author.getId(), room.getId(), null);

@@ -45,7 +45,7 @@ class AnonymousAuthorTest {
     void setUp() {
         Member author = memberService.create("anon-author@e.com", "1234", "작성자");
         reader = memberService.create("anon-reader@e.com", "1234", "읽는이");
-        ChatRoom room = chatRoomService.create("익명방");
+        ChatRoom room = chatRoomService.create("익명방", false, null);
         roomId = room.getId();
         chatRoomMemberService.join(author.getId(), roomId);
         chatRoomMemberService.join(reader.getId(), roomId);

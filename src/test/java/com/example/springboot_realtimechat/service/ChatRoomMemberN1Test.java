@@ -24,7 +24,7 @@ public class ChatRoomMemberN1Test {
     void 참가자_목록에_닉네임_포함_페치조인() {
         Member a = memberService.create("a@e.com", "1234", "앨리스");
         Member b = memberService.create("b@e.com", "1234", "밥");
-        ChatRoom room = chatRoomService.create("room");
+        ChatRoom room = chatRoomService.create("room", false, null);
         chatRoomMemberService.join(a.getId(), room.getId());
         chatRoomMemberService.join(b.getId(), room.getId());
 

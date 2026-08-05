@@ -29,7 +29,7 @@ class RoomRosterAuthorizationTest {
     void setUp() {
         member = memberService.create("roster-member@test.com", "1234", "멤버");
         outsider = memberService.create("roster-outsider@test.com", "1234", "비멤버");
-        ChatRoom room = chatRoomService.create("명단방");
+        ChatRoom room = chatRoomService.create("명단방", false, null);
         roomId = room.getId();
         chatRoomMemberService.join(member.getId(), roomId);
     }

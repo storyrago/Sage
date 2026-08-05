@@ -34,12 +34,12 @@ class MessageAuthorizationTest {
         author = memberService.create("msg-author@test.com", "1234", "작성자");
         otherMember = memberService.create("msg-other@test.com", "1234", "다른멤버");
 
-        ChatRoom room = chatRoomService.create("대상방");
+        ChatRoom room = chatRoomService.create("대상방", false, null);
         roomId = room.getId();
         chatRoomMemberService.join(author.getId(), roomId);
         chatRoomMemberService.join(otherMember.getId(), roomId);
 
-        ChatRoom otherRoom = chatRoomService.create("공격자방");
+        ChatRoom otherRoom = chatRoomService.create("공격자방", false, null);
         otherRoomId = otherRoom.getId();
         chatRoomMemberService.join(author.getId(), otherRoomId);
 

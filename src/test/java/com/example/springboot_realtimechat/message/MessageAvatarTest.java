@@ -29,7 +29,7 @@ public class MessageAvatarTest {
     void 프로필사진이_있으면_메시지응답에_profileImageUrl이_실린다() {
         Member author = memberService.create("avatar-a@e.com", "1234", "author");
         memberService.updateProfileImage(author.getId(), "https://example.com/avatar.png");
-        ChatRoom room = chatRoomService.create("avatar-room");
+        ChatRoom room = chatRoomService.create("avatar-room", false, null);
         chatRoomMemberService.join(author.getId(), room.getId());
         Message msg = messageService.create("안녕", null, author.getId(), room.getId(), null);
 
@@ -41,7 +41,7 @@ public class MessageAvatarTest {
     @Test
     void 프로필사진이_없으면_profileImageUrl은_null이다() {
         Member author = memberService.create("avatar-b@e.com", "1234", "no-photo");
-        ChatRoom room = chatRoomService.create("avatar-room-2");
+        ChatRoom room = chatRoomService.create("avatar-room-2", false, null);
         chatRoomMemberService.join(author.getId(), room.getId());
         Message msg = messageService.create("안녕", null, author.getId(), room.getId(), null);
 
@@ -53,7 +53,7 @@ public class MessageAvatarTest {
     @Test
     void 사진을_바꾸면_과거_메시지_응답도_새_사진을_싣는다() {
         Member author = memberService.create("avatar-c@e.com", "1234", "changer");
-        ChatRoom room = chatRoomService.create("avatar-room-3");
+        ChatRoom room = chatRoomService.create("avatar-room-3", false, null);
         chatRoomMemberService.join(author.getId(), room.getId());
         Message msg = messageService.create("옛날 메시지", null, author.getId(), room.getId(), null);
 
@@ -71,7 +71,7 @@ public class MessageAvatarTest {
     void 실시간_경로와_동일한_ObjectMapper로_왕복해도_profileImageUrl과_기존_필드가_보존된다() {
         Member author = memberService.create("avatar-d@e.com", "1234", "roundtrip");
         memberService.updateProfileImage(author.getId(), "https://example.com/roundtrip.png");
-        ChatRoom room = chatRoomService.create("avatar-room-4");
+        ChatRoom room = chatRoomService.create("avatar-room-4", false, null);
         chatRoomMemberService.join(author.getId(), room.getId());
         Message msg = messageService.create("왕복 테스트", null, author.getId(), room.getId(), null);
         MessageResponse withPhoto = MessageResponse.from(msg);

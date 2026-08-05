@@ -28,7 +28,7 @@ public class UnreadCountTest {
     @Test
     void 가입시_lastRead가_방_최신메시지id로_세팅() {
         Member owner = memberService.create("o@e.com", "1234", "owner");
-        ChatRoom room = chatRoomService.create("room");
+        ChatRoom room = chatRoomService.create("room", false, null);
         chatRoomMemberService.join(owner.getId(), room.getId());
         messageService.create("m1", null, owner.getId(), room.getId(), null);
         var last = messageService.create("m2", null, owner.getId(), room.getId(), null);
@@ -43,7 +43,7 @@ public class UnreadCountTest {
     void 안읽음_카운트는_내메시지_삭제_제외하고_lastRead_이후만() {
         Member a = memberService.create("a@e.com", "1234", "a");
         Member b = memberService.create("b@e.com", "1234", "b");
-        ChatRoom room = chatRoomService.create("room");
+        ChatRoom room = chatRoomService.create("room", false, null);
         chatRoomMemberService.join(a.getId(), room.getId());   // a: lastRead=null(빈 방)
         chatRoomMemberService.join(b.getId(), room.getId());
 
@@ -67,7 +67,7 @@ public class UnreadCountTest {
 
         // room1: b joins empty, sends 2 "old", THEN a joins (a.lastRead = old2.id, non-null),
         // then b sends 2 "new" → a's unread in room1 must be exactly 2 (id > lastRead branch).
-        ChatRoom room1 = chatRoomService.create("r1");
+        ChatRoom room1 = chatRoomService.create("r1", false, null);
         chatRoomMemberService.join(b.getId(), room1.getId());
         messageService.create("old1", null, b.getId(), room1.getId(), null);
         messageService.create("old2", null, b.getId(), room1.getId(), null);
@@ -77,7 +77,7 @@ public class UnreadCountTest {
 
         // room2: a message exists, then a joins (a.lastRead = that msg id), no newer → unread 0,
         // but room2 must still appear in the result with count 0 (LEFT JOIN / COUNT(m)=0, not 1).
-        ChatRoom room2 = chatRoomService.create("r2");
+        ChatRoom room2 = chatRoomService.create("r2", false, null);
         chatRoomMemberService.join(b.getId(), room2.getId());
         messageService.create("r2m1", null, b.getId(), room2.getId(), null);
         chatRoomMemberService.join(a.getId(), room2.getId());           // a.lastRead = r2m1.id
@@ -93,7 +93,7 @@ public class UnreadCountTest {
     void 읽음처리하면_안읽음_0() {
         Member a = memberService.create("ra@e.com", "1234", "ra");
         Member b = memberService.create("rb@e.com", "1234", "rb");
-        ChatRoom room = chatRoomService.create("room");
+        ChatRoom room = chatRoomService.create("room", false, null);
         chatRoomMemberService.join(a.getId(), room.getId());
         chatRoomMemberService.join(b.getId(), room.getId());
         for (int i = 0; i < 3; i++) messageService.create("b" + i, null, b.getId(), room.getId(), null);
@@ -109,7 +109,7 @@ public class UnreadCountTest {
     void 미참여자_markRead는_NOT_JOINED_ROOM() {
         Member a = memberService.create("mja@e.com", "1234", "mja");
         Member outsider = memberService.create("outsider2@e.com", "1234", "outsider2");
-        ChatRoom room = chatRoomService.create("room");
+        ChatRoom room = chatRoomService.create("room", false, null);
         chatRoomMemberService.join(a.getId(), room.getId());
 
         assertThatThrownBy(() -> chatRoomMemberService.markRead(outsider.getId(), room.getId()))
@@ -122,7 +122,7 @@ public class UnreadCountTest {
     void 작성자가_없는_메시지도_안읽음_집계에_포함된다() {
         Member a = memberService.create("una@e.com", "1234", "una");
         Member b = memberService.create("unb@e.com", "1234", "unb");
-        ChatRoom room = chatRoomService.create("room");
+        ChatRoom room = chatRoomService.create("room", false, null);
         chatRoomMemberService.join(a.getId(), room.getId());
         chatRoomMemberService.join(b.getId(), room.getId());
 
@@ -142,7 +142,7 @@ public class UnreadCountTest {
     void 방_멤버_조회_email_접근가능() {
         Member a = memberService.create("ma@e.com", "1234", "ma");
         Member b = memberService.create("mb@e.com", "1234", "mb");
-        ChatRoom room = chatRoomService.create("room");
+        ChatRoom room = chatRoomService.create("room", false, null);
         chatRoomMemberService.join(a.getId(), room.getId());
         chatRoomMemberService.join(b.getId(), room.getId());
 

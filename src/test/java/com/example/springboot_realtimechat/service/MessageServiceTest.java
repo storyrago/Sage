@@ -35,7 +35,7 @@ public class MessageServiceTest {
 
         // given
         Member member = memberService.create("test@email.com", "1234", "nick");
-        ChatRoom chatRoom = chatRoomService.create("room1");
+        ChatRoom chatRoom = chatRoomService.create("room1", false, null);
         chatRoomMemberService.join(member.getId(), chatRoom.getId());
 
         messageService.create("1번", null, member.getId(), chatRoom.getId(), null);
@@ -57,7 +57,7 @@ public class MessageServiceTest {
     void 메시지_단건_조회() {
         // given
         Member member = memberService.create("test2@email.com", "1234", "nick2");
-        ChatRoom chatRoom = chatRoomService.create("room2");
+        ChatRoom chatRoom = chatRoomService.create("room2", false, null);
         chatRoomMemberService.join(member.getId(), chatRoom.getId());
         Message savedMessage = messageService.create("Hello", null, member.getId(), chatRoom.getId(), null);
 
@@ -73,7 +73,7 @@ public class MessageServiceTest {
     void 이미지만_있는_메시지는_content가_빈문자열로_저장된다() {
         // given
         Member member = memberService.create("test3@email.com", "1234", "nick3");
-        ChatRoom chatRoom = chatRoomService.create("room3");
+        ChatRoom chatRoom = chatRoomService.create("room3", false, null);
         chatRoomMemberService.join(member.getId(), chatRoom.getId());
 
         // when
@@ -87,7 +87,7 @@ public class MessageServiceTest {
     void content와_imageUrl이_둘다_비면_거부된다() {
         // given
         Member member = memberService.create("test4@email.com", "1234", "nick4");
-        ChatRoom chatRoom = chatRoomService.create("room4");
+        ChatRoom chatRoom = chatRoomService.create("room4", false, null);
         chatRoomMemberService.join(member.getId(), chatRoom.getId());
 
         // when & then

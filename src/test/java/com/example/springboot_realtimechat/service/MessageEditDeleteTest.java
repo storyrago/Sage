@@ -25,7 +25,7 @@ public class MessageEditDeleteTest {
     void 수정은_작성자만_editedAt_세팅() {
         Member author = memberService.create("a@e.com", "1234", "author");
         Member other = memberService.create("b@e.com", "1234", "other");
-        ChatRoom room = chatRoomService.create("room");
+        ChatRoom room = chatRoomService.create("room", false, null);
         chatRoomMemberService.join(author.getId(), room.getId());
         chatRoomMemberService.join(other.getId(), room.getId());
         Message msg = messageService.create("원본", null, author.getId(), room.getId(), null);
@@ -45,7 +45,7 @@ public class MessageEditDeleteTest {
     void 삭제는_작성자만_소프트삭제() {
         Member author = memberService.create("c@e.com", "1234", "author2");
         Member other = memberService.create("d@e.com", "1234", "other2");
-        ChatRoom room = chatRoomService.create("room2");
+        ChatRoom room = chatRoomService.create("room2", false, null);
         chatRoomMemberService.join(author.getId(), room.getId());
         chatRoomMemberService.join(other.getId(), room.getId());
         Message msg = messageService.create("지울 메시지", null, author.getId(), room.getId(), null);
