@@ -18,7 +18,7 @@ public class ChatRoomService {
 
     @Transactional
     public ChatRoom create(String name){
-        ChatRoom chatRoom = new ChatRoom(name);
+        ChatRoom chatRoom = ChatRoom.publicRoom(name, null);
         return chatRoomRepository.save(chatRoom);
     }
 

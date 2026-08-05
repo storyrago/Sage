@@ -33,7 +33,7 @@ class RoomAccessTest {
     void setUp() {
         joined = memberRepository.save(new Member("joined@test.com", null, "참여자"));
         outsider = memberRepository.save(new Member("outsider@test.com", null, "비참여자"));
-        room = chatRoomRepository.save(new ChatRoom("방"));
+        room = chatRoomRepository.save(ChatRoom.publicRoom("방", null));
         chatRoomMemberRepository.save(new ChatRoomMember(joined, room));
     }
 
