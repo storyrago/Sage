@@ -9,7 +9,6 @@ import com.example.springboot_realtimechat.repository.ChatRoomMemberRepository;
 import com.example.springboot_realtimechat.repository.ChatRoomRepository;
 import com.example.springboot_realtimechat.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,20 +43,17 @@ public class ChatRoomService {
         return saved;
     }
 
+    // ponytail: existsByInviteCode 확인과 save 사이에도 경합 창은 남는다 — 그 사이 같은 코드가 끼어들면
+    // DB의 uk_chatrooms_invite_code UNIQUE 제약이 save를 거부해 요청이 실패한다. 12자·32자 알파벳(약 60비트)
+    // 공간에서 그 경합 확률은 무시할 수준이라 별도 재시도를 두지 않는다.
     private ChatRoom saveWithCode(String name, boolean isPrivate, Member owner) {
         if (!isPrivate) {
             return chatRoomRepository.save(ChatRoom.publicRoom(name, owner));
         }
         for (int attempt = 0; attempt < CODE_RETRY; attempt++) {
             String code = inviteCodeGenerator.generate();
-            if (chatRoomRepository.existsByInviteCode(code)) {
-                continue;
-            }
-            try {
-                // 코드는 로그에 남기지 않는다. 예외 메시지도 싣지 않고 조용히 재생성한다.
-                return chatRoomRepository.saveAndFlush(ChatRoom.privateRoom(name, owner, code));
-            } catch (DataIntegrityViolationException ignored) {
-                // 사전 확인 이후 저장 사이의 경합으로 여전히 겹칠 수 있다. 다시 뽑는다.
+            if (!chatRoomRepository.existsByInviteCode(code)) {
+                return chatRoomRepository.save(ChatRoom.privateRoom(name, owner, code));
             }
         }
         throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
