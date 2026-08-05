@@ -77,7 +77,7 @@ class ImageDereferenceEventTest {
     void 이미지_메시지를_삭제하면_그_URL로_이벤트가_발행된다() {
         Member author = memberService.create("m1@e.com", "1234", "m1");
         ChatRoom room = chatRoomService.create("정리방", false, null);
-        chatRoomMemberService.join(author.getId(), room.getId());
+        chatRoomMemberService.join(author.getId(), room.getId(), null);
         // content: DB의 messages.content는 NOT NULL이라 빈 문자열을 쓴다(Message.softDelete()와 동일한 관례).
         Message message = messageService.create("", OLD, author.getId(), room.getId(), null);
 
@@ -103,7 +103,7 @@ class ImageDereferenceEventTest {
     void 이미지가_없는_메시지를_삭제하면_이벤트가_발행되지_않는다() {
         Member author = memberService.create("m2@e.com", "1234", "m2");
         ChatRoom room = chatRoomService.create("정리방2", false, null);
-        chatRoomMemberService.join(author.getId(), room.getId());
+        chatRoomMemberService.join(author.getId(), room.getId(), null);
         Message message = messageService.create("글만 있는 메시지", null, author.getId(), room.getId(), null);
 
         messageService.delete(room.getId(), message.getId(), author.getId());

@@ -58,7 +58,7 @@ class ServiceFlowTest {
         ChatRoom chatRoom = chatRoomService.create("join-room", false, null);
 
         // when
-        ChatRoomMember chatRoomMember = chatRoomMemberService.join(member.getId(), chatRoom.getId());
+        ChatRoomMember chatRoomMember = chatRoomMemberService.join(member.getId(), chatRoom.getId(), null);
 
         // then
         assertThat(chatRoomMember.getId()).isNotNull();
@@ -71,7 +71,7 @@ class ServiceFlowTest {
         // given
         Member member = memberService.create("message@email.com", "1234", "sender");
         ChatRoom chatRoom = chatRoomService.create("message-room", false, null);
-        chatRoomMemberService.join(member.getId(), chatRoom.getId());
+        chatRoomMemberService.join(member.getId(), chatRoom.getId(), null);
 
         // when
         Message message = messageService.create("hello", null, member.getId(), chatRoom.getId(), null);
@@ -101,10 +101,10 @@ class ServiceFlowTest {
         // given
         Member member = memberService.create("duplicate@email.com", "1234", "member");
         ChatRoom chatRoom = chatRoomService.create("duplicate-room", false, null);
-        chatRoomMemberService.join(member.getId(), chatRoom.getId());
+        chatRoomMemberService.join(member.getId(), chatRoom.getId(), null);
 
         // when & then
-        assertThatThrownBy(() -> chatRoomMemberService.join(member.getId(), chatRoom.getId()))
+        assertThatThrownBy(() -> chatRoomMemberService.join(member.getId(), chatRoom.getId(), null))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.ALREADY_JOINED_ROOM);

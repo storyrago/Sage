@@ -30,7 +30,7 @@ public class MessageAvatarTest {
         Member author = memberService.create("avatar-a@e.com", "1234", "author");
         memberService.updateProfileImage(author.getId(), "https://example.com/avatar.png");
         ChatRoom room = chatRoomService.create("avatar-room", false, null);
-        chatRoomMemberService.join(author.getId(), room.getId());
+        chatRoomMemberService.join(author.getId(), room.getId(), null);
         Message msg = messageService.create("안녕", null, author.getId(), room.getId(), null);
 
         MessageResponse response = MessageResponse.from(msg);
@@ -42,7 +42,7 @@ public class MessageAvatarTest {
     void 프로필사진이_없으면_profileImageUrl은_null이다() {
         Member author = memberService.create("avatar-b@e.com", "1234", "no-photo");
         ChatRoom room = chatRoomService.create("avatar-room-2", false, null);
-        chatRoomMemberService.join(author.getId(), room.getId());
+        chatRoomMemberService.join(author.getId(), room.getId(), null);
         Message msg = messageService.create("안녕", null, author.getId(), room.getId(), null);
 
         MessageResponse response = MessageResponse.from(msg);
@@ -54,7 +54,7 @@ public class MessageAvatarTest {
     void 사진을_바꾸면_과거_메시지_응답도_새_사진을_싣는다() {
         Member author = memberService.create("avatar-c@e.com", "1234", "changer");
         ChatRoom room = chatRoomService.create("avatar-room-3", false, null);
-        chatRoomMemberService.join(author.getId(), room.getId());
+        chatRoomMemberService.join(author.getId(), room.getId(), null);
         Message msg = messageService.create("옛날 메시지", null, author.getId(), room.getId(), null);
 
         memberService.updateProfileImage(author.getId(), "https://example.com/new.png");
@@ -72,7 +72,7 @@ public class MessageAvatarTest {
         Member author = memberService.create("avatar-d@e.com", "1234", "roundtrip");
         memberService.updateProfileImage(author.getId(), "https://example.com/roundtrip.png");
         ChatRoom room = chatRoomService.create("avatar-room-4", false, null);
-        chatRoomMemberService.join(author.getId(), room.getId());
+        chatRoomMemberService.join(author.getId(), room.getId(), null);
         Message msg = messageService.create("왕복 테스트", null, author.getId(), room.getId(), null);
         MessageResponse withPhoto = MessageResponse.from(msg);
 
@@ -88,7 +88,7 @@ public class MessageAvatarTest {
 
         // 사진이 없는 회원(profileImageUrl == null)의 메시지도 왕복에서 null이 그대로 유지되는지 확인
         Member noPhotoAuthor = memberService.create("avatar-e@e.com", "1234", "roundtrip-null");
-        chatRoomMemberService.join(noPhotoAuthor.getId(), room.getId());
+        chatRoomMemberService.join(noPhotoAuthor.getId(), room.getId(), null);
         Message noPhotoMsg = messageService.create("사진 없음 왕복", null, noPhotoAuthor.getId(), room.getId(), null);
         MessageResponse withoutPhoto = MessageResponse.from(noPhotoMsg);
         assertThat(withoutPhoto.getProfileImageUrl()).isNull();

@@ -44,7 +44,7 @@ class ImageReferencesTest {
     void 메시지가_참조하면_참조된_것이다() {
         Member member = memberService.create("ref2@e.com", "1234", "ref2");
         ChatRoom room = chatRoomService.create("이미지방", false, null);
-        chatRoomMemberService.join(member.getId(), room.getId());
+        chatRoomMemberService.join(member.getId(), room.getId(), null);
         messageService.create(null, URL, member.getId(), room.getId(), null);
 
         assertThat(imageReferences.isReferenced(URL)).isTrue();
@@ -59,7 +59,7 @@ class ImageReferencesTest {
     void 본문에_URL이_포함된_메시지가_있으면_참조된_것이다() {
         Member member = memberService.create("ref4@e.com", "1234", "ref4");
         ChatRoom room = chatRoomService.create("본문방", false, null);
-        chatRoomMemberService.join(member.getId(), room.getId());
+        chatRoomMemberService.join(member.getId(), room.getId(), null);
         messageService.create("사진 공유 " + URL, null, member.getId(), room.getId(), null);
 
         assertThat(imageReferences.isReferenced(URL)).isTrue();
@@ -69,7 +69,7 @@ class ImageReferencesTest {
     void 소프트_삭제된_메시지는_참조로_세지_않는다() {
         Member member = memberService.create("ref3@e.com", "1234", "ref3");
         ChatRoom room = chatRoomService.create("삭제방", false, null);
-        chatRoomMemberService.join(member.getId(), room.getId());
+        chatRoomMemberService.join(member.getId(), room.getId(), null);
         Message message = messageService.create(null, URL, member.getId(), room.getId(), null);
 
         messageService.delete(room.getId(), message.getId(), member.getId());

@@ -48,7 +48,7 @@ class MemberDeleteImageCleanupTest {
         Member member = memberService.create("del1@e.com", "1234", "탈퇴자");
         memberService.updateProfileImage(member.getId(), PROFILE);
         ChatRoom room = chatRoomService.create("탈퇴방", false, null);
-        chatRoomMemberService.join(member.getId(), room.getId());
+        chatRoomMemberService.join(member.getId(), room.getId(), null);
         messageService.create(null, IMAGE_A, member.getId(), room.getId(), null);
         messageService.create(null, IMAGE_B, member.getId(), room.getId(), null);
 

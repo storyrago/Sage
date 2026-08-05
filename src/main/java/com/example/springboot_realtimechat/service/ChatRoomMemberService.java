@@ -7,6 +7,7 @@ import com.example.springboot_realtimechat.dto.UnreadCountResponse;
 import com.example.springboot_realtimechat.event.RoomLeftEvent;
 import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
+import com.example.springboot_realtimechat.repository.ChatRoomBanRepository;
 import com.example.springboot_realtimechat.repository.ChatRoomMemberRepository;
 import com.example.springboot_realtimechat.repository.MessageRepository;
 import com.example.springboot_realtimechat.security.RoomAccess;
@@ -16,6 +17,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.List;
 
 @Service
@@ -28,17 +31,27 @@ public class ChatRoomMemberService {
     private final MessageRepository messageRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final RoomAccess roomAccess;
+    private final ChatRoomBanRepository chatRoomBanRepository;
 
+    /**
+     * 판정 순서가 중요하다. 차단이 가장 먼저다 —
+     * 중복 참여 검사가 앞서면 차단된 기존 멤버가 ALREADY_JOINED로 통과해 보인다.
+     */
     @Transactional
-    public ChatRoomMember join(Long memberId, Long chatRoomId){
+    public ChatRoomMember join(Long memberId, Long chatRoomId, String inviteCode){
         Member member = memberService.getMemberById(memberId);
         ChatRoom chatRoom = chatRoomService.getChatRoomById(chatRoomId);
 
-        //이미 존재하는 지 확인하는거. (중복 방지)
-        boolean exists = roomAccess.isMember(memberId, chatRoomId);
+        if (chatRoomBanRepository.existsByChatRoomIdAndMemberId(chatRoomId, memberId)) {
+            throw new CustomException(ErrorCode.ROOM_BANNED);
+        }
 
-        if(exists){
+        if (roomAccess.isMember(memberId, chatRoomId)) {
             throw new CustomException(ErrorCode.ALREADY_JOINED_ROOM);
+        }
+
+        if (chatRoom.isPrivate() && !matchesInviteCode(chatRoom, inviteCode)) {
+            throw new CustomException(ErrorCode.INVALID_INVITE_CODE);
         }
 
         ChatRoomMember chatRoomMember = new ChatRoomMember(member, chatRoom);
@@ -51,6 +64,17 @@ public class ChatRoomMemberService {
             throw new CustomException(ErrorCode.ALREADY_JOINED_ROOM);
         }
 
+    }
+
+    // 코드가 없는 잠긴 방(주인이 탈퇴한 동결 상태)은 어떤 입력으로도 열리지 않는다.
+    private boolean matchesInviteCode(ChatRoom chatRoom, String inviteCode) {
+        String actual = chatRoom.getInviteCode();
+        if (actual == null || inviteCode == null) {
+            return false;
+        }
+        return MessageDigest.isEqual(
+                actual.getBytes(StandardCharsets.UTF_8),
+                inviteCode.getBytes(StandardCharsets.UTF_8));
     }
 
     @Transactional

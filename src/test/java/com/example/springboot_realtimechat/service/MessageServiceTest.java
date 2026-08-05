@@ -36,7 +36,7 @@ public class MessageServiceTest {
         // given
         Member member = memberService.create("test@email.com", "1234", "nick");
         ChatRoom chatRoom = chatRoomService.create("room1", false, null);
-        chatRoomMemberService.join(member.getId(), chatRoom.getId());
+        chatRoomMemberService.join(member.getId(), chatRoom.getId(), null);
 
         messageService.create("1번", null, member.getId(), chatRoom.getId(), null);
         messageService.create("2번", null, member.getId(), chatRoom.getId(), null);
@@ -58,7 +58,7 @@ public class MessageServiceTest {
         // given
         Member member = memberService.create("test2@email.com", "1234", "nick2");
         ChatRoom chatRoom = chatRoomService.create("room2", false, null);
-        chatRoomMemberService.join(member.getId(), chatRoom.getId());
+        chatRoomMemberService.join(member.getId(), chatRoom.getId(), null);
         Message savedMessage = messageService.create("Hello", null, member.getId(), chatRoom.getId(), null);
 
         // when
@@ -74,7 +74,7 @@ public class MessageServiceTest {
         // given
         Member member = memberService.create("test3@email.com", "1234", "nick3");
         ChatRoom chatRoom = chatRoomService.create("room3", false, null);
-        chatRoomMemberService.join(member.getId(), chatRoom.getId());
+        chatRoomMemberService.join(member.getId(), chatRoom.getId(), null);
 
         // when
         Message saved = messageService.create(null, "http://image.url/a.png", member.getId(), chatRoom.getId(), null);
@@ -88,7 +88,7 @@ public class MessageServiceTest {
         // given
         Member member = memberService.create("test4@email.com", "1234", "nick4");
         ChatRoom chatRoom = chatRoomService.create("room4", false, null);
-        chatRoomMemberService.join(member.getId(), chatRoom.getId());
+        chatRoomMemberService.join(member.getId(), chatRoom.getId(), null);
 
         // when & then
         assertThatThrownBy(() -> messageService.create(null, null, member.getId(), chatRoom.getId(), null))
