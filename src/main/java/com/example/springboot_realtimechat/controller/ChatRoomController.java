@@ -4,6 +4,7 @@ import com.example.springboot_realtimechat.domain.ChatRoom;
 import com.example.springboot_realtimechat.dto.ChatRoomRequest;
 import com.example.springboot_realtimechat.dto.ChatRoomResponse;
 import com.example.springboot_realtimechat.dto.UnreadCountResponse;
+import com.example.springboot_realtimechat.repository.ChatRoomMemberRepository;
 import com.example.springboot_realtimechat.security.CustomUserDetails;
 import com.example.springboot_realtimechat.service.ChatRoomMemberService;
 import com.example.springboot_realtimechat.service.ChatRoomService;
@@ -13,7 +14,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequiredArgsConstructor
@@ -21,11 +24,14 @@ import java.util.List;
 public class ChatRoomController {
     private final ChatRoomService chatRoomService;
     private final ChatRoomMemberService chatRoomMemberService;
+    private final ChatRoomMemberRepository chatRoomMemberRepository;
 
     @PostMapping
-    public ChatRoomResponse create(@Valid @RequestBody ChatRoomRequest chatRoomRequest){
-        ChatRoom chatRoom = chatRoomService.create(chatRoomRequest.getName(), false, null);
-        return ChatRoomResponse.from(chatRoom);
+    public ChatRoomResponse create(@Valid @RequestBody ChatRoomRequest chatRoomRequest,
+                                   @AuthenticationPrincipal CustomUserDetails user){
+        ChatRoom chatRoom = chatRoomService.create(
+                chatRoomRequest.getName(), chatRoomRequest.isPrivate(), user.getMemberId());
+        return ChatRoomResponse.from(chatRoom, user.getMemberId(), true);
     }
 
     @GetMapping("/unread")
@@ -40,10 +46,14 @@ public class ChatRoomController {
     }
 
     @GetMapping
-    public List<ChatRoomResponse> getChatRooms(){
-        List<ChatRoom> chatRoomList = chatRoomService.getAllChatRooms();
-        return chatRoomList.stream()
-                .map(ChatRoomResponse::from)
+    public List<ChatRoomResponse> getChatRooms(@AuthenticationPrincipal CustomUserDetails user){
+        Long requesterId = user.getMemberId();
+        // 방마다 멤버십을 조회하면 방 수만큼 쿼리가 돈다. 한 번에 걷어 메모리에서 대조한다.
+        Set<Long> joinedRoomIds = new HashSet<>(
+                chatRoomMemberRepository.findChatRoomIdsByMemberId(requesterId));
+
+        return chatRoomService.getAllChatRooms().stream()
+                .map(room -> ChatRoomResponse.from(room, requesterId, joinedRoomIds.contains(room.getId())))
                 .toList();
     }
 }
