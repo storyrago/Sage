@@ -656,9 +656,9 @@ export default function App() {
           <ChannelLanding
             channels={channels}
             onSelectChannel={(id) => setSelectedChannelId(id)}
-            onCreateChannel={async (name) => {
-              if (!token) return;
-              const room = await createChatRoom(token, name);
+            onCreateChannel={async (name, isPrivate) => {
+              if (!token) throw new Error('로그인이 필요합니다.');
+              const room = await createChatRoom(token, name, isPrivate);
               // 방은 이미 생성됐다. 목록 갱신 실패로 "만들지 못했어요"를 띄우면
               // 사용자가 재시도해 이름이 중복된 방을 하나 더 만들게 된다.
               try {
@@ -666,7 +666,9 @@ export default function App() {
               } catch (refreshError) {
                 console.error('[Channel] 생성 후 목록 갱신 실패(무시하고 계속):', refreshError);
               }
-              setSelectedChannelId(String(room.id));
+              // 비공개 방은 초대 코드를 보여주고 사용자가 직접 입장할 때까지
+              // 랜딩(ChannelLanding)에 머무른다 — 코드는 지금이 아니면 다시 볼 수 없다.
+              return toChannel(room);
             }}
             onLogout={handleLogout}
             unread={unread}

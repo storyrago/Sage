@@ -28,6 +28,10 @@ export interface Channel {
   description?: string;
   createdBy: string;
   createdAt: number; // unix epoch ms
+  locked: boolean;
+  joined: boolean;
+  owner: boolean;
+  inviteCode?: string; // 방 주인일 때만 내려온다
 }
 
 export interface Presence {

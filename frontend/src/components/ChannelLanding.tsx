@@ -131,7 +131,7 @@ interface Origin { cx: number; cy: number; scale: number; rot: number; }
 interface Props {
   channels: Channel[];
   onSelectChannel: (id: string) => void;
-  onCreateChannel: (name: string) => Promise<void>;
+  onCreateChannel: (name: string, isPrivate: boolean) => Promise<Channel>;
   onLogout: () => void;
   unread?: Record<string, number>;
   currentUser: User;
@@ -141,9 +141,13 @@ interface Props {
 export default function ChannelLanding({ channels, onSelectChannel, onCreateChannel, onLogout, unread, currentUser, onOpenSettings }: Props) {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
+  const [isPrivate, setIsPrivate] = useState(false);
   const [busy, setBusy] = useState(false);
   const [createError, setCreateError] = useState('');
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  // 생성 직후에만 초대 코드를 받는다(주인 전용 응답 필드) — 여기서 보여주지 않으면 다시 볼 방법이 없다.
+  const [createdRoom, setCreatedRoom] = useState<Channel | null>(null);
+  const [codeCopied, setCodeCopied] = useState(false);
 
   // 확대 상태 (자기 자리 → 중앙 FLIP)
   const [focusedId, setFocusedId] = useState<string | null>(null);
@@ -200,14 +204,43 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
     setBusy(true);
     setCreateError('');
     try {
-      await onCreateChannel(n);
+      const room = await onCreateChannel(n, isPrivate);
       setName('');
-      setCreating(false);
+      setIsPrivate(false);
+      if (room.locked && room.inviteCode) {
+        setCreatedRoom(room); // 코드를 보여주고, 사용자가 직접 닫을 때까지 대기
+      } else {
+        setCreating(false);
+        onSelectChannel(room.id);
+      }
     } catch (err) {
       // 다이얼로그를 열어둔 채 입력값을 유지해 그대로 다시 시도할 수 있게 한다.
       setCreateError(toUserMessage(err, '채널을 만들지 못했어요.'));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const closeCreateDialog = () => {
+    setCreating(false);
+    setCreateError('');
+    setCreatedRoom(null);
+    setCodeCopied(false);
+  };
+
+  const enterCreatedRoom = () => {
+    if (!createdRoom) return;
+    onSelectChannel(createdRoom.id);
+    closeCreateDialog();
+  };
+
+  const copyInviteCode = async () => {
+    if (!createdRoom?.inviteCode) return;
+    try {
+      await navigator.clipboard.writeText(createdRoom.inviteCode);
+      setCodeCopied(true);
+    } catch {
+      // 클립보드 접근이 막혀도(권한 거부 등) 코드는 화면에 그대로 있어 수동 선택은 가능하다.
     }
   };
 
@@ -478,17 +511,42 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
       {/* 채널 만들기 다이얼로그 */}
       {creating && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-6" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-black/55" onClick={() => { setCreating(false); setCreateError(''); }} />
+          <div className="absolute inset-0 bg-black/55" onClick={closeCreateDialog} />
           <div className="relative w-full max-w-[360px] bg-surface border border-border rounded-3xl p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-[15px] font-bold text-text">새 채널</h2>
-              <button onClick={() => { setCreating(false); setCreateError(''); }} aria-label="닫기" className="text-muted hover:text-text cursor-pointer"><X className="w-4 h-4" /></button>
-            </div>
-            <input autoFocus value={name} maxLength={30} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && submit()} placeholder="채널 이름" className="w-full bg-surface-2 border border-border rounded-[10px] px-3 py-2.5 text-[14px] text-text outline-none focus:border-accent" />
-            {createError && (
-              <p className="mt-2 text-[12px] text-rose-400">{createError}</p>
+            {createdRoom ? (
+              <>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-[15px] font-bold text-text">초대 코드</h2>
+                  <button onClick={closeCreateDialog} aria-label="닫기" className="text-muted hover:text-text cursor-pointer"><X className="w-4 h-4" /></button>
+                </div>
+                <p className="text-[13px] text-muted mb-3">이 코드가 있어야 다른 사람이 들어올 수 있어요. 지금 복사해 두세요 — 나중에는 다시 볼 수 없어요.</p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 min-w-0 bg-surface-2 border border-border rounded-[10px] px-3 py-2.5 text-[14px] text-text font-mono tracking-wider select-all truncate">
+                    {createdRoom.inviteCode}
+                  </code>
+                  <button onClick={copyInviteCode} className="btn-label flex-shrink-0 px-3 py-2.5 text-[13px] font-semibold cursor-pointer">
+                    {codeCopied ? '복사됨' : '복사'}
+                  </button>
+                </div>
+                <button onClick={enterCreatedRoom} className="btn-label mt-3 w-full py-2.5 text-[14px] font-bold cursor-pointer">입장하기</button>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-[15px] font-bold text-text">새 채널</h2>
+                  <button onClick={closeCreateDialog} aria-label="닫기" className="text-muted hover:text-text cursor-pointer"><X className="w-4 h-4" /></button>
+                </div>
+                <input autoFocus value={name} maxLength={30} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && submit()} placeholder="채널 이름" className="w-full bg-surface-2 border border-border rounded-[10px] px-3 py-2.5 text-[14px] text-text outline-none focus:border-accent" />
+                <label className="mt-3 flex items-center gap-2 text-[13px] text-muted cursor-pointer select-none">
+                  <input type="checkbox" checked={isPrivate} onChange={(e) => setIsPrivate(e.target.checked)} className="w-4 h-4 accent-current" />
+                  비공개 방으로 만들기
+                </label>
+                {createError && (
+                  <p className="mt-2 text-[12px] text-rose-400">{createError}</p>
+                )}
+                <button onClick={submit} disabled={busy} className="btn-label mt-3 w-full py-2.5 text-[14px] font-bold cursor-pointer">{busy ? '만드는 중…' : '만들기'}</button>
+              </>
             )}
-            <button onClick={submit} disabled={busy} className="btn-label mt-3 w-full py-2.5 text-[14px] font-bold cursor-pointer">{busy ? '만드는 중…' : '만들기'}</button>
           </div>
         </div>
       )}
