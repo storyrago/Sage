@@ -82,7 +82,7 @@ class MessageAuthorizationTest {
     void 존재하지_않는_방_id를_붙여도_거부된다() {
         assertThatThrownBy(() -> messageService.update(999999L, message.getId(), author.getId(), "고침"))
                 .isInstanceOf(CustomException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.MESSAGE_NOT_FOUND);
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_JOINED_ROOM);
     }
 
     @Test

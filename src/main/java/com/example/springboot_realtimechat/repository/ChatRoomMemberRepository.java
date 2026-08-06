@@ -25,12 +25,14 @@ public interface ChatRoomMemberRepository extends JpaRepository<ChatRoomMember, 
                cm.lastReadMessageId AS lastReadMessageId,
                COUNT(m) AS unreadCount
         FROM ChatRoomMember cm
+        JOIN cm.chatRoom r
         LEFT JOIN Message m
             ON m.chatRoom = cm.chatRoom
            AND (m.member IS NULL OR m.member <> cm.member)
            AND m.deleted = false
            AND (cm.lastReadMessageId IS NULL OR m.id > cm.lastReadMessageId)
         WHERE cm.member.id = :memberId
+          AND r.deletedAt IS NULL
         GROUP BY cm.chatRoom.id, cm.lastReadMessageId
     """)
     List<UnreadCountProjection> findUnreadCountsByMemberId(@Param("memberId") Long memberId);
