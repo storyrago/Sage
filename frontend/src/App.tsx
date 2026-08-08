@@ -274,7 +274,10 @@ export default function App() {
       } catch (error) {
         // 방에 못 들어갔으므로 채팅 화면에 남을 이유가 없다. 랜딩으로 되돌린다.
         if (!cancelled) {
-          notify(toUserMessage(error, '채널에 입장하지 못했어요.'));
+          const message = error instanceof ApiError && error.code === 'INVALID_INVITE_CODE'
+            ? '초대 코드가 필요한 방이에요.'
+            : toUserMessage(error, '채널에 입장하지 못했어요.');
+          notify(message);
           setSelectedChannelId('');
         }
         return;
@@ -671,6 +674,15 @@ export default function App() {
               // 내려주지만, 지금은 그것을 다시 보여줄 화면이 없어서 생성 직후 이 자리가
               // 코드를 볼 수 있는 유일한 지점이다.
               return toChannel(room);
+            }}
+            onJoinRoom={async (id, code) => {
+              if (!token) throw new Error('로그인이 필요합니다.');
+              await joinChatRoom(token, id, code);
+              try {
+                await refreshRooms(token);
+              } catch (refreshError) {
+                console.error('[Channel] 입장 후 목록 갱신 실패(무시하고 계속):', refreshError);
+              }
             }}
             onLogout={handleLogout}
             unread={unread}
