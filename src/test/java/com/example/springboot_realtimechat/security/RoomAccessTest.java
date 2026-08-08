@@ -73,6 +73,6 @@ class RoomAccessTest {
         assertThat(isolated.isMember(1L, null)).isFalse();
 
         Mockito.verify(repository, Mockito.never())
-                .existsByMemberIdAndChatRoomId(ArgumentMatchers.any(), ArgumentMatchers.any());
+                .existsActiveMembership(ArgumentMatchers.any(), ArgumentMatchers.any());
     }
 }
