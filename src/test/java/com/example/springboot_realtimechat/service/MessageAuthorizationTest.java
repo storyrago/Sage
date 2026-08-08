@@ -34,14 +34,14 @@ class MessageAuthorizationTest {
         author = memberService.create("msg-author@test.com", "1234", "작성자");
         otherMember = memberService.create("msg-other@test.com", "1234", "다른멤버");
 
-        ChatRoom room = chatRoomService.create("대상방");
+        ChatRoom room = chatRoomService.create("대상방", false, null);
         roomId = room.getId();
-        chatRoomMemberService.join(author.getId(), roomId);
-        chatRoomMemberService.join(otherMember.getId(), roomId);
+        chatRoomMemberService.join(author.getId(), roomId, null);
+        chatRoomMemberService.join(otherMember.getId(), roomId, null);
 
-        ChatRoom otherRoom = chatRoomService.create("공격자방");
+        ChatRoom otherRoom = chatRoomService.create("공격자방", false, null);
         otherRoomId = otherRoom.getId();
-        chatRoomMemberService.join(author.getId(), otherRoomId);
+        chatRoomMemberService.join(author.getId(), otherRoomId, null);
 
         message = messageService.create("원본", null, author.getId(), roomId, null);
     }
@@ -82,7 +82,7 @@ class MessageAuthorizationTest {
     void 존재하지_않는_방_id를_붙여도_거부된다() {
         assertThatThrownBy(() -> messageService.update(999999L, message.getId(), author.getId(), "고침"))
                 .isInstanceOf(CustomException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.MESSAGE_NOT_FOUND);
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_JOINED_ROOM);
     }
 
     @Test

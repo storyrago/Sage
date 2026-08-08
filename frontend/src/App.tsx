@@ -274,7 +274,10 @@ export default function App() {
       } catch (error) {
         // 방에 못 들어갔으므로 채팅 화면에 남을 이유가 없다. 랜딩으로 되돌린다.
         if (!cancelled) {
-          notify(toUserMessage(error, '채널에 입장하지 못했어요.'));
+          const message = error instanceof ApiError && error.code === 'INVALID_INVITE_CODE'
+            ? '초대 코드가 필요한 방이에요.'
+            : toUserMessage(error, '채널에 입장하지 못했어요.');
+          notify(message);
           setSelectedChannelId('');
         }
         return;
@@ -656,9 +659,9 @@ export default function App() {
           <ChannelLanding
             channels={channels}
             onSelectChannel={(id) => setSelectedChannelId(id)}
-            onCreateChannel={async (name) => {
-              if (!token) return;
-              const room = await createChatRoom(token, name);
+            onCreateChannel={async (name, isPrivate) => {
+              if (!token) throw new Error('로그인이 필요합니다.');
+              const room = await createChatRoom(token, name, isPrivate);
               // 방은 이미 생성됐다. 목록 갱신 실패로 "만들지 못했어요"를 띄우면
               // 사용자가 재시도해 이름이 중복된 방을 하나 더 만들게 된다.
               try {
@@ -666,7 +669,20 @@ export default function App() {
               } catch (refreshError) {
                 console.error('[Channel] 생성 후 목록 갱신 실패(무시하고 계속):', refreshError);
               }
-              setSelectedChannelId(String(room.id));
+              // 비공개 방은 초대 코드를 보여주고 사용자가 직접 입장할 때까지
+              // 랜딩(ChannelLanding)에 머무른다. 서버는 주인에게 방 목록마다 코드를 계속
+              // 내려주지만, 지금은 그것을 다시 보여줄 화면이 없어서 생성 직후 이 자리가
+              // 코드를 볼 수 있는 유일한 지점이다.
+              return toChannel(room);
+            }}
+            onJoinRoom={async (id, code) => {
+              if (!token) throw new Error('로그인이 필요합니다.');
+              await joinChatRoom(token, id, code);
+              try {
+                await refreshRooms(token);
+              } catch (refreshError) {
+                console.error('[Channel] 입장 후 목록 갱신 실패(무시하고 계속):', refreshError);
+              }
             }}
             onLogout={handleLogout}
             unread={unread}

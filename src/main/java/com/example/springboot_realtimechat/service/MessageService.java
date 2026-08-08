@@ -78,9 +78,9 @@ public class MessageService {
 
     @Transactional
     public Message update(Long chatroomId, Long messageId, Long memberId, String content) {
+        requireMember(memberId, chatroomId);
         Message message = getMessageById(messageId); // MESSAGE_NOT_FOUND on miss
         requireSameRoom(message, chatroomId);
-        requireMember(memberId, message);
         // 작성자가 없는 메시지(탈퇴자)는 아무도 수정·삭제할 수 없다.
         if (message.getMember() == null || !message.getMember().getId().equals(memberId)) {
             throw new CustomException(ErrorCode.NOT_MESSAGE_OWNER);
@@ -97,9 +97,9 @@ public class MessageService {
 
     @Transactional
     public Message delete(Long chatroomId, Long messageId, Long memberId) {
+        requireMember(memberId, chatroomId);
         Message message = getMessageById(messageId);
         requireSameRoom(message, chatroomId);
-        requireMember(memberId, message);
         // 작성자가 없는 메시지(탈퇴자)는 아무도 수정·삭제할 수 없다.
         if (message.getMember() == null || !message.getMember().getId().equals(memberId)) {
             throw new CustomException(ErrorCode.NOT_MESSAGE_OWNER);
@@ -120,8 +120,8 @@ public class MessageService {
         }
     }
 
-    private void requireMember(Long memberId, Message message) {
-        if (!roomAccess.isMember(memberId, message.getChatRoom().getId())) {
+    private void requireMember(Long memberId, Long chatroomId) {
+        if (!roomAccess.isMember(memberId, chatroomId)) {
             throw new CustomException(ErrorCode.NOT_JOINED_ROOM);
         }
     }

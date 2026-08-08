@@ -54,8 +54,8 @@ class ImageReferenceGateTest {
     @Test
     void 다른_메시지가_참조하면_태깅하지_않는다() {
         Member owner = memberService.create("gate-owner@e.com", "1234", "주인");
-        ChatRoom room = chatRoomService.create("게이트방");
-        chatRoomMemberService.join(owner.getId(), room.getId());
+        ChatRoom room = chatRoomService.create("게이트방", false, null);
+        chatRoomMemberService.join(owner.getId(), room.getId(), null);
         messageService.create(null, URL, owner.getId(), room.getId(), null);
 
         listener.onImageDereferenced(new ImageDereferencedEvent(URL));
@@ -84,8 +84,8 @@ class ImageReferenceGateTest {
         memberService.updateProfileImage(victim.getId(), URL);
 
         Member attacker = memberService.create("atk2-attacker@e.com", "1234", "공격자2");
-        ChatRoom room = chatRoomService.create("공격방");
-        chatRoomMemberService.join(attacker.getId(), room.getId());
+        ChatRoom room = chatRoomService.create("공격방", false, null);
+        chatRoomMemberService.join(attacker.getId(), room.getId(), null);
         var message = messageService.create(null, URL, attacker.getId(), room.getId(), null);
         messageService.delete(room.getId(), message.getId(), attacker.getId());
 

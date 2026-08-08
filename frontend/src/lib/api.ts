@@ -47,6 +47,10 @@ export interface BackendChatRoom {
   id: number;
   name: string;
   createdAt?: string;
+  locked: boolean;
+  joined: boolean;
+  owner: boolean;
+  inviteCode?: string; // 방 주인일 때만 키가 존재한다
 }
 
 export interface BackendMessage {
@@ -157,16 +161,19 @@ export async function getChatRooms(token: string) {
   return request<BackendChatRoom[]>('/api/chatrooms', {}, token);
 }
 
-export async function createChatRoom(token: string, name: string) {
+export async function createChatRoom(token: string, name: string, isPrivate: boolean) {
   return request<BackendChatRoom>('/api/chatrooms', {
     method: 'POST',
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, private: isPrivate }),
   }, token);
 }
 
-export async function joinChatRoom(token: string, chatroomId: string) {
+export async function joinChatRoom(token: string, chatroomId: string, inviteCode?: string) {
   try {
-    await request(`/api/chatrooms/${chatroomId}/members`, { method: 'POST' }, token);
+    await request(`/api/chatrooms/${chatroomId}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ inviteCode: inviteCode ?? null }),
+    }, token);
   } catch (error) {
     // 이미 참여 중인 방에 다시 들어가는 것은 실패가 아니다.
     if (error instanceof ApiError && error.code === 'ALREADY_JOINED_ROOM') return;
@@ -308,6 +315,10 @@ export function toChannel(room: BackendChatRoom): Channel {
     description: `${room.name} 대화방`,
     createdBy: 'backend',
     createdAt: room.createdAt ? Date.parse(room.createdAt) : Date.now(),
+    locked: room.locked,
+    joined: room.joined,
+    owner: room.owner,
+    inviteCode: room.inviteCode,
   };
 }
 

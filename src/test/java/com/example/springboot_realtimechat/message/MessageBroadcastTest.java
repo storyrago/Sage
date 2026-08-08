@@ -55,9 +55,9 @@ class MessageBroadcastTest {
     @BeforeEach
     void setUp() {
         author = memberService.create("broadcast-author@e.com", "1234", "발신자");
-        ChatRoom room = chatRoomService.create("방송방");
+        ChatRoom room = chatRoomService.create("방송방", false, null);
         roomId = room.getId();
-        chatRoomMemberService.join(author.getId(), roomId);
+        chatRoomMemberService.join(author.getId(), roomId, null);
     }
 
     @Test

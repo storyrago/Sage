@@ -32,8 +32,8 @@ class SubscriptionRevocationEventTest {
     @Test
     void 방을_나가면_RoomLeftEvent가_발행된다() {
         Member member = memberService.create("leave-event@e.com", "1234", "leave");
-        ChatRoom room = chatRoomService.create("이벤트방");
-        chatRoomMemberService.join(member.getId(), room.getId());
+        ChatRoom room = chatRoomService.create("이벤트방", false, null);
+        chatRoomMemberService.join(member.getId(), room.getId(), null);
 
         chatRoomMemberService.leave(member.getId(), room.getId());
 

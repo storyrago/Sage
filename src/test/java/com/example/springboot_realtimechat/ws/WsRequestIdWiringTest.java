@@ -59,9 +59,9 @@ class WsRequestIdWiringTest {
     @BeforeEach
     void setUp() {
         member = memberService.create("member@test.com", "1234", "멤버");
-        ChatRoom room = chatRoomService.create("방");
+        ChatRoom room = chatRoomService.create("방", false, null);
         roomId = room.getId();
-        chatRoomMemberService.join(member.getId(), roomId);
+        chatRoomMemberService.join(member.getId(), roomId, null);
     }
 
     @AfterEach

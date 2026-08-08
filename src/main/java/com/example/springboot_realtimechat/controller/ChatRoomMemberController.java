@@ -1,11 +1,10 @@
 package com.example.springboot_realtimechat.controller;
 
 import com.example.springboot_realtimechat.domain.ChatRoomMember;
-import com.example.springboot_realtimechat.dto.ChatRoomMemberRequest;
 import com.example.springboot_realtimechat.dto.ChatRoomMemberResponse;
+import com.example.springboot_realtimechat.dto.RoomJoinRequest;
 import com.example.springboot_realtimechat.security.CustomUserDetails;
 import com.example.springboot_realtimechat.service.ChatRoomMemberService;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -22,9 +21,11 @@ public class ChatRoomMemberController {
         @PostMapping
         public ChatRoomMemberResponse join(
                         @PathVariable Long chatroomId,
+                        @RequestBody(required = false) RoomJoinRequest request,
                         @AuthenticationPrincipal CustomUserDetails customUserDetails) {
+                String inviteCode = request == null ? null : request.getInviteCode();
                 ChatRoomMember chatRoomMember = chatRoomMemberService.join(
-                                customUserDetails.getMemberId(), chatroomId);
+                                customUserDetails.getMemberId(), chatroomId, inviteCode);
                 return ChatRoomMemberResponse.from(chatRoomMember);
         }
 
