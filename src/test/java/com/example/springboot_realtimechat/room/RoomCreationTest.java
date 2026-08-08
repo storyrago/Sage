@@ -2,6 +2,8 @@ package com.example.springboot_realtimechat.room;
 
 import com.example.springboot_realtimechat.domain.ChatRoom;
 import com.example.springboot_realtimechat.domain.Member;
+import com.example.springboot_realtimechat.global.exception.CustomException;
+import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.repository.ChatRoomMemberRepository;
 import com.example.springboot_realtimechat.repository.ChatRoomRepository;
 import com.example.springboot_realtimechat.repository.MemberRepository;
@@ -13,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 class RoomCreationTest {
@@ -73,6 +76,9 @@ class RoomCreationTest {
                 .doesNotContain(room.getId());
         assertThat(chatRoomService.getChatRoomByIdIncludingDeleted(room.getId()).getId())
                 .isEqualTo(room.getId());
+        assertThatThrownBy(() -> chatRoomService.getChatRoomById(room.getId()))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHAT_ROOM_NOT_FOUND);
     }
 
     // 삭제 API는 2단계다. 여기서는 리플렉션 대신 리포지토리로 직접 값을 넣는다.
