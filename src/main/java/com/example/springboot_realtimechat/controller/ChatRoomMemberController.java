@@ -5,7 +5,6 @@ import com.example.springboot_realtimechat.dto.ChatRoomMemberResponse;
 import com.example.springboot_realtimechat.dto.RoomJoinRequest;
 import com.example.springboot_realtimechat.security.CustomUserDetails;
 import com.example.springboot_realtimechat.service.ChatRoomMemberService;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
