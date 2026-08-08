@@ -1,7 +1,9 @@
 package com.example.springboot_realtimechat.room;
 
 import com.example.springboot_realtimechat.domain.ChatRoom;
+import com.example.springboot_realtimechat.domain.ChatRoomBan;
 import com.example.springboot_realtimechat.domain.Member;
+import com.example.springboot_realtimechat.repository.ChatRoomBanRepository;
 import com.example.springboot_realtimechat.repository.ChatRoomMemberRepository;
 import com.example.springboot_realtimechat.repository.ChatRoomRepository;
 import com.example.springboot_realtimechat.repository.MemberRepository;
@@ -28,6 +30,7 @@ class OwnerWithdrawalTest {
     @Autowired ChatRoomMemberService chatRoomMemberService;
     @Autowired ChatRoomRepository chatRoomRepository;
     @Autowired ChatRoomMemberRepository chatRoomMemberRepository;
+    @Autowired ChatRoomBanRepository chatRoomBanRepository;
     @Autowired MessageRepository messageRepository;
     @Autowired MemberRepository memberRepository;
 
@@ -35,6 +38,7 @@ class OwnerWithdrawalTest {
 
     @AfterEach
     void tearDown() {
+        chatRoomBanRepository.deleteAll();
         messageRepository.deleteAll();
         chatRoomMemberRepository.deleteAll();
         chatRoomRepository.deleteAll();
@@ -64,5 +68,17 @@ class OwnerWithdrawalTest {
         assertThat(reloaded.isPrivate()).isTrue();
         assertThat(chatRoomMemberRepository.existsByMemberIdAndChatRoomId(guest.getId(), room.getId()))
                 .isTrue();
+    }
+
+    @Test
+    void 강퇴당한_적_있는_회원도_탈퇴할_수_있다() {
+        Member owner = memberService.create("w-owner3@e.com", "1234", "주인3");
+        Member banned = memberService.create("w-banned3@e.com", "1234", "강퇴됨3");
+        ChatRoom room = chatRoomService.create("소유방3", false, owner.getId());
+        chatRoomBanRepository.save(new ChatRoomBan(room.getId(), banned.getId()));
+
+        assertThatCode(() -> memberService.delete(banned.getId())).doesNotThrowAnyException();
+        assertThat(chatRoomBanRepository.existsByChatRoomIdAndMemberId(room.getId(), banned.getId()))
+                .isFalse();
     }
 }

@@ -5,6 +5,7 @@ import com.example.springboot_realtimechat.event.ImageDereferencedEvent;
 import com.example.springboot_realtimechat.event.MemberDeletedEvent;
 import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
+import com.example.springboot_realtimechat.repository.ChatRoomBanRepository;
 import com.example.springboot_realtimechat.repository.ChatRoomMemberRepository;
 import com.example.springboot_realtimechat.repository.ChatRoomRepository;
 import com.example.springboot_realtimechat.repository.MemberRepository;
@@ -23,6 +24,7 @@ public class MemberService {
     private final PasswordEncoder passwordEncoder;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final ChatRoomRepository chatRoomRepository;
+    private final ChatRoomBanRepository chatRoomBanRepository;
     private final MessageRepository messageRepository;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -82,6 +84,7 @@ public class MemberService {
         String profileImageUrl = member.getProfileImageUrl();
 
         chatRoomRepository.releaseOwnedRooms(id);
+        chatRoomBanRepository.deleteByMemberId(id);
         chatRoomMemberRepository.deleteByMember(member);
         messageRepository.anonymizeByMember(member);
         memberRepository.deleteById(id);
