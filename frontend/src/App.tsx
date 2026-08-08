@@ -667,7 +667,9 @@ export default function App() {
                 console.error('[Channel] 생성 후 목록 갱신 실패(무시하고 계속):', refreshError);
               }
               // 비공개 방은 초대 코드를 보여주고 사용자가 직접 입장할 때까지
-              // 랜딩(ChannelLanding)에 머무른다 — 코드는 지금이 아니면 다시 볼 수 없다.
+              // 랜딩(ChannelLanding)에 머무른다. 서버는 주인에게 방 목록마다 코드를 계속
+              // 내려주지만, 지금은 그것을 다시 보여줄 화면이 없어서 생성 직후 이 자리가
+              // 코드를 볼 수 있는 유일한 지점이다.
               return toChannel(room);
             }}
             onLogout={handleLogout}

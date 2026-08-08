@@ -519,7 +519,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
                   <h2 className="text-[15px] font-bold text-text">초대 코드</h2>
                   <button onClick={closeCreateDialog} aria-label="닫기" className="text-muted hover:text-text cursor-pointer"><X className="w-4 h-4" /></button>
                 </div>
-                <p className="text-[13px] text-muted mb-3">이 코드가 있어야 다른 사람이 들어올 수 있어요. 지금 복사해 두세요 — 나중에는 다시 볼 수 없어요.</p>
+                <p className="text-[13px] text-muted mb-3">이 코드가 있어야 다른 사람이 들어올 수 있어요. 지금은 이 화면에서만 볼 수 있으니 복사해 두세요.</p>
                 <div className="flex items-center gap-2">
                   <code className="flex-1 min-w-0 bg-surface-2 border border-border rounded-[10px] px-3 py-2.5 text-[14px] text-text font-mono tracking-wider select-all truncate">
                     {createdRoom.inviteCode}
