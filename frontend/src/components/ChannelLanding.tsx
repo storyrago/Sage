@@ -127,6 +127,30 @@ function Postmark({ count }: { count: number }) {
   );
 }
 
+// 초대 코드 표시 + 복사 — 생성 직후 다이얼로그와 확대된 우표(주인 전용) 양쪽에서 쓴다.
+// 담긴 컨테이너의 배경이 서로 달라(테마 대응 다이얼로그 vs 항상 어두운 코르크보드) 박스 색만 호출부에서 받는다.
+function InviteCode({ code, boxClassName }: { code: string; boxClassName: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+    } catch {
+      // 클립보드 접근이 막혀도(권한 거부 등) 코드는 화면에 그대로 있어 수동 선택은 가능하다.
+    }
+  };
+  return (
+    <div className="flex items-center gap-2 w-full">
+      <code className={`flex-1 min-w-0 border rounded-[10px] px-3 py-2.5 text-[14px] font-mono tracking-wider select-all truncate ${boxClassName}`}>
+        {code}
+      </code>
+      <button onClick={copy} className="btn-label flex-shrink-0 px-3 py-2.5 text-[13px] font-semibold cursor-pointer">
+        {copied ? '복사됨' : '복사'}
+      </button>
+    </div>
+  );
+}
+
 interface Origin { cx: number; cy: number; scale: number; rot: number; }
 
 interface Props {
@@ -147,9 +171,8 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
   const [busy, setBusy] = useState(false);
   const [createError, setCreateError] = useState('');
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  // 생성 직후에만 초대 코드를 받는다(주인 전용 응답 필드) — 여기서 보여주지 않으면 다시 볼 방법이 없다.
+  // 생성 직후 모달에서 보여줄 방(초대 코드 포함) — 확대된 우표 쪽은 channels[].inviteCode를 바로 쓴다.
   const [createdRoom, setCreatedRoom] = useState<Channel | null>(null);
-  const [codeCopied, setCodeCopied] = useState(false);
 
   // 확대 상태 (자기 자리 → 중앙 FLIP)
   const [focusedId, setFocusedId] = useState<string | null>(null);
@@ -260,23 +283,12 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
     setCreating(false);
     setCreateError('');
     setCreatedRoom(null);
-    setCodeCopied(false);
   };
 
   const enterCreatedRoom = () => {
     if (!createdRoom) return;
     onSelectChannel(createdRoom.id);
     closeCreateDialog();
-  };
-
-  const copyInviteCode = async () => {
-    if (!createdRoom?.inviteCode) return;
-    try {
-      await navigator.clipboard.writeText(createdRoom.inviteCode);
-      setCodeCopied(true);
-    } catch {
-      // 클립보드 접근이 막혀도(권한 거부 등) 코드는 화면에 그대로 있어 수동 선택은 가능하다.
-    }
   };
 
   // 클릭한 우표의 화면 위치를 잡아 중앙으로 날아오게
@@ -565,12 +577,22 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
                 {joinError && <p className="text-[12px] text-rose-400 self-start">{joinError}</p>}
               </div>
             ) : (
-              <button
-                onClick={() => onSelectChannel(focused.id)}
-                className="btn-stamp transition-colors cursor-pointer"
-              >
-                입장하기
-              </button>
+              <>
+                {focused.owner && focused.inviteCode && (
+                  <div className="flex flex-col items-center gap-2 w-[240px]">
+                    <div className="flex items-center gap-1.5 text-[12px] text-[#8a978d]">
+                      <Lock className="w-3.5 h-3.5" /> 내 초대 코드
+                    </div>
+                    <InviteCode code={focused.inviteCode} boxClassName="bg-[#1b211d] border-[#2d362f] text-[#e6ece8]" />
+                  </div>
+                )}
+                <button
+                  onClick={() => onSelectChannel(focused.id)}
+                  className="btn-stamp transition-colors cursor-pointer"
+                >
+                  입장하기
+                </button>
+              </>
             )}
             <div className="text-[12px] text-[#8a978d] select-none">바깥을 클릭하거나 ESC로 닫기</div>
           </div>
@@ -588,15 +610,10 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
                   <h2 className="text-[15px] font-bold text-text">초대 코드</h2>
                   <button onClick={closeCreateDialog} aria-label="닫기" className="text-muted hover:text-text cursor-pointer"><X className="w-4 h-4" /></button>
                 </div>
-                <p className="text-[13px] text-muted mb-3">이 코드가 있어야 다른 사람이 들어올 수 있어요. 지금은 이 화면에서만 볼 수 있으니 복사해 두세요.</p>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 min-w-0 bg-surface-2 border border-border rounded-[10px] px-3 py-2.5 text-[14px] text-text font-mono tracking-wider select-all truncate">
-                    {createdRoom.inviteCode}
-                  </code>
-                  <button onClick={copyInviteCode} className="btn-label flex-shrink-0 px-3 py-2.5 text-[13px] font-semibold cursor-pointer">
-                    {codeCopied ? '복사됨' : '복사'}
-                  </button>
-                </div>
+                <p className="text-[13px] text-muted mb-3">이 코드가 있어야 다른 사람이 들어올 수 있어요. 나중에 다시 보려면 이 방을 열어서 확인하세요.</p>
+                {createdRoom.inviteCode && (
+                  <InviteCode code={createdRoom.inviteCode} boxClassName="bg-surface-2 border-border text-text" />
+                )}
                 <button onClick={enterCreatedRoom} className="btn-label mt-3 w-full py-2.5 text-[14px] font-bold cursor-pointer">입장하기</button>
               </>
             ) : (
