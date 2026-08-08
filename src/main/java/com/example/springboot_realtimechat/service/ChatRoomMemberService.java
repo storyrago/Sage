@@ -83,8 +83,7 @@ public class ChatRoomMemberService {
         // 삭제된 방도 조회한다. 못 찾으면 멤버십 행이 영영 남는다.
         ChatRoom chatRoom = chatRoomService.getChatRoomByIdIncludingDeleted(chatRoomId);
 
-        Member owner = chatRoom.getCreatedBy();
-        if (owner != null && owner.getId().equals(memberId)) {
+        if (chatRoom.isOwnedBy(memberId)) {
             throw new CustomException(ErrorCode.OWNER_CANNOT_LEAVE);
         }
 

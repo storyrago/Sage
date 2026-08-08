@@ -1,7 +1,6 @@
 package com.example.springboot_realtimechat.dto;
 
 import com.example.springboot_realtimechat.domain.ChatRoom;
-import com.example.springboot_realtimechat.domain.Member;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Getter;
 
@@ -35,10 +34,7 @@ public class ChatRoomResponse {
      * 요청자를 반드시 받는다. 요청자 없는 팩토리를 두면 초대 코드가 전원에게 나간다.
      */
     public static ChatRoomResponse from(ChatRoom chatRoom, Long requesterId, boolean joined){
-        Member createdBy = chatRoom.getCreatedBy();
-        boolean owner = createdBy != null
-                && createdBy.getId() != null
-                && createdBy.getId().equals(requesterId);
+        boolean owner = chatRoom.isOwnedBy(requesterId);
 
         return new ChatRoomResponse(
                 chatRoom.getId(),

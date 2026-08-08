@@ -63,4 +63,10 @@ public class ChatRoom {
     public boolean isPrivate() {
         return isPrivate;
     }
+
+    public boolean isOwnedBy(Long memberId) {
+        return createdBy != null
+                && createdBy.getId() != null
+                && createdBy.getId().equals(memberId);
+    }
 }
