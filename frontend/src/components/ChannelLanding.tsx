@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
-import { Plus, Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell, X, LogOut, Lock } from 'lucide-react';
+import { Plus, Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell, X, LogOut, Lock, UserX } from 'lucide-react';
 import { Channel, User } from '../types';
 import Avatar from './Avatar';
-import { ApiError } from '../lib/api';
+import { ApiError, BackendBannedMember, getRoomBans, unbanMember } from '../lib/api';
 import { toUserMessage } from '../lib/errors';
 import { hash, unit, boardHeightPx, STAMP_W, STAMP_H, MIN_BOARD_W } from '../lib/stampLayout';
 import { parseSavedPositions, resolveStampPositions, stampStorageKey, type SavedPositionMap } from '../lib/stampPlacement';
@@ -162,13 +162,14 @@ interface Props {
   onLogout: () => void;
   unread?: Record<string, number>;
   currentUser: User;
+  token: string;
   onOpenSettings: () => void;
   onReissueCode: (channelId: string) => Promise<void>;
   onSetPrivacy: (channelId: string, isPrivate: boolean) => Promise<void>;
   onDeleteRoom: (channelId: string) => Promise<void>;
 }
 
-export default function ChannelLanding({ channels, onSelectChannel, onCreateChannel, onJoinRoom, onLogout, unread, currentUser, onOpenSettings, onReissueCode, onSetPrivacy, onDeleteRoom }: Props) {
+export default function ChannelLanding({ channels, onSelectChannel, onCreateChannel, onJoinRoom, onLogout, unread, currentUser, token, onOpenSettings, onReissueCode, onSetPrivacy, onDeleteRoom }: Props) {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
@@ -194,6 +195,12 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
   // 방장 액션 (확대된 우표, 주인 전용)
   const [ownerBusy, setOwnerBusy] = useState<'reissue' | 'privacy' | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // 차단 목록 (확대된 우표, 주인 전용)
+  const [showBans, setShowBans] = useState(false);
+  const [bans, setBans] = useState<BackendBannedMember[] | null>(null);
+  const [bansError, setBansError] = useState('');
+  const [unbanningId, setUnbanningId] = useState<number | null>(null);
 
   // 우표 드래그 배치 (개인용 — localStorage, 회원별 키)
   const boardRef = useRef<HTMLDivElement>(null);
@@ -241,6 +248,9 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
     setJoinCode('');
     setJoinError('');
     setConfirmDelete(false);
+    setShowBans(false);
+    setBans(null);
+    setBansError('');
   }, [focusedId]);
 
   const submitJoinCode = async () => {
@@ -286,6 +296,32 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
       // 실패 토스트는 App이 담당
     } finally {
       setOwnerBusy(null);
+    }
+  };
+
+  const openBans = async () => {
+    if (!focused) return;
+    setShowBans(true);
+    setBans(null);
+    setBansError('');
+    try {
+      const list = await getRoomBans(token, focused.id);
+      setBans(list);
+    } catch (err) {
+      setBansError(toUserMessage(err, '차단 목록을 불러오지 못했어요.'));
+    }
+  };
+
+  const unban = async (memberId: number) => {
+    if (!focused || unbanningId !== null) return;
+    setUnbanningId(memberId);
+    try {
+      await unbanMember(token, focused.id, String(memberId));
+      setBans((prev) => (prev ? prev.filter((b) => b.memberId !== memberId) : prev));
+    } catch (err) {
+      setBansError(toUserMessage(err, '차단을 해제하지 못했어요.'));
+    } finally {
+      setUnbanningId(null);
     }
   };
 
@@ -669,6 +705,46 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
                         {ownerBusy === 'privacy' ? '변경 중…' : focused.locked ? '공개로 전환' : '비공개로 전환'}
                       </button>
                     </div>
+                    <button
+                      onClick={() => (showBans ? setShowBans(false) : openBans())}
+                      className="w-full btn-label px-3 py-2 text-[12px] font-semibold cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      <UserX className="w-3.5 h-3.5" /> {showBans ? '차단 목록 닫기' : '차단 목록'}
+                    </button>
+                    {showBans && (
+                      <div className="w-full max-h-40 overflow-y-auto rounded-[10px] border border-[#2d362f] bg-[#1b211d] p-2">
+                        {bansError ? (
+                          <div className="py-2 text-center">
+                            <p className="text-[12px] text-rose-400">{bansError}</p>
+                            <button
+                              onClick={openBans}
+                              className="mt-1 text-[12px] font-semibold text-[#e6ece8] hover:underline cursor-pointer"
+                            >
+                              다시 시도
+                            </button>
+                          </div>
+                        ) : bans === null ? (
+                          <div className="py-3 text-center text-[12px] text-[#8a978d] select-none">불러오는 중…</div>
+                        ) : bans.length === 0 ? (
+                          <div className="py-3 text-center text-[12px] text-[#8a978d] select-none">차단된 사람이 없어요</div>
+                        ) : (
+                          <ul className="space-y-1">
+                            {bans.map((b) => (
+                              <li key={b.memberId} className="flex items-center justify-between gap-2 px-1 py-1">
+                                <span className="text-[13px] text-[#e6ece8] truncate">{b.nickname ?? '탈퇴한 회원'}</span>
+                                <button
+                                  onClick={() => unban(b.memberId)}
+                                  disabled={unbanningId !== null}
+                                  className="flex-shrink-0 text-[12px] font-semibold text-[#8a978d] hover:text-[#e6ece8] transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default"
+                                >
+                                  {unbanningId === b.memberId ? '해제 중…' : '차단 해제'}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
                     {!confirmDelete ? (
                       <button
                         onClick={() => setConfirmDelete(true)}

@@ -703,6 +703,7 @@ export default function App() {
             onLogout={handleLogout}
             unread={unread}
             currentUser={user}
+            token={token ?? ''}
             onOpenSettings={() => setSettingsOpen(true)}
             onReissueCode={async (id) => {
               if (!token) return;
