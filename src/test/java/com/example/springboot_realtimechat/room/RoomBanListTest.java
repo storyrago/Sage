@@ -93,4 +93,59 @@ class RoomBanListTest {
         assertThatCode(() -> chatRoomMemberService.unban(room.getId(), guest.getId(), owner.getId()))
                 .doesNotThrowAnyException();
     }
+
+    @Test
+    void 해제는_다른_방의_차단을_건드리지_않는다() {
+        Member owner = memberService.create("b5-owner@e.com", "1234", "주인");
+        Member guest = memberService.create("b5-guest@e.com", "1234", "손님");
+        ChatRoom roomA = chatRoomService.create("차단방5A", false, owner.getId());
+        ChatRoom roomB = chatRoomService.create("차단방5B", false, owner.getId());
+        chatRoomMemberService.join(guest.getId(), roomA.getId(), null);
+        chatRoomMemberService.join(guest.getId(), roomB.getId(), null);
+        chatRoomMemberService.kick(roomA.getId(), guest.getId(), owner.getId());
+        chatRoomMemberService.kick(roomB.getId(), guest.getId(), owner.getId());
+
+        chatRoomMemberService.unban(roomA.getId(), guest.getId(), owner.getId());
+
+        assertThat(chatRoomBanRepository.existsByChatRoomIdAndMemberId(roomA.getId(), guest.getId())).isFalse();
+        assertThat(chatRoomBanRepository.existsByChatRoomIdAndMemberId(roomB.getId(), guest.getId())).isTrue();
+    }
+
+    @Test
+    void 차단_목록은_그_방에서_차단된_사람만_보여준다() {
+        Member owner = memberService.create("b6-owner@e.com", "1234", "주인");
+        Member guest1 = memberService.create("b6-guest1@e.com", "1234", "손님1");
+        Member guest2 = memberService.create("b6-guest2@e.com", "1234", "손님2");
+        Member guest3 = memberService.create("b6-guest3@e.com", "1234", "손님3");
+        ChatRoom roomA = chatRoomService.create("차단방6A", false, owner.getId());
+        ChatRoom roomB = chatRoomService.create("차단방6B", false, owner.getId());
+        chatRoomMemberService.join(guest1.getId(), roomA.getId(), null);
+        chatRoomMemberService.join(guest2.getId(), roomA.getId(), null);
+        chatRoomMemberService.join(guest3.getId(), roomB.getId(), null);
+        chatRoomMemberService.kick(roomA.getId(), guest1.getId(), owner.getId());
+        chatRoomMemberService.kick(roomA.getId(), guest2.getId(), owner.getId());
+        chatRoomMemberService.kick(roomB.getId(), guest3.getId(), owner.getId());
+
+        var banned = chatRoomMemberService.getBannedMembers(roomA.getId(), owner.getId());
+
+        assertThat(banned).extracting(BannedMemberResponse::memberId)
+                .containsExactlyInAnyOrder(guest1.getId(), guest2.getId());
+    }
+
+    @Test
+    void 같은_방에서_한_명만_해제해도_나머지_차단은_남는다() {
+        Member owner = memberService.create("b7-owner@e.com", "1234", "주인");
+        Member guest1 = memberService.create("b7-guest1@e.com", "1234", "손님1");
+        Member guest2 = memberService.create("b7-guest2@e.com", "1234", "손님2");
+        ChatRoom room = chatRoomService.create("차단방7", false, owner.getId());
+        chatRoomMemberService.join(guest1.getId(), room.getId(), null);
+        chatRoomMemberService.join(guest2.getId(), room.getId(), null);
+        chatRoomMemberService.kick(room.getId(), guest1.getId(), owner.getId());
+        chatRoomMemberService.kick(room.getId(), guest2.getId(), owner.getId());
+
+        chatRoomMemberService.unban(room.getId(), guest1.getId(), owner.getId());
+
+        assertThat(chatRoomBanRepository.existsByChatRoomIdAndMemberId(room.getId(), guest1.getId())).isFalse();
+        assertThat(chatRoomBanRepository.existsByChatRoomIdAndMemberId(room.getId(), guest2.getId())).isTrue();
+    }
 }
