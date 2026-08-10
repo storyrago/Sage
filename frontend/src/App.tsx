@@ -584,6 +584,10 @@ export default function App() {
     description: selectedChannelId ? loadingMessage : '왼쪽에서 채팅방을 만들거나 백엔드에 채팅방을 생성해 주세요.',
     createdBy: 'system',
     createdAt: Date.now(),
+    // 찾지 못한 방을 대신하는 값이라 권한은 전부 닫아 둔다.
+    locked: false,
+    joined: false,
+    owner: false,
   };
 
   if (!user) {

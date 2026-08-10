@@ -17,7 +17,7 @@ export default function Welcome({ warping, notice }: WelcomeProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const spotRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
-  const cueRef = useRef<HTMLDivElement>(null);
+  const cueRef = useRef<HTMLButtonElement>(null);
   const loginRef = useRef<HTMLDivElement>(null);
   const loginWrapRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
