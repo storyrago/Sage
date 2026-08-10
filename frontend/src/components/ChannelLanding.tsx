@@ -293,7 +293,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
   // setFocusedId(null)을 목록 갱신(onDeleteRoom 내부의 refreshRooms)보다 먼저 불러야
   // focusedId만 남고 focused가 null이 되어 배경 딤이 사라지는 상태를 피할 수 있다.
   const deleteRoom = () => {
-    if (!focused) return;
+    if (!focused || ownerBusy) return;
     const id = focused.id;
     setFocusedId(null);
     setOrigin(null);
@@ -441,8 +441,15 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
 
   // 액션 패널의 고정 top — 방장 액션이 늘어난 만큼, 뷰포트 하단까지 남는 공간을
   // max-height로 넘겨 스크롤되게 한다(낮은 뷰포트에서 화면 밖으로 밀려나지 않도록).
+  // 가로모드 휴대폰처럼 뷰포트가 낮으면 이상적인 top 기준으로는 남는 공간이 음수가 될 수 있어,
+  // "입장하기" 버튼 하나 + 안내문이 스크롤 없이 보이는 최소 높이(ACTION_PANEL_MIN_H)는 확보되도록
+  // top을 끌어올리고 max-height도 그 값 밑으로 내려가지 않게 한다. 세로 화면처럼 충분히 높은
+  // 뷰포트에서는 이상적인 top이 그대로 쓰여 기존 배치가 유지된다.
+  const ACTION_PANEL_MIN_H = 160;
   const viewportH = typeof window !== 'undefined' ? window.innerHeight : 700;
-  const panelTop = viewportH / 2 - 26 + big.h / 2 + 18;
+  const idealPanelTop = viewportH / 2 - 26 + big.h / 2 + 18;
+  const panelTop = Math.min(idealPanelTop, Math.max(8, viewportH - ACTION_PANEL_MIN_H - 16));
+  const panelMaxHeight = Math.max(ACTION_PANEL_MIN_H, viewportH - panelTop - 16);
 
   return (
     <div className="relative h-full w-full overflow-auto" style={{ background: '#141917' }}>
@@ -596,7 +603,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
             className="fixed z-50 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 overflow-y-auto"
             style={{
               top: panelTop,
-              maxHeight: viewportH - panelTop - 16,
+              maxHeight: panelMaxHeight,
               opacity: open ? 1 : 0,
               transition: 'opacity .28s ease .12s',
               pointerEvents: open ? 'auto' : 'none',
@@ -665,7 +672,8 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
                     {!confirmDelete ? (
                       <button
                         onClick={() => setConfirmDelete(true)}
-                        className="text-[12px] text-[#8a978d] hover:text-red-400 transition-colors cursor-pointer"
+                        disabled={ownerBusy !== null}
+                        className="text-[12px] text-[#8a978d] hover:text-red-400 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default"
                       >
                         방 삭제
                       </button>
@@ -681,7 +689,8 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
                           </button>
                           <button
                             onClick={deleteRoom}
-                            className="flex-1 rounded-[10px] py-2 text-[12px] font-bold border border-red-500/40 text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                            disabled={ownerBusy !== null}
+                            className="flex-1 rounded-[10px] py-2 text-[12px] font-bold border border-red-500/40 text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default"
                           >
                             삭제
                           </button>
