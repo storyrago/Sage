@@ -15,6 +15,9 @@ public enum ErrorCode {
 
     // ChatRoom
     CHAT_ROOM_NOT_FOUND(404, "존재하지 않는 채팅방입니다."),
+    NOT_ROOM_OWNER(403, "방장만 할 수 있어요."),
+    ROOM_DELETED(403, "방이 삭제되었어요."),
+    ROOM_KICKED(403, "방에서 내보내졌어요."),
 
     // ChatRoomMember
     ALREADY_JOINED_ROOM(409, "이미 참여 중인 채팅방입니다."),
