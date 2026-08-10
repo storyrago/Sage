@@ -53,7 +53,7 @@
 - Produces:
   - `ChatRoom.softDelete()` — `deletedAt`을 현재 시각으로. 이미 삭제됐으면 아무것도 하지 않는다
   - `ChatRoom.isDeleted()` → `boolean`
-  - `ChatRoom.reissueInviteCode(String newCode)` — 잠긴 방에서만 유효
+  - `ChatRoom.reissueInviteCode(String newCode)` — 코드만 교체한다. **`isPrivate`는 건드리지 않는다.** 공개방에서 부르면 "코드는 있는데 공개방"이라는 어긋난 상태가 되므로, **호출 전에 `isPrivate()`를 확인하는 것은 서비스 계층의 책임이다**(Task 6이 그 가드와 테스트를 갖는다). 엔티티에 가드를 중복으로 두지 않는다 — 오류 코드가 두 계층에서 갈린다
   - `ChatRoom.makePublic()` — `isPrivate=false`, `inviteCode=null`
   - `ChatRoom.makePrivate(String code)` — `isPrivate=true`, `inviteCode=code`
   - `ErrorCode.NOT_ROOM_OWNER(403, "방장만 할 수 있어요.")`
@@ -1046,6 +1046,8 @@ git commit -m "feat(room): 방장이 차단 목록을 보고 해제할 수 있�
   - `POST /api/chatrooms/{id}/invite-code` → `ChatRoomResponse`
 
 기존 `saveWithCode(String name, boolean isPrivate, Member owner)`는 **새 엔티티를 만드는 전용 private 메서드**라 재사용할 수 없다. 사전 확인 루프만 별도 헬퍼로 뽑는다.
+
+**`ChatRoom.reissueInviteCode`는 코드만 바꾸고 `isPrivate`를 건드리지 않는다.** 공개방에서 부르면 "코드는 있는데 공개방"이라는 어긋난 상태가 만들어진다. 그 불변식을 지키는 것은 **이 서비스 메서드의 책임**이다 — 아래 구현의 `if (!chatRoom.isPrivate())` 가드가 유일한 방어선이고, `공개방은_재발급할_수_없다` 테스트가 그것을 붙잡는다.
 
 **1단계에서 확인된 제약**: 코드 충돌은 저장 전에 `existsByInviteCode`로 미리 확인한다. JPA에서 제약 위반을 잡아 같은 트랜잭션에서 재시도하면 영속성 컨텍스트가 오염돼 `AssertionFailure`가 catch 밖으로 샌다.
 
