@@ -4,6 +4,7 @@ import com.example.springboot_realtimechat.domain.ChatRoom;
 import com.example.springboot_realtimechat.domain.Member;
 import com.example.springboot_realtimechat.event.MemberDeletedEvent;
 import com.example.springboot_realtimechat.event.RoomLeftEvent;
+import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.service.ChatRoomMemberService;
 import com.example.springboot_realtimechat.service.ChatRoomService;
 import com.example.springboot_realtimechat.service.MemberService;
@@ -38,7 +39,7 @@ class SubscriptionRevocationEventTest {
         chatRoomMemberService.leave(member.getId(), room.getId());
 
         assertThat(events.stream(RoomLeftEvent.class).toList())
-                .containsExactly(new RoomLeftEvent(member.getId(), room.getId()));
+                .containsExactly(new RoomLeftEvent(member.getId(), room.getId(), ErrorCode.ROOM_MEMBERSHIP_REVOKED));
     }
 
     @Test

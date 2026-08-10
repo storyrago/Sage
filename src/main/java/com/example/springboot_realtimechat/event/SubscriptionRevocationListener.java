@@ -1,5 +1,6 @@
 package com.example.springboot_realtimechat.event;
 
+import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.security.RoomSubscriptionRevoker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +19,7 @@ public class SubscriptionRevocationListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onRoomLeft(RoomLeftEvent event) {
         try {
-            revoker.revokeRoom(event.memberId(), event.roomId());
+            revoker.revokeRoom(event.memberId(), event.roomId(), event.reason());
         } catch (Exception e) {
             log.warn("방 구독 회수 실패: memberId={}, roomId={}", event.memberId(), event.roomId(), e);
         }
@@ -27,7 +28,7 @@ public class SubscriptionRevocationListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onMemberDeleted(MemberDeletedEvent event) {
         try {
-            revoker.revokeAll(event.memberId());
+            revoker.revokeAll(event.memberId(), ErrorCode.ROOM_MEMBERSHIP_REVOKED);
         } catch (Exception e) {
             log.warn("회원 구독 회수 실패: memberId={}", event.memberId(), e);
         }

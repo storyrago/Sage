@@ -92,7 +92,7 @@ public class ChatRoomMemberService {
                         .orElseThrow(()->new CustomException(ErrorCode.NOT_JOINED_ROOM));
 
         chatRoomMemberRepository.delete(chatRoomMember);
-        eventPublisher.publishEvent(new RoomLeftEvent(memberId, chatRoomId));
+        eventPublisher.publishEvent(new RoomLeftEvent(memberId, chatRoomId, ErrorCode.ROOM_MEMBERSHIP_REVOKED));
     }
 
     public List<ChatRoomMember> getChatRoomMembersById(Long chatRoomId, Long requesterId){

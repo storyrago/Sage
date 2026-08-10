@@ -1,6 +1,7 @@
 package com.example.springboot_realtimechat.ws;
 
 import com.example.springboot_realtimechat.dto.WsErrorResponse;
+import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.security.RoomSubscriptionRevoker;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -76,6 +77,13 @@ class RoomSubscriptionRevokerTest {
                 .toList();
     }
 
+    /** 통지로 나간 페이로드 (단 건 발송을 전제로 한다) */
+    private WsErrorResponse capturedPayload() {
+        ArgumentCaptor<Object> captor = ArgumentCaptor.captor();
+        verify(messagingTemplate).convertAndSendToUser(any(), any(), captor.capture());
+        return (WsErrorResponse) captor.getValue();
+    }
+
     @Test
     void 대상_방의_구독_3종만_회수한다() {
         online(7L, session("s1",
@@ -85,7 +93,7 @@ class RoomSubscriptionRevokerTest {
                 subscription("sub-4", "/sub/chatrooms/9"),
                 subscription("sub-5", "/user/queue/unread")));
 
-        revoker.revokeRoom(7L, 3L);
+        revoker.revokeRoom(7L, 3L, ErrorCode.ROOM_MEMBERSHIP_REVOKED);
 
         assertThat(revokedSubscriptionIds()).containsExactlyInAnyOrder("sub-1", "sub-2", "sub-3");
     }
@@ -97,7 +105,7 @@ class RoomSubscriptionRevokerTest {
                 subscription("sub-2", "/sub/chatrooms/30"),
                 subscription("sub-3", "/sub/chatrooms/30/typing")));
 
-        revoker.revokeRoom(7L, 3L);
+        revoker.revokeRoom(7L, 3L, ErrorCode.ROOM_MEMBERSHIP_REVOKED);
 
         assertThat(revokedSubscriptionIds()).containsExactly("sub-1");
     }
@@ -106,7 +114,7 @@ class RoomSubscriptionRevokerTest {
     void 회수한_구독마다_구독해제_이벤트를_발행한다() {
         online(7L, session("s1", subscription("sub-1", "/sub/chatrooms/3")));
 
-        revoker.revokeRoom(7L, 3L);
+        revoker.revokeRoom(7L, 3L, ErrorCode.ROOM_MEMBERSHIP_REVOKED);
 
         ArgumentCaptor<ApplicationEvent> captor = ArgumentCaptor.captor();
         verify(eventPublisher).publishEvent(captor.capture());
@@ -124,7 +132,7 @@ class RoomSubscriptionRevokerTest {
                 subscription("sub-1", "/sub/chatrooms/3"),
                 subscription("sub-2", "/sub/chatrooms/3/typing")));
 
-        revoker.revokeRoom(7L, 3L);
+        revoker.revokeRoom(7L, 3L, ErrorCode.ROOM_MEMBERSHIP_REVOKED);
 
         ArgumentCaptor<Object> payload = ArgumentCaptor.captor();
         verify(messagingTemplate).convertAndSendToUser(eq("7"), eq("/queue/errors"), payload.capture());
@@ -136,6 +144,26 @@ class RoomSubscriptionRevokerTest {
     }
 
     @Test
+    void 강퇴_사유가_통지_코드로_나간다() {
+        online(7L, session("s1", subscription("sub-1", "/sub/chatrooms/3")));
+
+        revoker.revokeRoom(7L, 3L, ErrorCode.ROOM_KICKED);
+
+        WsErrorResponse sent = capturedPayload();
+        assertThat(sent.code()).isEqualTo("ROOM_KICKED");
+        assertThat(sent.destination()).isEqualTo("/sub/chatrooms/3");
+    }
+
+    @Test
+    void 삭제_사유가_통지_코드로_나간다() {
+        online(7L, session("s1", subscription("sub-1", "/sub/chatrooms/3")));
+
+        revoker.revokeRoom(7L, 3L, ErrorCode.ROOM_DELETED);
+
+        assertThat(capturedPayload().code()).isEqualTo("ROOM_DELETED");
+    }
+
+    @Test
     void revokeAll은_모든_방을_회수하고_개인_큐는_남긴다() {
         online(7L, session("s1",
                 subscription("sub-1", "/sub/chatrooms/3"),
@@ -143,7 +171,7 @@ class RoomSubscriptionRevokerTest {
                 subscription("sub-3", "/user/queue/unread"),
                 subscription("sub-4", "/user/queue/errors")));
 
-        revoker.revokeAll(7L);
+        revoker.revokeAll(7L, ErrorCode.ROOM_MEMBERSHIP_REVOKED);
 
         assertThat(revokedSubscriptionIds()).containsExactlyInAnyOrder("sub-1", "sub-2");
     }
@@ -154,7 +182,7 @@ class RoomSubscriptionRevokerTest {
                 session("s1", subscription("sub-1", "/sub/chatrooms/3")),
                 session("s2", subscription("sub-9", "/sub/chatrooms/3")));
 
-        revoker.revokeRoom(7L, 3L);
+        revoker.revokeRoom(7L, 3L, ErrorCode.ROOM_MEMBERSHIP_REVOKED);
 
         assertThat(revokedSubscriptionIds()).containsExactlyInAnyOrder("sub-1", "sub-9");
     }
@@ -164,7 +192,7 @@ class RoomSubscriptionRevokerTest {
         online(7L, session("s1", subscription("sub-1", "/sub/chatrooms/3")));
         online(8L, session("s2", subscription("sub-8", "/sub/chatrooms/3")));
 
-        revoker.revokeRoom(7L, 3L);
+        revoker.revokeRoom(7L, 3L, ErrorCode.ROOM_MEMBERSHIP_REVOKED);
 
         assertThat(revokedSubscriptionIds()).containsExactly("sub-1");
         verify(messagingTemplate, never()).convertAndSendToUser(eq("8"), any(), any());
@@ -176,7 +204,7 @@ class RoomSubscriptionRevokerTest {
                 session("s1", subscription("sub-1", "/sub/chatrooms/3")),
                 session("s2", subscription("sub-9", "/sub/chatrooms/3")));
 
-        revoker.revokeRoom(7L, 3L);
+        revoker.revokeRoom(7L, 3L, ErrorCode.ROOM_MEMBERSHIP_REVOKED);
 
         verify(messagingTemplate, org.mockito.Mockito.times(1))
                 .convertAndSendToUser(eq("7"), eq("/queue/errors"), any());
@@ -186,7 +214,7 @@ class RoomSubscriptionRevokerTest {
     void 세션이_없으면_아무것도_하지_않는다() {
         when(userRegistry.getUser("7")).thenReturn(null);
 
-        revoker.revokeRoom(7L, 3L);
+        revoker.revokeRoom(7L, 3L, ErrorCode.ROOM_MEMBERSHIP_REVOKED);
 
         verify(clientInboundChannel, never()).send(any());
         verify(eventPublisher, never()).publishEvent(any(Object.class));
@@ -198,7 +226,7 @@ class RoomSubscriptionRevokerTest {
         when(clientInboundChannel.send(any())).thenReturn(false);
         online(7L, session("s1", subscription("sub-1", "/sub/chatrooms/3")));
 
-        revoker.revokeRoom(7L, 3L);
+        revoker.revokeRoom(7L, 3L, ErrorCode.ROOM_MEMBERSHIP_REVOKED);
 
         verify(eventPublisher, never()).publishEvent(any(Object.class));
     }
@@ -207,7 +235,7 @@ class RoomSubscriptionRevokerTest {
     void 주입_프레임에_세션_속성을_싣지_않는다() {
         online(7L, session("s1", subscription("sub-1", "/sub/chatrooms/3")));
 
-        revoker.revokeRoom(7L, 3L);
+        revoker.revokeRoom(7L, 3L, ErrorCode.ROOM_MEMBERSHIP_REVOKED);
 
         ArgumentCaptor<Message<?>> captor = ArgumentCaptor.captor();
         verify(clientInboundChannel).send(captor.capture());
@@ -222,7 +250,7 @@ class RoomSubscriptionRevokerTest {
                 subscription("sub-1", "/sub/chatrooms/abc"),
                 subscription("sub-2", "/sub/notices")));
 
-        revoker.revokeAll(7L);
+        revoker.revokeAll(7L, ErrorCode.ROOM_MEMBERSHIP_REVOKED);
 
         verify(clientInboundChannel, never()).send(any());
     }

@@ -55,16 +55,16 @@ public class RoomSubscriptionRevoker {
     }
 
     /** 방 하나의 구독 3종을 회수한다. */
-    public void revokeRoom(Long memberId, Long roomId) {
-        revoke(memberId, room -> room.equals(roomId));
+    public void revokeRoom(Long memberId, Long roomId, ErrorCode reason) {
+        revoke(memberId, room -> room.equals(roomId), reason);
     }
 
     /** 그 회원의 모든 방 구독을 회수한다. 개인 큐 구독은 남긴다. */
-    public void revokeAll(Long memberId) {
-        revoke(memberId, room -> true);
+    public void revokeAll(Long memberId, ErrorCode reason) {
+        revoke(memberId, room -> true, reason);
     }
 
-    private void revoke(Long memberId, Predicate<Long> roomFilter) {
+    private void revoke(Long memberId, Predicate<Long> roomFilter, ErrorCode reason) {
         SimpUser user = userRegistry.getUser(String.valueOf(memberId));
         if (user == null) {
             return;
@@ -92,7 +92,7 @@ public class RoomSubscriptionRevoker {
         // 통지 하나의 실패가 나머지 방 통지를 막지 않게 격리한다.
         for (Long roomId : revokedRooms) {
             try {
-                notifyRevoked(memberId, roomId);
+                notifyRevoked(memberId, roomId, reason);
             } catch (Exception e) {
                 log.warn("구독 회수 통지 실패: roomId={}", roomId, e);
             }
@@ -125,13 +125,13 @@ public class RoomSubscriptionRevoker {
         return true;
     }
 
-    private void notifyRevoked(Long memberId, Long roomId) {
+    private void notifyRevoked(Long memberId, Long roomId, ErrorCode reason) {
         messagingTemplate.convertAndSendToUser(
                 String.valueOf(memberId),
                 "/queue/errors",
                 new WsErrorResponse(
-                        ErrorCode.ROOM_MEMBERSHIP_REVOKED.name(),
-                        ErrorCode.ROOM_MEMBERSHIP_REVOKED.getMessage(),
+                        reason.name(),
+                        reason.getMessage(),
                         "/sub/chatrooms/" + roomId));
     }
 
