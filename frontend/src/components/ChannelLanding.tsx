@@ -201,6 +201,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
   const [bans, setBans] = useState<BackendBannedMember[] | null>(null);
   const [bansError, setBansError] = useState('');
   const [unbanningId, setUnbanningId] = useState<number | null>(null);
+  const [unbanError, setUnbanError] = useState('');
 
   // 우표 드래그 배치 (개인용 — localStorage, 회원별 키)
   const boardRef = useRef<HTMLDivElement>(null);
@@ -251,6 +252,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
     setShowBans(false);
     setBans(null);
     setBansError('');
+    setUnbanError('');
   }, [focusedId]);
 
   const submitJoinCode = async () => {
@@ -304,6 +306,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
     setShowBans(true);
     setBans(null);
     setBansError('');
+    setUnbanError('');
     try {
       const list = await getRoomBans(token, focused.id);
       setBans(list);
@@ -315,11 +318,12 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
   const unban = async (memberId: number) => {
     if (!focused || unbanningId !== null) return;
     setUnbanningId(memberId);
+    setUnbanError('');
     try {
       await unbanMember(token, focused.id, String(memberId));
       setBans((prev) => (prev ? prev.filter((b) => b.memberId !== memberId) : prev));
     } catch (err) {
-      setBansError(toUserMessage(err, '차단을 해제하지 못했어요.'));
+      setUnbanError(toUserMessage(err, '차단을 해제하지 못했어요.'));
     } finally {
       setUnbanningId(null);
     }
@@ -713,7 +717,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
                     </button>
                     {showBans && (
                       <div className="w-full max-h-40 overflow-y-auto rounded-[10px] border border-[#2d362f] bg-[#1b211d] p-2">
-                        {bansError ? (
+                        {bansError && bans === null ? (
                           <div className="py-2 text-center">
                             <p className="text-[12px] text-rose-400">{bansError}</p>
                             <button
@@ -728,20 +732,25 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
                         ) : bans.length === 0 ? (
                           <div className="py-3 text-center text-[12px] text-[#8a978d] select-none">차단된 사람이 없어요</div>
                         ) : (
-                          <ul className="space-y-1">
-                            {bans.map((b) => (
-                              <li key={b.memberId} className="flex items-center justify-between gap-2 px-1 py-1">
-                                <span className="text-[13px] text-[#e6ece8] truncate">{b.nickname ?? '탈퇴한 회원'}</span>
-                                <button
-                                  onClick={() => unban(b.memberId)}
-                                  disabled={unbanningId !== null}
-                                  className="flex-shrink-0 text-[12px] font-semibold text-[#8a978d] hover:text-[#e6ece8] transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default"
-                                >
-                                  {unbanningId === b.memberId ? '해제 중…' : '차단 해제'}
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
+                          <>
+                            {unbanError && (
+                              <p className="pb-1 text-center text-[12px] text-rose-400">{unbanError}</p>
+                            )}
+                            <ul className="space-y-1">
+                              {bans.map((b) => (
+                                <li key={b.memberId} className="flex items-center justify-between gap-2 px-1 py-1">
+                                  <span className="text-[13px] text-[#e6ece8] truncate">{b.nickname ?? '탈퇴한 회원'}</span>
+                                  <button
+                                    onClick={() => unban(b.memberId)}
+                                    disabled={unbanningId === b.memberId}
+                                    className="flex-shrink-0 text-[12px] font-semibold text-[#8a978d] hover:text-[#e6ece8] transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default"
+                                  >
+                                    {unbanningId === b.memberId ? '해제 중…' : '차단 해제'}
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          </>
                         )}
                       </div>
                     )}
