@@ -82,6 +82,17 @@ class InviteCodeReissueTest {
 
         assertThatThrownBy(() -> chatRoomService.reissueInviteCode(room.getId(), owner.getId()))
                 .isInstanceOf(CustomException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INVITE_CODE);
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ROOM_NOT_LOCKED);
+    }
+
+    @Test
+    void 삭제된_방은_재발급할_수_없다() {
+        Member owner = memberService.create("r5-owner@e.com", "1234", "주인");
+        ChatRoom room = chatRoomService.create("삭제후재발급", true, owner.getId());
+        chatRoomService.delete(room.getId(), owner.getId());
+
+        assertThatThrownBy(() -> chatRoomService.reissueInviteCode(room.getId(), owner.getId()))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHAT_ROOM_NOT_FOUND);
     }
 }

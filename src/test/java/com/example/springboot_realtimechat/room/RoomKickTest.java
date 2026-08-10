@@ -131,4 +131,29 @@ class RoomKickTest {
                 .isInstanceOf(CustomException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_JOINED_ROOM);
     }
+
+    @Test
+    void 삭제된_방에서는_강퇴할_수_없다() {
+        Member owner = memberService.create("k8-owner@e.com", "1234", "주인");
+        Member guest = memberService.create("k8-guest@e.com", "1234", "손님");
+        ChatRoom room = chatRoomService.create("강퇴방8", false, owner.getId());
+        chatRoomMemberService.join(guest.getId(), room.getId(), null);
+        chatRoomService.delete(room.getId(), owner.getId());
+
+        assertThatThrownBy(() -> chatRoomMemberService.kick(room.getId(), guest.getId(), owner.getId()))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHAT_ROOM_NOT_FOUND);
+    }
+
+    @Test
+    void 주인_없는_방에서는_강퇴할_수_없다() {
+        Member anyone = memberService.create("k9-any@e.com", "1234", "아무나");
+        Member guest = memberService.create("k9-guest@e.com", "1234", "손님");
+        ChatRoom room = chatRoomService.create("주인없는강퇴방", false, null);
+        chatRoomMemberService.join(guest.getId(), room.getId(), null);
+
+        assertThatThrownBy(() -> chatRoomMemberService.kick(room.getId(), guest.getId(), anyone.getId()))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_ROOM_OWNER);
+    }
 }

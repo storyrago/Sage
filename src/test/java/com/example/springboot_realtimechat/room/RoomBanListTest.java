@@ -148,4 +148,34 @@ class RoomBanListTest {
         assertThat(chatRoomBanRepository.existsByChatRoomIdAndMemberId(room.getId(), guest1.getId())).isFalse();
         assertThat(chatRoomBanRepository.existsByChatRoomIdAndMemberId(room.getId(), guest2.getId())).isTrue();
     }
+
+    @Test
+    void 삭제된_방은_차단_목록_조회와_해제가_안_된다() {
+        Member owner = memberService.create("b8-owner@e.com", "1234", "주인");
+        Member guest = memberService.create("b8-guest@e.com", "1234", "손님");
+        ChatRoom room = chatRoomService.create("차단방8", false, owner.getId());
+        chatRoomMemberService.join(guest.getId(), room.getId(), null);
+        chatRoomMemberService.kick(room.getId(), guest.getId(), owner.getId());
+        chatRoomService.delete(room.getId(), owner.getId());
+
+        assertThatThrownBy(() -> chatRoomMemberService.getBannedMembers(room.getId(), owner.getId()))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHAT_ROOM_NOT_FOUND);
+        assertThatThrownBy(() -> chatRoomMemberService.unban(room.getId(), guest.getId(), owner.getId()))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHAT_ROOM_NOT_FOUND);
+    }
+
+    @Test
+    void 주인_없는_방은_차단_목록_조회와_해제가_안_된다() {
+        Member anyone = memberService.create("b9-any@e.com", "1234", "아무나");
+        ChatRoom room = chatRoomService.create("주인없는차단방", false, null);
+
+        assertThatThrownBy(() -> chatRoomMemberService.getBannedMembers(room.getId(), anyone.getId()))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_ROOM_OWNER);
+        assertThatThrownBy(() -> chatRoomMemberService.unban(room.getId(), anyone.getId(), anyone.getId()))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_ROOM_OWNER);
+    }
 }

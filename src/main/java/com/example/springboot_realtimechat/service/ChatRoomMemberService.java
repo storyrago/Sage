@@ -114,9 +114,7 @@ public class ChatRoomMemberService {
     @Transactional
     public void kick(Long chatRoomId, Long targetMemberId, Long requesterId) {
         ChatRoom chatRoom = chatRoomService.getChatRoomById(chatRoomId);
-        if (!chatRoom.isOwnedBy(requesterId)) {
-            throw new CustomException(ErrorCode.NOT_ROOM_OWNER);
-        }
+        requireOwner(chatRoom, requesterId);
         if (chatRoom.isOwnedBy(targetMemberId)) {
             throw new CustomException(ErrorCode.OWNER_CANNOT_LEAVE);
         }
@@ -134,18 +132,14 @@ public class ChatRoomMemberService {
     @Transactional
     public void unban(Long chatRoomId, Long targetMemberId, Long requesterId) {
         ChatRoom chatRoom = chatRoomService.getChatRoomById(chatRoomId);
-        if (!chatRoom.isOwnedBy(requesterId)) {
-            throw new CustomException(ErrorCode.NOT_ROOM_OWNER);
-        }
+        requireOwner(chatRoom, requesterId);
         // 차단돼 있지 않아도 성공으로 둔다. 해제는 멱등이다.
         chatRoomBanRepository.deleteByChatRoomIdAndMemberId(chatRoomId, targetMemberId);
     }
 
     public List<BannedMemberResponse> getBannedMembers(Long chatRoomId, Long requesterId) {
         ChatRoom chatRoom = chatRoomService.getChatRoomById(chatRoomId);
-        if (!chatRoom.isOwnedBy(requesterId)) {
-            throw new CustomException(ErrorCode.NOT_ROOM_OWNER);
-        }
+        requireOwner(chatRoom, requesterId);
 
         List<ChatRoomBan> bans = chatRoomBanRepository.findByChatRoomId(chatRoomId);
         Map<Long, Member> members = memberRepository.findAllById(
@@ -184,5 +178,12 @@ public class ChatRoomMemberService {
         ChatRoomMember cm = chatRoomMemberRepository.findByMemberAndChatRoom(member, chatRoom)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_JOINED_ROOM));
         cm.updateLastRead(messageRepository.findMaxIdByChatRoom(chatRoom));
+    }
+
+    /** 주인이 없는 방(시드 방, 주인이 탈퇴한 방)은 아무도 운영할 수 없다. */
+    private void requireOwner(ChatRoom chatRoom, Long requesterId) {
+        if (!chatRoom.isOwnedBy(requesterId)) {
+            throw new CustomException(ErrorCode.NOT_ROOM_OWNER);
+        }
     }
 }

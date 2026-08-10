@@ -384,6 +384,9 @@ export default function App() {
               setUnread(Object.fromEntries(counts.map((c) => [String(c.chatroomId), c.unreadCount])));
             })
             .catch((e) => console.error('[Unread] 재연결 후 안읽음 재조회 실패:', e));
+          // 끊긴 동안 강퇴·삭제당했을 수 있다. 그 통지는 재연결 시 구독 거부로만 드러나므로
+          // 목록을 다시 불러와야 반영된다.
+          refreshRooms(token).catch((e) => console.error('[Room] 재연결 후 목록 갱신 실패:', e));
         },
         onMessage: (backendMessage) => {
           const nextMessage = toMessage(backendMessage);
@@ -662,7 +665,14 @@ export default function App() {
               theme={theme}
               onToggleTheme={toggleTheme}
               onOpenSettings={() => setSettingsOpen(true)}
-              onGoHome={() => setSelectedChannelId('')}
+              onGoHome={() => {
+                setSelectedChannelId('');
+                // 랜딩에 머무는 동안엔 방 구독이 전부 회수돼 강퇴·삭제 통지를 받지 못한다.
+                // 복귀 시 목록을 다시 불러오는 것이 유일한 회복 경로다.
+                if (token) {
+                  refreshRooms(token).catch((e) => console.error('[Room] 랜딩 복귀 후 목록 갱신 실패:', e));
+                }
+              }}
               onLoadOlder={() => loadOlderMessages(selectedChannelId)}
               hasMoreOlder={pageState[selectedChannelId]?.hasMore ?? false}
               loadingOlder={pageState[selectedChannelId]?.loading ?? false}
@@ -742,7 +752,7 @@ export default function App() {
                 return;
               }
               // 지금 보고 있던 방이 삭제된 경우를 대비한 정리 — onAuthzError의 회수 처리와 같은 로직이다.
-              if (id === selectedChannelId) {
+              if (joinedRoomsRef.current.has(id)) {
                 joinedRoomsRef.current.delete(id);
                 setUnread(({ [id]: _removed, ...rest }) => rest);
                 setRoomLastRead(({ [id]: _removed, ...rest }) => rest);

@@ -74,7 +74,7 @@ public class ChatRoomService {
         ChatRoom chatRoom = getChatRoomById(chatRoomId);
         requireOwner(chatRoom, requesterId);
         if (!chatRoom.isPrivate()) {
-            throw new CustomException(ErrorCode.INVALID_INVITE_CODE);
+            throw new CustomException(ErrorCode.ROOM_NOT_LOCKED);
         }
 
         chatRoom.reissueInviteCode(nextUnusedCode());

@@ -116,4 +116,15 @@ class RoomPrivacyTest {
         assertThat(same.isPrivate()).isTrue();
         assertThat(same.getInviteCode()).isNotEqualTo(before);
     }
+
+    @Test
+    void 삭제된_방은_공개_범위를_바꿀_수_없다() {
+        Member owner = memberService.create("p7-owner@e.com", "1234", "주인");
+        ChatRoom room = chatRoomService.create("전환방7", false, owner.getId());
+        chatRoomService.delete(room.getId(), owner.getId());
+
+        assertThatThrownBy(() -> chatRoomService.setPrivate(room.getId(), true, owner.getId()))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHAT_ROOM_NOT_FOUND);
+    }
 }

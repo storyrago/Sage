@@ -2,6 +2,7 @@ package com.example.springboot_realtimechat.room;
 
 import com.example.springboot_realtimechat.domain.ChatRoom;
 import com.example.springboot_realtimechat.domain.Member;
+import com.example.springboot_realtimechat.event.RoomDeletedEvent;
 import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.repository.ChatRoomBanRepository;
@@ -16,12 +17,17 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
+
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
+@RecordApplicationEvents
 class RoomDeletionTest {
 
     @Autowired ChatRoomService chatRoomService;
@@ -32,6 +38,7 @@ class RoomDeletionTest {
     @Autowired ChatRoomMemberRepository chatRoomMemberRepository;
     @Autowired ChatRoomBanRepository chatRoomBanRepository;
     @Autowired MemberRepository memberRepository;
+    @Autowired ApplicationEvents events;
 
     @AfterEach
     void tearDown() {
@@ -115,5 +122,20 @@ class RoomDeletionTest {
 
         assertThatCode(() -> chatRoomMemberService.leave(guest.getId(), room.getId()))
                 .doesNotThrowAnyException();
+    }
+
+    @Test
+    void 삭제하면_RoomDeletedEvent가_멤버_전원_id를_싣고_발행된다() {
+        Member owner = memberService.create("d7-owner@e.com", "1234", "주인");
+        Member guest = memberService.create("d7-guest@e.com", "1234", "손님");
+        ChatRoom room = chatRoomService.create("삭제방7", false, owner.getId());
+        chatRoomMemberService.join(guest.getId(), room.getId(), null);
+
+        chatRoomService.delete(room.getId(), owner.getId());
+
+        List<RoomDeletedEvent> published = events.stream(RoomDeletedEvent.class).toList();
+        assertThat(published).hasSize(1);
+        assertThat(published.get(0).roomId()).isEqualTo(room.getId());
+        assertThat(published.get(0).memberIds()).containsExactlyInAnyOrder(owner.getId(), guest.getId());
     }
 }
