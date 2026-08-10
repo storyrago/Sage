@@ -1,6 +1,7 @@
 package com.example.springboot_realtimechat.controller;
 
 import com.example.springboot_realtimechat.domain.ChatRoom;
+import com.example.springboot_realtimechat.dto.BannedMemberResponse;
 import com.example.springboot_realtimechat.dto.ChatRoomRequest;
 import com.example.springboot_realtimechat.dto.ChatRoomResponse;
 import com.example.springboot_realtimechat.dto.UnreadCountResponse;
@@ -61,5 +62,18 @@ public class ChatRoomController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails user) {
         chatRoomService.delete(id, user.getMemberId());
+    }
+
+    @GetMapping("/{id}/bans")
+    public List<BannedMemberResponse> getBannedMembers(@PathVariable Long id,
+                                                        @AuthenticationPrincipal CustomUserDetails user) {
+        return chatRoomMemberService.getBannedMembers(id, user.getMemberId());
+    }
+
+    @DeleteMapping("/{id}/bans/{memberId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void unban(@PathVariable Long id, @PathVariable Long memberId,
+                      @AuthenticationPrincipal CustomUserDetails user) {
+        chatRoomMemberService.unban(id, memberId, user.getMemberId());
     }
 }

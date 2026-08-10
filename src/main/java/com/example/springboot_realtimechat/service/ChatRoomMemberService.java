@@ -4,12 +4,14 @@ import com.example.springboot_realtimechat.domain.ChatRoom;
 import com.example.springboot_realtimechat.domain.ChatRoomBan;
 import com.example.springboot_realtimechat.domain.ChatRoomMember;
 import com.example.springboot_realtimechat.domain.Member;
+import com.example.springboot_realtimechat.dto.BannedMemberResponse;
 import com.example.springboot_realtimechat.dto.UnreadCountResponse;
 import com.example.springboot_realtimechat.event.RoomLeftEvent;
 import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.repository.ChatRoomBanRepository;
 import com.example.springboot_realtimechat.repository.ChatRoomMemberRepository;
+import com.example.springboot_realtimechat.repository.MemberRepository;
 import com.example.springboot_realtimechat.repository.MessageRepository;
 import com.example.springboot_realtimechat.security.RoomAccess;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +37,7 @@ public class ChatRoomMemberService {
     private final ApplicationEventPublisher eventPublisher;
     private final RoomAccess roomAccess;
     private final ChatRoomBanRepository chatRoomBanRepository;
+    private final MemberRepository memberRepository;
 
     /**
      * 판정 순서가 중요하다. 차단이 가장 먼저다 —
@@ -124,6 +129,37 @@ public class ChatRoomMemberService {
         chatRoomMemberRepository.delete(membership);
         chatRoomBanRepository.save(new ChatRoomBan(chatRoomId, targetMemberId));
         eventPublisher.publishEvent(new RoomLeftEvent(targetMemberId, chatRoomId, ErrorCode.ROOM_KICKED));
+    }
+
+    @Transactional
+    public void unban(Long chatRoomId, Long targetMemberId, Long requesterId) {
+        ChatRoom chatRoom = chatRoomService.getChatRoomById(chatRoomId);
+        if (!chatRoom.isOwnedBy(requesterId)) {
+            throw new CustomException(ErrorCode.NOT_ROOM_OWNER);
+        }
+        // 차단돼 있지 않아도 성공으로 둔다. 해제는 멱등이다.
+        chatRoomBanRepository.deleteByChatRoomIdAndMemberId(chatRoomId, targetMemberId);
+    }
+
+    public List<BannedMemberResponse> getBannedMembers(Long chatRoomId, Long requesterId) {
+        ChatRoom chatRoom = chatRoomService.getChatRoomById(chatRoomId);
+        if (!chatRoom.isOwnedBy(requesterId)) {
+            throw new CustomException(ErrorCode.NOT_ROOM_OWNER);
+        }
+
+        List<ChatRoomBan> bans = chatRoomBanRepository.findByChatRoomId(chatRoomId);
+        Map<Long, Member> members = memberRepository.findAllById(
+                        bans.stream().map(ChatRoomBan::getMemberId).toList()).stream()
+                .collect(Collectors.toMap(Member::getId, m -> m));
+
+        return bans.stream()
+                .map(ban -> new BannedMemberResponse(
+                        ban.getMemberId(),
+                        members.containsKey(ban.getMemberId())
+                                ? members.get(ban.getMemberId()).getNickname()
+                                : null,
+                        ban.getBannedAt()))
+                .toList();
     }
 
     public List<ChatRoomMember> getChatRoomMembersById(Long chatRoomId, Long requesterId){
