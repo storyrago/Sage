@@ -46,20 +46,39 @@ public class ChatRoomService {
         return saved;
     }
 
-    // ponytail: existsByInviteCode 확인과 save 사이에도 경합 창은 남는다 — 그 사이 같은 코드가 끼어들면
-    // DB의 uk_chatrooms_invite_code UNIQUE 제약이 save를 거부해 요청이 실패한다. 12자·32자 알파벳(약 60비트)
-    // 공간에서 그 경합 확률은 무시할 수준이라 별도 재시도를 두지 않는다.
     private ChatRoom saveWithCode(String name, boolean isPrivate, Member owner) {
         if (!isPrivate) {
             return chatRoomRepository.save(ChatRoom.publicRoom(name, owner));
         }
+        return chatRoomRepository.save(ChatRoom.privateRoom(name, owner, nextUnusedCode()));
+    }
+
+    /**
+     * 저장 전에 중복을 미리 확인한다. 제약 위반을 잡아 같은 트랜잭션에서 재시도하면
+     * 영속성 컨텍스트가 오염돼 다음 쿼리가 터진다.
+     * ponytail: 사전 확인과 저장 사이 경합은 DB의 uk_chatrooms_invite_code가 최종 방어선이다.
+     * 12자·32자 알파벳(약 60비트) 공간에서 확률이 무시할 수준이라 받아들인다.
+     */
+    private String nextUnusedCode() {
         for (int attempt = 0; attempt < CODE_RETRY; attempt++) {
             String code = inviteCodeGenerator.generate();
             if (!chatRoomRepository.existsByInviteCode(code)) {
-                return chatRoomRepository.save(ChatRoom.privateRoom(name, owner, code));
+                return code;
             }
         }
         throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
+    }
+
+    @Transactional
+    public ChatRoom reissueInviteCode(Long chatRoomId, Long requesterId) {
+        ChatRoom chatRoom = getChatRoomById(chatRoomId);
+        requireOwner(chatRoom, requesterId);
+        if (!chatRoom.isPrivate()) {
+            throw new CustomException(ErrorCode.INVALID_INVITE_CODE);
+        }
+
+        chatRoom.reissueInviteCode(nextUnusedCode());
+        return chatRoom;
     }
 
     public ChatRoom getChatRoomById(Long chatRoomId){

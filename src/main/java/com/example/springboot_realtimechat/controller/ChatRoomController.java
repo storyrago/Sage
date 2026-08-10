@@ -64,6 +64,13 @@ public class ChatRoomController {
         chatRoomService.delete(id, user.getMemberId());
     }
 
+    @PostMapping("/{id}/invite-code")
+    public ChatRoomResponse reissueInviteCode(@PathVariable Long id,
+                                              @AuthenticationPrincipal CustomUserDetails user) {
+        ChatRoom chatRoom = chatRoomService.reissueInviteCode(id, user.getMemberId());
+        return ChatRoomResponse.from(chatRoom, user.getMemberId(), true);
+    }
+
     @GetMapping("/{id}/bans")
     public List<BannedMemberResponse> getBannedMembers(@PathVariable Long id,
                                                         @AuthenticationPrincipal CustomUserDetails user) {
