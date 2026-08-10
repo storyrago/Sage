@@ -113,6 +113,20 @@ public class ChatRoomService {
         eventPublisher.publishEvent(new RoomDeletedEvent(chatRoomId, memberIds));
     }
 
+    @Transactional
+    public ChatRoom setPrivate(Long chatRoomId, boolean isPrivate, Long requesterId) {
+        ChatRoom chatRoom = getChatRoomById(chatRoomId);
+        requireOwner(chatRoom, requesterId);
+
+        if (isPrivate) {
+            // 전환할 때마다 새 코드를 뽑는다. 옛 코드가 부활하면 유출된 코드가 다시 유효해진다.
+            chatRoom.makePrivate(nextUnusedCode());
+        } else {
+            chatRoom.makePublic();
+        }
+        return chatRoom;
+    }
+
     /** 주인이 없는 방(시드 방, 주인이 탈퇴한 방)은 아무도 운영할 수 없다. */
     private void requireOwner(ChatRoom chatRoom, Long requesterId) {
         if (!chatRoom.isOwnedBy(requesterId)) {

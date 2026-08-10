@@ -4,7 +4,10 @@ import com.example.springboot_realtimechat.domain.ChatRoom;
 import com.example.springboot_realtimechat.dto.BannedMemberResponse;
 import com.example.springboot_realtimechat.dto.ChatRoomRequest;
 import com.example.springboot_realtimechat.dto.ChatRoomResponse;
+import com.example.springboot_realtimechat.dto.RoomPrivacyRequest;
 import com.example.springboot_realtimechat.dto.UnreadCountResponse;
+import com.example.springboot_realtimechat.global.exception.CustomException;
+import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.repository.ChatRoomMemberRepository;
 import com.example.springboot_realtimechat.security.CustomUserDetails;
 import com.example.springboot_realtimechat.service.ChatRoomMemberService;
@@ -82,5 +85,16 @@ public class ChatRoomController {
     public void unban(@PathVariable Long id, @PathVariable Long memberId,
                       @AuthenticationPrincipal CustomUserDetails user) {
         chatRoomMemberService.unban(id, memberId, user.getMemberId());
+    }
+
+    @PatchMapping("/{id}")
+    public ChatRoomResponse setPrivate(@PathVariable Long id,
+                                       @RequestBody(required = false) RoomPrivacyRequest request,
+                                       @AuthenticationPrincipal CustomUserDetails user) {
+        if (request == null || request.getIsPrivate() == null) {
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+        ChatRoom chatRoom = chatRoomService.setPrivate(id, request.getIsPrivate(), user.getMemberId());
+        return ChatRoomResponse.from(chatRoom, user.getMemberId(), true);
     }
 }
