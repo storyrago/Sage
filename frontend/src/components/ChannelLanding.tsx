@@ -131,6 +131,7 @@ function Postmark({ count }: { count: number }) {
 // 담긴 컨테이너의 배경이 서로 달라(테마 대응 다이얼로그 vs 항상 어두운 코르크보드) 박스 색만 호출부에서 받는다.
 function InviteCode({ code, boxClassName }: { code: string; boxClassName: string }) {
   const [copied, setCopied] = useState(false);
+  useEffect(() => setCopied(false), [code]); // 재발급 등으로 코드가 바뀌면 "복사됨" 표시를 지운다
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(code);
@@ -162,9 +163,12 @@ interface Props {
   unread?: Record<string, number>;
   currentUser: User;
   onOpenSettings: () => void;
+  onReissueCode: (channelId: string) => Promise<void>;
+  onSetPrivacy: (channelId: string, isPrivate: boolean) => Promise<void>;
+  onDeleteRoom: (channelId: string) => Promise<void>;
 }
 
-export default function ChannelLanding({ channels, onSelectChannel, onCreateChannel, onJoinRoom, onLogout, unread, currentUser, onOpenSettings }: Props) {
+export default function ChannelLanding({ channels, onSelectChannel, onCreateChannel, onJoinRoom, onLogout, unread, currentUser, onOpenSettings, onReissueCode, onSetPrivacy, onDeleteRoom }: Props) {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
@@ -186,6 +190,10 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
   const [joinCode, setJoinCode] = useState('');
   const [joinBusy, setJoinBusy] = useState(false);
   const [joinError, setJoinError] = useState('');
+
+  // 방장 액션 (확대된 우표, 주인 전용)
+  const [ownerBusy, setOwnerBusy] = useState<'reissue' | 'privacy' | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // 우표 드래그 배치 (개인용 — localStorage, 회원별 키)
   const boardRef = useRef<HTMLDivElement>(null);
@@ -228,10 +236,11 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
 
   useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
 
-  // 다른 우표를 열거나 닫을 때 이전 방의 코드·오류가 남아있지 않게 한다.
+  // 다른 우표를 열거나 닫을 때 이전 방의 코드·오류·삭제 확인 상태가 남아있지 않게 한다.
   useEffect(() => {
     setJoinCode('');
     setJoinError('');
+    setConfirmDelete(false);
   }, [focusedId]);
 
   const submitJoinCode = async () => {
@@ -254,6 +263,41 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
     } finally {
       setJoinBusy(false);
     }
+  };
+
+  const reissueCode = async () => {
+    if (!focused || ownerBusy) return;
+    setOwnerBusy('reissue');
+    try {
+      await onReissueCode(focused.id);
+    } catch {
+      // 실패 토스트는 App이 담당
+    } finally {
+      setOwnerBusy(null);
+    }
+  };
+
+  const togglePrivacy = async () => {
+    if (!focused || ownerBusy) return;
+    setOwnerBusy('privacy');
+    try {
+      await onSetPrivacy(focused.id, !focused.locked);
+    } catch {
+      // 실패 토스트는 App이 담당
+    } finally {
+      setOwnerBusy(null);
+    }
+  };
+
+  // 방 자체가 없어지므로 되돌아갈 원래 자리도 없다 — 애니메이션으로 닫지 않고 즉시 오버레이를 정리한다.
+  // setFocusedId(null)을 목록 갱신(onDeleteRoom 내부의 refreshRooms)보다 먼저 불러야
+  // focusedId만 남고 focused가 null이 되어 배경 딤이 사라지는 상태를 피할 수 있다.
+  const deleteRoom = () => {
+    if (!focused) return;
+    const id = focused.id;
+    setFocusedId(null);
+    setOrigin(null);
+    onDeleteRoom(id);
   };
 
   const submit = async () => {
@@ -394,6 +438,11 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
   // 채널 수에 맞춰 겹치지 않는 산포 위치를 결정적으로 계산하고, 사용자가 옮겨놓은
   // 자리(저장값)와 합친다 (데스크톱 절대배치 전용).
   const positions = resolveStampPositions(channels.map((c) => c.id), savedPositions, boardW, boardHeightPx(channels.length));
+
+  // 액션 패널의 고정 top — 방장 액션이 늘어난 만큼, 뷰포트 하단까지 남는 공간을
+  // max-height로 넘겨 스크롤되게 한다(낮은 뷰포트에서 화면 밖으로 밀려나지 않도록).
+  const viewportH = typeof window !== 'undefined' ? window.innerHeight : 700;
+  const panelTop = viewportH / 2 - 26 + big.h / 2 + 18;
 
   return (
     <div className="relative h-full w-full overflow-auto" style={{ background: '#141917' }}>
@@ -544,9 +593,10 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
             </div>
           </div>
           <div
-            className="fixed z-50 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3"
+            className="fixed z-50 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 overflow-y-auto"
             style={{
-              top: (typeof window !== 'undefined' ? window.innerHeight : 700) / 2 - 26 + big.h / 2 + 18,
+              top: panelTop,
+              maxHeight: viewportH - panelTop - 16,
               opacity: open ? 1 : 0,
               transition: 'opacity .28s ease .12s',
               pointerEvents: open ? 'auto' : 'none',
@@ -592,6 +642,54 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
                 >
                   입장하기
                 </button>
+                {focused.owner && (
+                  <div className="flex flex-col items-center gap-2 w-[240px] pt-1">
+                    <div className="flex items-center gap-2 w-full">
+                      {focused.locked && (
+                        <button
+                          onClick={reissueCode}
+                          disabled={ownerBusy !== null}
+                          className="btn-label flex-1 px-3 py-2 text-[12px] font-semibold cursor-pointer disabled:opacity-60 disabled:cursor-default"
+                        >
+                          {ownerBusy === 'reissue' ? '재발급 중…' : '코드 재발급'}
+                        </button>
+                      )}
+                      <button
+                        onClick={togglePrivacy}
+                        disabled={ownerBusy !== null}
+                        className="btn-label flex-1 px-3 py-2 text-[12px] font-semibold cursor-pointer disabled:opacity-60 disabled:cursor-default"
+                      >
+                        {ownerBusy === 'privacy' ? '변경 중…' : focused.locked ? '공개로 전환' : '비공개로 전환'}
+                      </button>
+                    </div>
+                    {!confirmDelete ? (
+                      <button
+                        onClick={() => setConfirmDelete(true)}
+                        className="text-[12px] text-[#8a978d] hover:text-red-400 transition-colors cursor-pointer"
+                      >
+                        방 삭제
+                      </button>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 w-full">
+                        <div className="text-[12px] text-red-400 text-center">정말 삭제할까요? 되돌릴 수 없어요.</div>
+                        <div className="flex gap-2 w-full">
+                          <button
+                            onClick={() => setConfirmDelete(false)}
+                            className="flex-1 rounded-[10px] py-2 text-[12px] font-semibold border border-[#2d362f] text-[#e6ece8] hover:border-[#4a5a50] transition-colors cursor-pointer"
+                          >
+                            취소
+                          </button>
+                          <button
+                            onClick={deleteRoom}
+                            className="flex-1 rounded-[10px] py-2 text-[12px] font-bold border border-red-500/40 text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             )}
             <div className="text-[12px] text-[#8a978d] select-none">바깥을 클릭하거나 ESC로 닫기</div>

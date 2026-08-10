@@ -13,6 +13,7 @@ import {
   ApiError,
   createChatRoom,
   deleteAccount,
+  deleteChatRoom,
   deleteMessage,
   exchangeOAuthCode,
   getChatRooms,
@@ -22,7 +23,9 @@ import {
   joinChatRoom,
   logout,
   markRoomRead,
+  reissueInviteCode,
   sendMessage,
+  setRoomPrivacy,
   setUnauthorizedHandler,
   toChannel,
   toMessage,
@@ -701,6 +704,55 @@ export default function App() {
             unread={unread}
             currentUser={user}
             onOpenSettings={() => setSettingsOpen(true)}
+            onReissueCode={async (id) => {
+              if (!token) return;
+              try {
+                await reissueInviteCode(token, id);
+              } catch (error) {
+                notify(toUserMessage(error, '초대 코드를 다시 만들지 못했어요.'));
+                return;
+              }
+              try {
+                await refreshRooms(token);
+              } catch (refreshError) {
+                console.error('[Room] 코드 재발급 후 목록 갱신 실패(무시하고 계속):', refreshError);
+              }
+            }}
+            onSetPrivacy={async (id, isPrivate) => {
+              if (!token) return;
+              try {
+                await setRoomPrivacy(token, id, isPrivate);
+              } catch (error) {
+                notify(toUserMessage(error, '공개 범위를 바꾸지 못했어요.'));
+                return;
+              }
+              try {
+                await refreshRooms(token);
+              } catch (refreshError) {
+                console.error('[Room] 공개 범위 변경 후 목록 갱신 실패(무시하고 계속):', refreshError);
+              }
+            }}
+            onDeleteRoom={async (id) => {
+              if (!token) return;
+              try {
+                await deleteChatRoom(token, id);
+              } catch (error) {
+                notify(toUserMessage(error, '채팅방을 삭제하지 못했어요.'));
+                return;
+              }
+              // 지금 보고 있던 방이 삭제된 경우를 대비한 정리 — onAuthzError의 회수 처리와 같은 로직이다.
+              if (id === selectedChannelId) {
+                joinedRoomsRef.current.delete(id);
+                setUnread(({ [id]: _removed, ...rest }) => rest);
+                setRoomLastRead(({ [id]: _removed, ...rest }) => rest);
+                setSelectedChannelId('');
+              }
+              try {
+                await refreshRooms(token);
+              } catch (refreshError) {
+                console.error('[Room] 삭제 후 목록 갱신 실패(무시하고 계속):', refreshError);
+              }
+            }}
           />
         )}
       </div>
