@@ -457,6 +457,15 @@ export default function App() {
               setSelectedChannelId('');   // 볼 수 없는 방에 머무르지 않는다
             }
           }
+          // 방 자체가 없어진 경우(삭제·강퇴·탈퇴 회수)만 목록에서도 지운다.
+          // NOT_JOINED_ROOM 같은 다른 코드는 방이 여전히 존재하므로 여기서 건드리지 않는다.
+          if (deniedRoom && (code === 'ROOM_MEMBERSHIP_REVOKED' || code === 'ROOM_DELETED' || code === 'ROOM_KICKED')) {
+            setUnread(({ [deniedRoom]: _removed, ...rest }) => rest);
+            setRoomLastRead(({ [deniedRoom]: _removed, ...rest }) => rest);
+            refreshRooms(token).catch((refreshError) => {
+              console.error('[Room] 통지 후 목록 갱신 실패(무시하고 계속):', refreshError);
+            });
+          }
         },
         onDisconnect: scheduleReconnect,
         onError: scheduleReconnect,
