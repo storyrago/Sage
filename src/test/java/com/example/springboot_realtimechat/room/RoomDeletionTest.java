@@ -89,8 +89,8 @@ class RoomDeletionTest {
         assertThat(roomAccess.isMember(guest.getId(), room.getId())).isFalse();
         assertThat(chatRoomMemberRepository.findChatRoomIdsByMemberId(guest.getId()))
                 .doesNotContain(room.getId());
-        // 소프트 삭제라 행 자체는 남는다
-        assertThat(chatRoomMemberRepository.count()).isPositive();
+        // 소프트 삭제라 행 자체는 남는다 (owner, guest 두 건 모두)
+        assertThat(chatRoomMemberRepository.count()).isEqualTo(2);
     }
 
     @Test
