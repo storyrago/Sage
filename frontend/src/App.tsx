@@ -13,6 +13,7 @@ import {
   ApiError,
   createChatRoom,
   deleteAccount,
+  deleteChatRoom,
   deleteMessage,
   exchangeOAuthCode,
   getChatRooms,
@@ -22,7 +23,9 @@ import {
   joinChatRoom,
   logout,
   markRoomRead,
+  reissueInviteCode,
   sendMessage,
+  setRoomPrivacy,
   setUnauthorizedHandler,
   toChannel,
   toMessage,
@@ -381,6 +384,9 @@ export default function App() {
               setUnread(Object.fromEntries(counts.map((c) => [String(c.chatroomId), c.unreadCount])));
             })
             .catch((e) => console.error('[Unread] 재연결 후 안읽음 재조회 실패:', e));
+          // 끊긴 동안 강퇴·삭제당했을 수 있다. 그 통지는 재연결 시 구독 거부로만 드러나므로
+          // 목록을 다시 불러와야 반영된다.
+          refreshRooms(token).catch((e) => console.error('[Room] 재연결 후 목록 갱신 실패:', e));
         },
         onMessage: (backendMessage) => {
           const nextMessage = toMessage(backendMessage);
@@ -456,6 +462,15 @@ export default function App() {
             if (deniedRoom === selectedChannelRef.current) {
               setSelectedChannelId('');   // 볼 수 없는 방에 머무르지 않는다
             }
+          }
+          // 방 자체가 없어진 경우(삭제·강퇴·탈퇴 회수)만 목록에서도 지운다.
+          // NOT_JOINED_ROOM 같은 다른 코드는 방이 여전히 존재하므로 여기서 건드리지 않는다.
+          if (deniedRoom && (code === 'ROOM_MEMBERSHIP_REVOKED' || code === 'ROOM_DELETED' || code === 'ROOM_KICKED')) {
+            setUnread(({ [deniedRoom]: _removed, ...rest }) => rest);
+            setRoomLastRead(({ [deniedRoom]: _removed, ...rest }) => rest);
+            refreshRooms(token).catch((refreshError) => {
+              console.error('[Room] 통지 후 목록 갱신 실패(무시하고 계속):', refreshError);
+            });
           }
         },
         onDisconnect: scheduleReconnect,
@@ -650,7 +665,14 @@ export default function App() {
               theme={theme}
               onToggleTheme={toggleTheme}
               onOpenSettings={() => setSettingsOpen(true)}
-              onGoHome={() => setSelectedChannelId('')}
+              onGoHome={() => {
+                setSelectedChannelId('');
+                // 랜딩에 머무는 동안엔 방 구독이 전부 회수돼 강퇴·삭제 통지를 받지 못한다.
+                // 복귀 시 목록을 다시 불러오는 것이 유일한 회복 경로다.
+                if (token) {
+                  refreshRooms(token).catch((e) => console.error('[Room] 랜딩 복귀 후 목록 갱신 실패:', e));
+                }
+              }}
               onLoadOlder={() => loadOlderMessages(selectedChannelId)}
               hasMoreOlder={pageState[selectedChannelId]?.hasMore ?? false}
               loadingOlder={pageState[selectedChannelId]?.loading ?? false}
@@ -691,7 +713,57 @@ export default function App() {
             onLogout={handleLogout}
             unread={unread}
             currentUser={user}
+            token={token ?? ''}
             onOpenSettings={() => setSettingsOpen(true)}
+            onReissueCode={async (id) => {
+              if (!token) return;
+              try {
+                await reissueInviteCode(token, id);
+              } catch (error) {
+                notify(toUserMessage(error, '초대 코드를 다시 만들지 못했어요.'));
+                return;
+              }
+              try {
+                await refreshRooms(token);
+              } catch (refreshError) {
+                console.error('[Room] 코드 재발급 후 목록 갱신 실패(무시하고 계속):', refreshError);
+              }
+            }}
+            onSetPrivacy={async (id, isPrivate) => {
+              if (!token) return;
+              try {
+                await setRoomPrivacy(token, id, isPrivate);
+              } catch (error) {
+                notify(toUserMessage(error, '공개 범위를 바꾸지 못했어요.'));
+                return;
+              }
+              try {
+                await refreshRooms(token);
+              } catch (refreshError) {
+                console.error('[Room] 공개 범위 변경 후 목록 갱신 실패(무시하고 계속):', refreshError);
+              }
+            }}
+            onDeleteRoom={async (id) => {
+              if (!token) return;
+              try {
+                await deleteChatRoom(token, id);
+              } catch (error) {
+                notify(toUserMessage(error, '채팅방을 삭제하지 못했어요.'));
+                return;
+              }
+              // 지금 보고 있던 방이 삭제된 경우를 대비한 정리 — onAuthzError의 회수 처리와 같은 로직이다.
+              if (joinedRoomsRef.current.has(id)) {
+                joinedRoomsRef.current.delete(id);
+                setUnread(({ [id]: _removed, ...rest }) => rest);
+                setRoomLastRead(({ [id]: _removed, ...rest }) => rest);
+                setSelectedChannelId('');
+              }
+              try {
+                await refreshRooms(token);
+              } catch (refreshError) {
+                console.error('[Room] 삭제 후 목록 갱신 실패(무시하고 계속):', refreshError);
+              }
+            }}
           />
         )}
       </div>

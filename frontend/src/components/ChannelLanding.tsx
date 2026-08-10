@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
-import { Plus, Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell, X, LogOut, Lock } from 'lucide-react';
+import { Plus, Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell, X, LogOut, Lock, UserX } from 'lucide-react';
 import { Channel, User } from '../types';
 import Avatar from './Avatar';
-import { ApiError } from '../lib/api';
+import { ApiError, BackendBannedMember, getRoomBans, unbanMember } from '../lib/api';
 import { toUserMessage } from '../lib/errors';
 import { hash, unit, boardHeightPx, STAMP_W, STAMP_H, MIN_BOARD_W } from '../lib/stampLayout';
 import { parseSavedPositions, resolveStampPositions, stampStorageKey, type SavedPositionMap } from '../lib/stampPlacement';
@@ -131,6 +131,7 @@ function Postmark({ count }: { count: number }) {
 // 담긴 컨테이너의 배경이 서로 달라(테마 대응 다이얼로그 vs 항상 어두운 코르크보드) 박스 색만 호출부에서 받는다.
 function InviteCode({ code, boxClassName }: { code: string; boxClassName: string }) {
   const [copied, setCopied] = useState(false);
+  useEffect(() => setCopied(false), [code]); // 재발급 등으로 코드가 바뀌면 "복사됨" 표시를 지운다
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(code);
@@ -161,10 +162,14 @@ interface Props {
   onLogout: () => void;
   unread?: Record<string, number>;
   currentUser: User;
+  token: string;
   onOpenSettings: () => void;
+  onReissueCode: (channelId: string) => Promise<void>;
+  onSetPrivacy: (channelId: string, isPrivate: boolean) => Promise<void>;
+  onDeleteRoom: (channelId: string) => Promise<void>;
 }
 
-export default function ChannelLanding({ channels, onSelectChannel, onCreateChannel, onJoinRoom, onLogout, unread, currentUser, onOpenSettings }: Props) {
+export default function ChannelLanding({ channels, onSelectChannel, onCreateChannel, onJoinRoom, onLogout, unread, currentUser, token, onOpenSettings, onReissueCode, onSetPrivacy, onDeleteRoom }: Props) {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
@@ -186,6 +191,17 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
   const [joinCode, setJoinCode] = useState('');
   const [joinBusy, setJoinBusy] = useState(false);
   const [joinError, setJoinError] = useState('');
+
+  // 방장 액션 (확대된 우표, 주인 전용)
+  const [ownerBusy, setOwnerBusy] = useState<'reissue' | 'privacy' | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // 차단 목록 (확대된 우표, 주인 전용)
+  const [showBans, setShowBans] = useState(false);
+  const [bans, setBans] = useState<BackendBannedMember[] | null>(null);
+  const [bansError, setBansError] = useState('');
+  const [unbanningId, setUnbanningId] = useState<number | null>(null);
+  const [unbanError, setUnbanError] = useState('');
 
   // 우표 드래그 배치 (개인용 — localStorage, 회원별 키)
   const boardRef = useRef<HTMLDivElement>(null);
@@ -228,10 +244,15 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
 
   useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
 
-  // 다른 우표를 열거나 닫을 때 이전 방의 코드·오류가 남아있지 않게 한다.
+  // 다른 우표를 열거나 닫을 때 이전 방의 코드·오류·삭제 확인 상태가 남아있지 않게 한다.
   useEffect(() => {
     setJoinCode('');
     setJoinError('');
+    setConfirmDelete(false);
+    setShowBans(false);
+    setBans(null);
+    setBansError('');
+    setUnbanError('');
   }, [focusedId]);
 
   const submitJoinCode = async () => {
@@ -254,6 +275,69 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
     } finally {
       setJoinBusy(false);
     }
+  };
+
+  const reissueCode = async () => {
+    if (!focused || ownerBusy) return;
+    setOwnerBusy('reissue');
+    try {
+      await onReissueCode(focused.id);
+    } catch {
+      // 실패 토스트는 App이 담당
+    } finally {
+      setOwnerBusy(null);
+    }
+  };
+
+  const togglePrivacy = async () => {
+    if (!focused || ownerBusy) return;
+    setOwnerBusy('privacy');
+    try {
+      await onSetPrivacy(focused.id, !focused.locked);
+    } catch {
+      // 실패 토스트는 App이 담당
+    } finally {
+      setOwnerBusy(null);
+    }
+  };
+
+  const openBans = async () => {
+    if (!focused) return;
+    setShowBans(true);
+    setBans(null);
+    setBansError('');
+    setUnbanError('');
+    try {
+      const list = await getRoomBans(token, focused.id);
+      setBans(list);
+    } catch (err) {
+      setBansError(toUserMessage(err, '차단 목록을 불러오지 못했어요.'));
+    }
+  };
+
+  const unban = async (memberId: number) => {
+    if (!focused || unbanningId !== null) return;
+    setUnbanningId(memberId);
+    setUnbanError('');
+    try {
+      await unbanMember(token, focused.id, String(memberId));
+      setBans((prev) => (prev ? prev.filter((b) => b.memberId !== memberId) : prev));
+    } catch (err) {
+      setUnbanError(toUserMessage(err, '차단을 해제하지 못했어요.'));
+    } finally {
+      setUnbanningId(null);
+    }
+  };
+
+  // 방 자체가 없어지므로 되돌아갈 원래 자리도 없다 — 애니메이션으로 닫지 않고 즉시 오버레이를 정리한다.
+  // setFocusedId(null)을 목록 갱신(onDeleteRoom 내부의 refreshRooms)보다 먼저 불러야
+  // focusedId만 남고 focused가 null이 되어 배경 딤이 사라지는 상태를 피할 수 있다.
+  const deleteRoom = () => {
+    if (!focused || ownerBusy) return;
+    const id = focused.id;
+    setFocusedId(null);
+    setOrigin(null);
+    onDeleteRoom(id);
   };
 
   const submit = async () => {
@@ -394,6 +478,18 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
   // 채널 수에 맞춰 겹치지 않는 산포 위치를 결정적으로 계산하고, 사용자가 옮겨놓은
   // 자리(저장값)와 합친다 (데스크톱 절대배치 전용).
   const positions = resolveStampPositions(channels.map((c) => c.id), savedPositions, boardW, boardHeightPx(channels.length));
+
+  // 액션 패널의 고정 top — 방장 액션이 늘어난 만큼, 뷰포트 하단까지 남는 공간을
+  // max-height로 넘겨 스크롤되게 한다(낮은 뷰포트에서 화면 밖으로 밀려나지 않도록).
+  // 가로모드 휴대폰처럼 뷰포트가 낮으면 이상적인 top 기준으로는 남는 공간이 음수가 될 수 있어,
+  // "입장하기" 버튼 하나 + 안내문이 스크롤 없이 보이는 최소 높이(ACTION_PANEL_MIN_H)는 확보되도록
+  // top을 끌어올리고 max-height도 그 값 밑으로 내려가지 않게 한다. 세로 화면처럼 충분히 높은
+  // 뷰포트에서는 이상적인 top이 그대로 쓰여 기존 배치가 유지된다.
+  const ACTION_PANEL_MIN_H = 160;
+  const viewportH = typeof window !== 'undefined' ? window.innerHeight : 700;
+  const idealPanelTop = viewportH / 2 - 26 + big.h / 2 + 18;
+  const panelTop = Math.min(idealPanelTop, Math.max(8, viewportH - ACTION_PANEL_MIN_H - 16));
+  const panelMaxHeight = Math.max(ACTION_PANEL_MIN_H, viewportH - panelTop - 16);
 
   return (
     <div className="relative h-full w-full overflow-auto" style={{ background: '#141917' }}>
@@ -544,9 +640,10 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
             </div>
           </div>
           <div
-            className="fixed z-50 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3"
+            className="fixed z-50 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 overflow-y-auto"
             style={{
-              top: (typeof window !== 'undefined' ? window.innerHeight : 700) / 2 - 26 + big.h / 2 + 18,
+              top: panelTop,
+              maxHeight: panelMaxHeight,
               opacity: open ? 1 : 0,
               transition: 'opacity .28s ease .12s',
               pointerEvents: open ? 'auto' : 'none',
@@ -592,6 +689,101 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
                 >
                   입장하기
                 </button>
+                {focused.owner && (
+                  <div className="flex flex-col items-center gap-2 w-[240px] pt-1">
+                    <div className="flex items-center gap-2 w-full">
+                      {focused.locked && (
+                        <button
+                          onClick={reissueCode}
+                          disabled={ownerBusy !== null}
+                          className="btn-label flex-1 px-3 py-2 text-[12px] font-semibold cursor-pointer disabled:opacity-60 disabled:cursor-default"
+                        >
+                          {ownerBusy === 'reissue' ? '재발급 중…' : '코드 재발급'}
+                        </button>
+                      )}
+                      <button
+                        onClick={togglePrivacy}
+                        disabled={ownerBusy !== null}
+                        className="btn-label flex-1 px-3 py-2 text-[12px] font-semibold cursor-pointer disabled:opacity-60 disabled:cursor-default"
+                      >
+                        {ownerBusy === 'privacy' ? '변경 중…' : focused.locked ? '공개로 전환' : '비공개로 전환'}
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => (showBans ? setShowBans(false) : openBans())}
+                      className="w-full btn-label px-3 py-2 text-[12px] font-semibold cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      <UserX className="w-3.5 h-3.5" /> {showBans ? '차단 목록 닫기' : '차단 목록'}
+                    </button>
+                    {showBans && (
+                      <div className="w-full max-h-40 overflow-y-auto rounded-[10px] border border-[#2d362f] bg-[#1b211d] p-2">
+                        {bansError && bans === null ? (
+                          <div className="py-2 text-center">
+                            <p className="text-[12px] text-rose-400">{bansError}</p>
+                            <button
+                              onClick={openBans}
+                              className="mt-1 text-[12px] font-semibold text-[#e6ece8] hover:underline cursor-pointer"
+                            >
+                              다시 시도
+                            </button>
+                          </div>
+                        ) : bans === null ? (
+                          <div className="py-3 text-center text-[12px] text-[#8a978d] select-none">불러오는 중…</div>
+                        ) : bans.length === 0 ? (
+                          <div className="py-3 text-center text-[12px] text-[#8a978d] select-none">차단된 사람이 없어요</div>
+                        ) : (
+                          <>
+                            {unbanError && (
+                              <p className="pb-1 text-center text-[12px] text-rose-400">{unbanError}</p>
+                            )}
+                            <ul className="space-y-1">
+                              {bans.map((b) => (
+                                <li key={b.memberId} className="flex items-center justify-between gap-2 px-1 py-1">
+                                  <span className="text-[13px] text-[#e6ece8] truncate">{b.nickname ?? '탈퇴한 회원'}</span>
+                                  <button
+                                    onClick={() => unban(b.memberId)}
+                                    disabled={unbanningId === b.memberId}
+                                    className="flex-shrink-0 text-[12px] font-semibold text-[#8a978d] hover:text-[#e6ece8] transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default"
+                                  >
+                                    {unbanningId === b.memberId ? '해제 중…' : '차단 해제'}
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          </>
+                        )}
+                      </div>
+                    )}
+                    {!confirmDelete ? (
+                      <button
+                        onClick={() => setConfirmDelete(true)}
+                        disabled={ownerBusy !== null}
+                        className="text-[12px] text-[#8a978d] hover:text-red-400 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default"
+                      >
+                        방 삭제
+                      </button>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 w-full">
+                        <div className="text-[12px] text-red-400 text-center">정말 삭제할까요? 되돌릴 수 없어요.</div>
+                        <div className="flex gap-2 w-full">
+                          <button
+                            onClick={() => setConfirmDelete(false)}
+                            className="flex-1 rounded-[10px] py-2 text-[12px] font-semibold border border-[#2d362f] text-[#e6ece8] hover:border-[#4a5a50] transition-colors cursor-pointer"
+                          >
+                            취소
+                          </button>
+                          <button
+                            onClick={deleteRoom}
+                            disabled={ownerBusy !== null}
+                            className="flex-1 rounded-[10px] py-2 text-[12px] font-bold border border-red-500/40 text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default"
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             )}
             <div className="text-[12px] text-[#8a978d] select-none">바깥을 클릭하거나 ESC로 닫기</div>

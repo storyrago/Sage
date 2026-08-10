@@ -2,12 +2,12 @@ import { useState, useRef, useEffect, useLayoutEffect, FormEvent, ChangeEvent } 
 import { motion, AnimatePresence } from 'motion/react';
 import { Channel, Message, Presence, User } from '../types';
 import Avatar from './Avatar';
-import { getRoomMemberProfiles, RoomMemberProfile, uploadImage } from '../lib/api';
+import { getRoomMemberProfiles, kickMember, RoomMemberProfile, uploadImage } from '../lib/api';
 import { avatarForId } from '../lib/avatar';
 import { toUserMessage } from '../lib/errors';
 import {
   Send, CornerUpLeft, ArrowDown,
-  MessageCircle, Hash, Info, Users, X,
+  MessageCircle, Hash, Info, Users, X, UserX,
   ArrowLeft, Sun, Moon, Settings2, Plus, Loader2, Pencil, Trash2
 } from 'lucide-react';
 
@@ -68,6 +68,8 @@ export default function ChatArea({
   const [replyMessage, setReplyMessage] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [deletingMessage, setDeletingMessage] = useState<Message | null>(null);
+  const [kickTarget, setKickTarget] = useState<RoomMemberProfile | null>(null);
+  const [kicking, setKicking] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -147,6 +149,7 @@ export default function ChatArea({
     setReplyMessage(null);
     setEditingMessage(null);
     setDeletingMessage(null);
+    setKickTarget(null);
   }, [channel.id]);
 
   // 스크롤: 방 입장/전환 시 무조건 맨 아래로, 같은 방 새 메시지는 근처에 있을 때만 따라감
@@ -191,6 +194,20 @@ export default function ChatArea({
     } catch (err) {
       // 빈 배열로 두면 "참가자가 없습니다"로 위장된다.
       setMembersError(toUserMessage(err, '참가자를 불러오지 못했어요.'));
+    }
+  };
+
+  const handleKick = async () => {
+    if (!kickTarget || kicking) return;
+    setKicking(true);
+    try {
+      await kickMember(token, channel.id, String(kickTarget.id));
+      setParticipants((prev) => (prev ? prev.filter((m) => m.id !== kickTarget.id) : prev));
+      setKickTarget(null);
+    } catch (err) {
+      onNotify(toUserMessage(err, '내보내지 못했어요.'));
+    } finally {
+      setKicking(false);
     }
   };
 
@@ -423,13 +440,13 @@ export default function ChatArea({
                   {participants !== null && participants.length > 0 && (
                     <ul className="space-y-1">
                       {participants.map((member) => (
-                        <li key={member.id}>
+                        <li key={member.id} className="flex items-center gap-1">
                           <button
                             onClick={() => {
                               onOpenProfile(String(member.id));
                               setShowMembers(false);
                             }}
-                            className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-surface-2 transition-colors cursor-pointer text-left"
+                            className="flex-1 min-w-0 flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-surface-2 transition-colors cursor-pointer text-left"
                           >
                             <div className="relative flex-shrink-0">
                               <Avatar
@@ -447,6 +464,16 @@ export default function ChatArea({
                             </div>
                             <span className="text-sm font-medium text-text truncate">{member.nickname}</span>
                           </button>
+                          {channel.owner && String(member.id) !== currentUser.id && (
+                            <button
+                              onClick={() => setKickTarget(member)}
+                              className="flex-shrink-0 w-7 h-7 rounded-lg text-muted hover:text-rose-500 hover:bg-surface-2 transition-colors cursor-pointer flex items-center justify-center"
+                              title="내보내기"
+                              aria-label={`${member.nickname} 내보내기`}
+                            >
+                              <UserX className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -785,6 +812,40 @@ export default function ChatArea({
                 className="flex-1 rounded-xl py-2.5 text-[13px] font-bold bg-rose-500 hover:bg-rose-600 text-white transition-colors cursor-pointer"
               >
                 삭제
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* 강퇴 확인 모달 */}
+      {kickTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/55 backdrop-blur-[3px]" onClick={() => !kicking && setKickTarget(null)} />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.15 }}
+            className="relative w-full max-w-[320px] bg-surface border border-border rounded-3xl p-5 shadow-2xl"
+          >
+            <h3 className="text-[15px] font-bold text-text">참가자 내보내기</h3>
+            <p className="text-[13px] text-muted mt-1.5 leading-relaxed">
+              {kickTarget.nickname}님을 이 방에서 내보낼까요?
+            </p>
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => setKickTarget(null)}
+                disabled={kicking}
+                className="flex-1 rounded-xl py-2.5 text-[13px] font-bold border border-border text-text hover:bg-surface-2 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleKick}
+                disabled={kicking}
+                className="flex-1 rounded-xl py-2.5 text-[13px] font-bold bg-rose-500 hover:bg-rose-600 text-white transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default"
+              >
+                {kicking ? '내보내는 중…' : '내보내기'}
               </button>
             </div>
           </motion.div>

@@ -69,4 +69,30 @@ public class ChatRoom {
                 && createdBy.getId() != null
                 && createdBy.getId().equals(memberId);
     }
+
+    /** 이미 삭제된 방을 다시 삭제해도 최초 삭제 시각을 유지한다. */
+    public void softDelete() {
+        if (deletedAt == null) {
+            deletedAt = LocalDateTime.now();
+        }
+    }
+
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
+
+    /** 잠금과 코드는 항상 함께 움직인다. 코드만 지우면 잠긴 방이 공개방이 된다. */
+    public void makePublic() {
+        this.isPrivate = false;
+        this.inviteCode = null;
+    }
+
+    public void makePrivate(String inviteCode) {
+        this.isPrivate = true;
+        this.inviteCode = inviteCode;
+    }
+
+    public void reissueInviteCode(String inviteCode) {
+        this.inviteCode = inviteCode;
+    }
 }

@@ -3,12 +3,14 @@ package com.example.springboot_realtimechat.service;
 import com.example.springboot_realtimechat.domain.ChatRoom;
 import com.example.springboot_realtimechat.domain.ChatRoomMember;
 import com.example.springboot_realtimechat.domain.Member;
+import com.example.springboot_realtimechat.event.RoomDeletedEvent;
 import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.repository.ChatRoomMemberRepository;
 import com.example.springboot_realtimechat.repository.ChatRoomRepository;
 import com.example.springboot_realtimechat.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +24,7 @@ public class ChatRoomService {
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final MemberRepository memberRepository;
     private final InviteCodeGenerator inviteCodeGenerator;
+    private final ApplicationEventPublisher eventPublisher;
 
     // 코드 충돌은 UNIQUE 제약이 막는다. 확률이 극히 낮아 재시도 횟수는 작게 잡는다.
     private static final int CODE_RETRY = 5;
@@ -43,20 +46,39 @@ public class ChatRoomService {
         return saved;
     }
 
-    // ponytail: existsByInviteCode 확인과 save 사이에도 경합 창은 남는다 — 그 사이 같은 코드가 끼어들면
-    // DB의 uk_chatrooms_invite_code UNIQUE 제약이 save를 거부해 요청이 실패한다. 12자·32자 알파벳(약 60비트)
-    // 공간에서 그 경합 확률은 무시할 수준이라 별도 재시도를 두지 않는다.
     private ChatRoom saveWithCode(String name, boolean isPrivate, Member owner) {
         if (!isPrivate) {
             return chatRoomRepository.save(ChatRoom.publicRoom(name, owner));
         }
+        return chatRoomRepository.save(ChatRoom.privateRoom(name, owner, nextUnusedCode()));
+    }
+
+    /**
+     * 저장 전에 중복을 미리 확인한다. 제약 위반을 잡아 같은 트랜잭션에서 재시도하면
+     * 영속성 컨텍스트가 오염돼 다음 쿼리가 터진다.
+     * ponytail: 사전 확인과 저장 사이 경합은 DB의 uk_chatrooms_invite_code가 최종 방어선이다.
+     * 12자·32자 알파벳(약 60비트) 공간에서 확률이 무시할 수준이라 받아들인다.
+     */
+    private String nextUnusedCode() {
         for (int attempt = 0; attempt < CODE_RETRY; attempt++) {
             String code = inviteCodeGenerator.generate();
             if (!chatRoomRepository.existsByInviteCode(code)) {
-                return chatRoomRepository.save(ChatRoom.privateRoom(name, owner, code));
+                return code;
             }
         }
         throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
+    }
+
+    @Transactional
+    public ChatRoom reissueInviteCode(Long chatRoomId, Long requesterId) {
+        ChatRoom chatRoom = getChatRoomById(chatRoomId);
+        requireOwner(chatRoom, requesterId);
+        if (!chatRoom.isPrivate()) {
+            throw new CustomException(ErrorCode.ROOM_NOT_LOCKED);
+        }
+
+        chatRoom.reissueInviteCode(nextUnusedCode());
+        return chatRoom;
     }
 
     public ChatRoom getChatRoomById(Long chatRoomId){
@@ -75,5 +97,40 @@ public class ChatRoomService {
 
     public List<ChatRoom> getAllChatRooms(){
         return chatRoomRepository.findByDeletedAtIsNull();
+    }
+
+    @Transactional
+    public void delete(Long chatRoomId, Long requesterId) {
+        ChatRoom chatRoom = getChatRoomById(chatRoomId);
+        requireOwner(chatRoom, requesterId);
+
+        // 커밋 후에는 조회하지 않는다. 회수 대상을 지금 걷어 이벤트에 싣는다.
+        List<Long> memberIds = chatRoomMemberRepository.findMembersByChatRoomId(chatRoomId).stream()
+                .map(Member::getId)
+                .toList();
+
+        chatRoom.softDelete();
+        eventPublisher.publishEvent(new RoomDeletedEvent(chatRoomId, memberIds));
+    }
+
+    @Transactional
+    public ChatRoom setPrivate(Long chatRoomId, boolean isPrivate, Long requesterId) {
+        ChatRoom chatRoom = getChatRoomById(chatRoomId);
+        requireOwner(chatRoom, requesterId);
+
+        if (isPrivate) {
+            // 전환할 때마다 새 코드를 뽑는다. 옛 코드가 부활하면 유출된 코드가 다시 유효해진다.
+            chatRoom.makePrivate(nextUnusedCode());
+        } else {
+            chatRoom.makePublic();
+        }
+        return chatRoom;
+    }
+
+    /** 주인이 없는 방(시드 방, 주인이 탈퇴한 방)은 아무도 운영할 수 없다. */
+    private void requireOwner(ChatRoom chatRoom, Long requesterId) {
+        if (!chatRoom.isOwnedBy(requesterId)) {
+            throw new CustomException(ErrorCode.NOT_ROOM_OWNER);
+        }
     }
 }

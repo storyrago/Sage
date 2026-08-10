@@ -1,5 +1,6 @@
 package com.example.springboot_realtimechat.ws;
 
+import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.security.CustomUserDetails;
 import com.example.springboot_realtimechat.security.RoomSubscriptionRevoker;
 import org.junit.jupiter.api.AfterEach;
@@ -105,7 +106,7 @@ class SubscriptionRevocationIntegrationTest {
 
         assertThat(subscribed("/sub/chatrooms/3")).isTrue();
 
-        revoker.revokeRoom(MEMBER_ID, 3L);
+        revoker.revokeRoom(MEMBER_ID, 3L, ErrorCode.ROOM_MEMBERSHIP_REVOKED);
         awaitUnsubscribed("/sub/chatrooms/3");
 
         assertThat(subscribed("/sub/chatrooms/3")).isFalse();

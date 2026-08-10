@@ -291,6 +291,39 @@ export async function deleteAccount(token: string): Promise<void> {
   await request('/api/members/me', { method: 'DELETE' }, token);
 }
 
+export async function deleteChatRoom(token: string, chatroomId: string) {
+  return request<void>(`/api/chatrooms/${chatroomId}`, { method: 'DELETE' }, token);
+}
+
+export async function reissueInviteCode(token: string, chatroomId: string) {
+  return request<BackendChatRoom>(`/api/chatrooms/${chatroomId}/invite-code`, { method: 'POST' }, token);
+}
+
+export async function setRoomPrivacy(token: string, chatroomId: string, isPrivate: boolean) {
+  return request<BackendChatRoom>(`/api/chatrooms/${chatroomId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ private: isPrivate }),
+  }, token);
+}
+
+export async function kickMember(token: string, chatroomId: string, memberId: string) {
+  return request<void>(`/api/chatrooms/${chatroomId}/members/${memberId}`, { method: 'DELETE' }, token);
+}
+
+export interface BackendBannedMember {
+  memberId: number;
+  nickname: string | null;
+  bannedAt: string;
+}
+
+export async function getRoomBans(token: string, chatroomId: string) {
+  return request<BackendBannedMember[]>(`/api/chatrooms/${chatroomId}/bans`, {}, token);
+}
+
+export async function unbanMember(token: string, chatroomId: string, memberId: string) {
+  return request<void>(`/api/chatrooms/${chatroomId}/bans/${memberId}`, { method: 'DELETE' }, token);
+}
+
 export async function completeOnboarding(token: string) {
   return request<BackendMember>('/api/members/me/onboarding', {
     method: 'POST',
