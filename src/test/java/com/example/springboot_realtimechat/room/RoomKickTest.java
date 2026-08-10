@@ -2,6 +2,7 @@ package com.example.springboot_realtimechat.room;
 
 import com.example.springboot_realtimechat.domain.ChatRoom;
 import com.example.springboot_realtimechat.domain.Member;
+import com.example.springboot_realtimechat.event.RoomLeftEvent;
 import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.repository.ChatRoomBanRepository;
@@ -16,11 +17,14 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
+@RecordApplicationEvents
 class RoomKickTest {
 
     @Autowired ChatRoomService chatRoomService;
@@ -31,6 +35,7 @@ class RoomKickTest {
     @Autowired ChatRoomMemberRepository chatRoomMemberRepository;
     @Autowired ChatRoomRepository chatRoomRepository;
     @Autowired MemberRepository memberRepository;
+    @Autowired ApplicationEvents events;
 
     @AfterEach
     void tearDown() {
@@ -101,6 +106,19 @@ class RoomKickTest {
         assertThatThrownBy(() -> chatRoomMemberService.kick(room.getId(), owner.getId(), owner.getId()))
                 .isInstanceOf(CustomException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.OWNER_CANNOT_LEAVE);
+    }
+
+    @Test
+    void 강퇴하면_RoomLeftEvent가_ROOM_KICKED_사유로_발행된다() {
+        Member owner = memberService.create("k7-owner@e.com", "1234", "주인");
+        Member guest = memberService.create("k7-guest@e.com", "1234", "손님");
+        ChatRoom room = chatRoomService.create("강퇴방7", false, owner.getId());
+        chatRoomMemberService.join(guest.getId(), room.getId(), null);
+
+        chatRoomMemberService.kick(room.getId(), guest.getId(), owner.getId());
+
+        assertThat(events.stream(RoomLeftEvent.class).toList())
+                .containsExactly(new RoomLeftEvent(guest.getId(), room.getId(), ErrorCode.ROOM_KICKED));
     }
 
     @Test
