@@ -6,6 +6,7 @@ import com.example.springboot_realtimechat.dto.RoomJoinRequest;
 import com.example.springboot_realtimechat.security.CustomUserDetails;
 import com.example.springboot_realtimechat.service.ChatRoomMemberService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -47,5 +48,14 @@ public class ChatRoomMemberController {
                 chatRoomMemberService.leave(customUserDetails.getMemberId(), chatroomId);
 
                 return ResponseEntity.noContent().build();
+        }
+
+        @DeleteMapping("/{memberId}")
+        @ResponseStatus(HttpStatus.NO_CONTENT)
+        public void kick(
+                        @PathVariable Long chatroomId,
+                        @PathVariable Long memberId,
+                        @AuthenticationPrincipal CustomUserDetails customUserDetails) {
+                chatRoomMemberService.kick(chatroomId, memberId, customUserDetails.getMemberId());
         }
 }

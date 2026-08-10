@@ -1,6 +1,7 @@
 package com.example.springboot_realtimechat.service;
 
 import com.example.springboot_realtimechat.domain.ChatRoom;
+import com.example.springboot_realtimechat.domain.ChatRoomBan;
 import com.example.springboot_realtimechat.domain.ChatRoomMember;
 import com.example.springboot_realtimechat.domain.Member;
 import com.example.springboot_realtimechat.dto.UnreadCountResponse;
@@ -56,14 +57,20 @@ public class ChatRoomMemberService {
 
         ChatRoomMember chatRoomMember = new ChatRoomMember(member, chatRoom);
         chatRoomMember.updateLastRead(messageRepository.findMaxIdByChatRoom(chatRoom));
+        ChatRoomMember saved;
         try{
             // 트랜잭션이 끝나는 시점에 실제 SQL이 실행될 수 있어서, 중복 참여로 인한 unique 제약조건 예외가 try-catch 밖에서 발생할 수 있음.
             // saveAndFlush()는 저장한 뒤 즉시 DB에 반영을 시도.
-            return chatRoomMemberRepository.saveAndFlush(chatRoomMember);
+            saved = chatRoomMemberRepository.saveAndFlush(chatRoomMember);
         } catch (DataIntegrityViolationException e) {
             throw new CustomException(ErrorCode.ALREADY_JOINED_ROOM);
         }
 
+        // 차단 검사와 저장 사이에 강퇴가 커밋됐을 수 있다. 다시 확인해 걸렸으면 트랜잭션을 되돌린다.
+        if (chatRoomBanRepository.existsByChatRoomIdAndMemberId(chatRoomId, memberId)) {
+            throw new CustomException(ErrorCode.ROOM_BANNED);
+        }
+        return saved;
     }
 
     // 코드가 없는 잠긴 방(주인이 탈퇴한 동결 상태)은 어떤 입력으로도 열리지 않는다.
@@ -93,6 +100,30 @@ public class ChatRoomMemberService {
 
         chatRoomMemberRepository.delete(chatRoomMember);
         eventPublisher.publishEvent(new RoomLeftEvent(memberId, chatRoomId, ErrorCode.ROOM_MEMBERSHIP_REVOKED));
+    }
+
+    /**
+     * 멤버십 행만 지우면 강퇴가 무의미하다 — 프론트가 방 선택마다 join을 부르므로
+     * 공개방은 우표 재클릭으로, 잠긴 방은 쓰던 코드로 즉시 복귀한다. 차단을 함께 남긴다.
+     */
+    @Transactional
+    public void kick(Long chatRoomId, Long targetMemberId, Long requesterId) {
+        ChatRoom chatRoom = chatRoomService.getChatRoomById(chatRoomId);
+        if (!chatRoom.isOwnedBy(requesterId)) {
+            throw new CustomException(ErrorCode.NOT_ROOM_OWNER);
+        }
+        if (chatRoom.isOwnedBy(targetMemberId)) {
+            throw new CustomException(ErrorCode.OWNER_CANNOT_LEAVE);
+        }
+
+        Member target = memberService.getMemberById(targetMemberId);
+        ChatRoomMember membership = chatRoomMemberRepository
+                .findByMemberAndChatRoom(target, chatRoom)
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_JOINED_ROOM));
+
+        chatRoomMemberRepository.delete(membership);
+        chatRoomBanRepository.save(new ChatRoomBan(chatRoomId, targetMemberId));
+        eventPublisher.publishEvent(new RoomLeftEvent(targetMemberId, chatRoomId, ErrorCode.ROOM_KICKED));
     }
 
     public List<ChatRoomMember> getChatRoomMembersById(Long chatRoomId, Long requesterId){
