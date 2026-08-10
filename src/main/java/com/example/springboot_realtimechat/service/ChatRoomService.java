@@ -3,12 +3,14 @@ package com.example.springboot_realtimechat.service;
 import com.example.springboot_realtimechat.domain.ChatRoom;
 import com.example.springboot_realtimechat.domain.ChatRoomMember;
 import com.example.springboot_realtimechat.domain.Member;
+import com.example.springboot_realtimechat.event.RoomDeletedEvent;
 import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.repository.ChatRoomMemberRepository;
 import com.example.springboot_realtimechat.repository.ChatRoomRepository;
 import com.example.springboot_realtimechat.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +24,7 @@ public class ChatRoomService {
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final MemberRepository memberRepository;
     private final InviteCodeGenerator inviteCodeGenerator;
+    private final ApplicationEventPublisher eventPublisher;
 
     // 코드 충돌은 UNIQUE 제약이 막는다. 확률이 극히 낮아 재시도 횟수는 작게 잡는다.
     private static final int CODE_RETRY = 5;
@@ -75,5 +78,26 @@ public class ChatRoomService {
 
     public List<ChatRoom> getAllChatRooms(){
         return chatRoomRepository.findByDeletedAtIsNull();
+    }
+
+    @Transactional
+    public void delete(Long chatRoomId, Long requesterId) {
+        ChatRoom chatRoom = getChatRoomById(chatRoomId);
+        requireOwner(chatRoom, requesterId);
+
+        // 커밋 후에는 조회하지 않는다. 회수 대상을 지금 걷어 이벤트에 싣는다.
+        List<Long> memberIds = chatRoomMemberRepository.findMembersByChatRoomId(chatRoomId).stream()
+                .map(Member::getId)
+                .toList();
+
+        chatRoom.softDelete();
+        eventPublisher.publishEvent(new RoomDeletedEvent(chatRoomId, memberIds));
+    }
+
+    /** 주인이 없는 방(시드 방, 주인이 탈퇴한 방)은 아무도 운영할 수 없다. */
+    private void requireOwner(ChatRoom chatRoom, Long requesterId) {
+        if (!chatRoom.isOwnedBy(requesterId)) {
+            throw new CustomException(ErrorCode.NOT_ROOM_OWNER);
+        }
     }
 }

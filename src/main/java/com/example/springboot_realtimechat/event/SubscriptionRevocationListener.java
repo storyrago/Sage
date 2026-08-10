@@ -33,4 +33,15 @@ public class SubscriptionRevocationListener {
             log.warn("회원 구독 회수 실패: memberId={}", event.memberId(), e);
         }
     }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onRoomDeleted(RoomDeletedEvent event) {
+        for (Long memberId : event.memberIds()) {
+            try {
+                revoker.revokeRoom(memberId, event.roomId(), ErrorCode.ROOM_DELETED);
+            } catch (Exception e) {
+                log.warn("삭제된 방 구독 회수 실패: memberId={}, roomId={}", memberId, event.roomId(), e);
+            }
+        }
+    }
 }

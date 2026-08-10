@@ -56,4 +56,10 @@ public class ChatRoomController {
                 .map(room -> ChatRoomResponse.from(room, requesterId, joinedRoomIds.contains(room.getId())))
                 .toList();
     }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails user) {
+        chatRoomService.delete(id, user.getMemberId());
+    }
 }
