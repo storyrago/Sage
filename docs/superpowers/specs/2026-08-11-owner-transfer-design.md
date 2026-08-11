@@ -46,7 +46,16 @@ public void transferOwnership(Member newOwner) {
 }
 ```
 
-잠금·코드는 건드리지 않는다. 방의 공개 여부와 주인은 독립적이다.
+**잠긴 방은 위임과 함께 코드도 새로 뽑는다.** 서비스가 `transferOwnership` 직후
+`chatRoom.isPrivate()`이면 기존 `nextUnusedCode()`로 `reissueInviteCode()`를 호출한다.
+바로 옆 `setPrivate`가 전환마다 코드를 새로 뽑는 것과 같은 이유다 — 옛 코드가 살아있으면
+방을 통제하지 못하게 된 옛 주인이 그 뒤로도 유효한 입장 코드를 계속 쥔다. 위임은
+`setPrivate`보다 큰 신뢰 경계 이동이라 같은 원칙이 더 강하게 적용된다.
+
+**대가**: 새 주인이 유지하고 싶었던 기존 초대 링크도 함께 죽는다. 위임 직후 새 주인이
+새 코드를 다시 공유해야 한다.
+
+공개방은 코드가 없으므로 해당 없다.
 
 ## 5. 위임 후 나가기
 

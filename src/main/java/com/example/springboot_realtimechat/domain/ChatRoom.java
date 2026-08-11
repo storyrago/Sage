@@ -96,7 +96,10 @@ public class ChatRoom {
         this.inviteCode = inviteCode;
     }
 
-    /** 잠금·코드는 건드리지 않는다. 방의 공개 여부와 주인은 독립적이다. */
+    /**
+     * 주인만 바꾼다. 잠긴 방의 코드 회전은 이 메서드가 아니라
+     * ChatRoomService.transferOwnership이 조건부로 처리한다.
+     */
     public void transferOwnership(Member newOwner) {
         this.createdBy = newOwner;
     }

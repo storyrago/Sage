@@ -151,7 +151,7 @@ class OwnerTransferTest {
     }
 
     @Test
-    void 잠긴_방을_위임해도_잠금과_코드는_그대로다() {
+    void 잠긴_방을_위임하면_잠금은_유지되고_코드는_바뀐다() {
         Member owner = memberService.create("t9-owner@e.com", "1234", "주인");
         Member next = memberService.create("t9-next@e.com", "1234", "후계자");
         ChatRoom room = chatRoomService.create("잠긴위임방", true, owner.getId());
@@ -162,7 +162,7 @@ class OwnerTransferTest {
 
         ChatRoom reloaded = chatRoomRepository.findById(room.getId()).orElseThrow();
         assertThat(reloaded.isPrivate()).isTrue();
-        assertThat(reloaded.getInviteCode()).isEqualTo(code);
+        assertThat(reloaded.getInviteCode()).isNotEqualTo(code);
     }
 
     @Test

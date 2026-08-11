@@ -95,6 +95,21 @@ public class ChatRoomService {
                 .orElseThrow(()->new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
     }
 
+    /**
+     * transferOwnership 전용. 방 행에 쓰기 잠금을 걸고 시작해
+     * leave/kick과 경합에서 순서를 강제한다.
+     */
+    public ChatRoom getChatRoomByIdForUpdate(Long chatRoomId){
+        return chatRoomRepository.findByIdAndDeletedAtIsNullForUpdate(chatRoomId)
+                .orElseThrow(()->new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
+    }
+
+    /** leave 전용 잠금 조회. 삭제된 방도 찾는 이유는 getChatRoomByIdIncludingDeleted와 같다. */
+    public ChatRoom getChatRoomByIdIncludingDeletedForUpdate(Long chatRoomId){
+        return chatRoomRepository.findByIdForUpdate(chatRoomId)
+                .orElseThrow(()->new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
+    }
+
     public List<ChatRoom> getAllChatRooms(){
         return chatRoomRepository.findByDeletedAtIsNull();
     }
@@ -129,7 +144,10 @@ public class ChatRoomService {
 
     @Transactional
     public ChatRoom transferOwnership(Long chatRoomId, Long newOwnerId, Long requesterId) {
-        ChatRoom chatRoom = getChatRoomById(chatRoomId);
+        // 방 행을 먼저 잠근다 — leave/kick과의 경합(위임 확인 통과 후 대상이 나가거나
+        // 강퇴당하는 인터리빙)을 막는 유일한 방법이다. chatrooms → chatroom_members
+        // 순서를 leave/kick과 통일해 데드락을 피한다.
+        ChatRoom chatRoom = getChatRoomByIdForUpdate(chatRoomId);
         requireOwner(chatRoom, requesterId);
 
         if (newOwnerId.equals(requesterId)) {
@@ -143,6 +161,13 @@ public class ChatRoomService {
         Member newOwner = memberRepository.findById(newOwnerId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
         chatRoom.transferOwnership(newOwner);
+        // 잠긴 방은 코드도 함께 회전한다. setPrivate가 전환마다 코드를 새로 뽑는 것과
+        // 같은 이유다 — 옛 코드가 살아있으면 방을 통제하지 못하게 된 옛 주인이
+        // 여전히 유효한 입장 코드를 쥔다. 대가: 새 주인이 유지하고 싶었던 기존
+        // 초대 링크도 함께 죽는다.
+        if (chatRoom.isPrivate()) {
+            chatRoom.reissueInviteCode(nextUnusedCode());
+        }
         return chatRoom;
     }
 

@@ -93,7 +93,8 @@ public class ChatRoomMemberService {
     public void leave(Long memberId, Long chatRoomId){
         Member member = memberService.getMemberById(memberId);
         // 삭제된 방도 조회한다. 못 찾으면 멤버십 행이 영영 남는다.
-        ChatRoom chatRoom = chatRoomService.getChatRoomByIdIncludingDeleted(chatRoomId);
+        // 잠긴 조회로 시작해 transferOwnership과의 경합에서 순서를 강제한다.
+        ChatRoom chatRoom = chatRoomService.getChatRoomByIdIncludingDeletedForUpdate(chatRoomId);
 
         if (chatRoom.isOwnedBy(memberId)) {
             throw new CustomException(ErrorCode.OWNER_CANNOT_LEAVE);
@@ -113,7 +114,8 @@ public class ChatRoomMemberService {
      */
     @Transactional
     public void kick(Long chatRoomId, Long targetMemberId, Long requesterId) {
-        ChatRoom chatRoom = chatRoomService.getChatRoomById(chatRoomId);
+        // 잠긴 조회로 시작해 transferOwnership과의 경합에서 순서를 강제한다.
+        ChatRoom chatRoom = chatRoomService.getChatRoomByIdForUpdate(chatRoomId);
         requireOwner(chatRoom, requesterId);
         if (chatRoom.isOwnedBy(targetMemberId)) {
             throw new CustomException(ErrorCode.OWNER_CANNOT_LEAVE);
