@@ -829,7 +829,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
                             {transferCandidates.map((m) => (
                               <li key={m.id}>
                                 <button
-                                  onClick={() => setTransferTargetId(m.id)}
+                                  onClick={() => { setTransferTargetId(m.id); setTransferError(''); }}
                                   className="w-full text-left px-1 py-1 text-[13px] text-[#e6ece8] hover:text-[#8a978d] transition-colors cursor-pointer truncate"
                                 >
                                   {m.nickname}
@@ -846,7 +846,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
                             {transferError && <p className="text-[12px] text-rose-400 text-center">{transferError}</p>}
                             <div className="flex gap-2 w-full">
                               <button
-                                onClick={() => setTransferTargetId(null)}
+                                onClick={() => { setTransferTargetId(null); setTransferError(''); }}
                                 disabled={ownerBusy !== null}
                                 className="flex-1 rounded-[10px] py-2 text-[12px] font-semibold border border-[#2d362f] text-[#e6ece8] hover:border-[#4a5a50] transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default"
                               >
