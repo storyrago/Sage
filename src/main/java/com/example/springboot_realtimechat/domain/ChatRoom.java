@@ -95,4 +95,9 @@ public class ChatRoom {
     public void reissueInviteCode(String inviteCode) {
         this.inviteCode = inviteCode;
     }
+
+    /** 잠금·코드는 건드리지 않는다. 방의 공개 여부와 주인은 독립적이다. */
+    public void transferOwnership(Member newOwner) {
+        this.createdBy = newOwner;
+    }
 }

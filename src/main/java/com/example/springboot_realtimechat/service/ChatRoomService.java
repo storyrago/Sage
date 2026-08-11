@@ -127,6 +127,25 @@ public class ChatRoomService {
         return chatRoom;
     }
 
+    @Transactional
+    public ChatRoom transferOwnership(Long chatRoomId, Long newOwnerId, Long requesterId) {
+        ChatRoom chatRoom = getChatRoomById(chatRoomId);
+        requireOwner(chatRoom, requesterId);
+
+        if (newOwnerId.equals(requesterId)) {
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+        // 차단된 사람은 멤버가 아니므로 이 검사에서 함께 걸린다.
+        if (!chatRoomMemberRepository.existsActiveMembership(newOwnerId, chatRoomId)) {
+            throw new CustomException(ErrorCode.NOT_JOINED_ROOM);
+        }
+
+        Member newOwner = memberRepository.findById(newOwnerId)
+                .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
+        chatRoom.transferOwnership(newOwner);
+        return chatRoom;
+    }
+
     /** 주인이 없는 방(시드 방, 주인이 탈퇴한 방)은 아무도 운영할 수 없다. */
     private void requireOwner(ChatRoom chatRoom, Long requesterId) {
         if (!chatRoom.isOwnedBy(requesterId)) {
