@@ -4,6 +4,7 @@ import com.example.springboot_realtimechat.domain.ChatRoom;
 import com.example.springboot_realtimechat.dto.BannedMemberResponse;
 import com.example.springboot_realtimechat.dto.ChatRoomRequest;
 import com.example.springboot_realtimechat.dto.ChatRoomResponse;
+import com.example.springboot_realtimechat.dto.OwnerTransferRequest;
 import com.example.springboot_realtimechat.dto.RoomPrivacyRequest;
 import com.example.springboot_realtimechat.dto.UnreadCountResponse;
 import com.example.springboot_realtimechat.global.exception.CustomException;
@@ -95,6 +96,17 @@ public class ChatRoomController {
             throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
         }
         ChatRoom chatRoom = chatRoomService.setPrivate(id, request.getIsPrivate(), user.getMemberId());
+        return ChatRoomResponse.from(chatRoom, user.getMemberId(), true);
+    }
+
+    @PatchMapping("/{id}/owner")
+    public ChatRoomResponse transferOwnership(@PathVariable Long id,
+                                              @RequestBody(required = false) OwnerTransferRequest request,
+                                              @AuthenticationPrincipal CustomUserDetails user) {
+        if (request == null || request.getMemberId() == null) {
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+        ChatRoom chatRoom = chatRoomService.transferOwnership(id, request.getMemberId(), user.getMemberId());
         return ChatRoomResponse.from(chatRoom, user.getMemberId(), true);
     }
 }

@@ -306,8 +306,19 @@ export async function setRoomPrivacy(token: string, chatroomId: string, isPrivat
   }, token);
 }
 
+export async function leaveChatRoom(token: string, chatroomId: string): Promise<void> {
+  return request<void>(`/api/chatrooms/${chatroomId}/members`, { method: 'DELETE' }, token);
+}
+
 export async function kickMember(token: string, chatroomId: string, memberId: string) {
   return request<void>(`/api/chatrooms/${chatroomId}/members/${memberId}`, { method: 'DELETE' }, token);
+}
+
+export async function transferOwnership(token: string, chatroomId: string, memberId: string) {
+  return request<BackendChatRoom>(`/api/chatrooms/${chatroomId}/owner`, {
+    method: 'PATCH',
+    body: JSON.stringify({ memberId: Number(memberId) }),
+  }, token);
 }
 
 export interface BackendBannedMember {

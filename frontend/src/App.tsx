@@ -764,6 +764,10 @@ export default function App() {
                 console.error('[Room] 삭제 후 목록 갱신 실패(무시하고 계속):', refreshError);
               }
             }}
+            onRefreshRooms={async () => {
+              if (!token) return;
+              await refreshRooms(token);
+            }}
           />
         )}
       </div>

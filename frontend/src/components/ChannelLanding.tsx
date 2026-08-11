@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
-import { Plus, Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell, X, LogOut, Lock, UserX } from 'lucide-react';
+import { Plus, Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell, X, LogOut, Lock, UserX, Crown } from 'lucide-react';
 import { Channel, User } from '../types';
 import Avatar from './Avatar';
-import { ApiError, BackendBannedMember, getRoomBans, unbanMember } from '../lib/api';
+import { ApiError, BackendBannedMember, getRoomBans, getRoomMemberProfiles, leaveChatRoom, RoomMemberProfile, transferOwnership, unbanMember } from '../lib/api';
 import { toUserMessage } from '../lib/errors';
 import { hash, unit, boardHeightPx, STAMP_W, STAMP_H, MIN_BOARD_W } from '../lib/stampLayout';
 import { parseSavedPositions, resolveStampPositions, stampStorageKey, type SavedPositionMap } from '../lib/stampPlacement';
@@ -167,9 +167,10 @@ interface Props {
   onReissueCode: (channelId: string) => Promise<void>;
   onSetPrivacy: (channelId: string, isPrivate: boolean) => Promise<void>;
   onDeleteRoom: (channelId: string) => Promise<void>;
+  onRefreshRooms: () => Promise<void>;
 }
 
-export default function ChannelLanding({ channels, onSelectChannel, onCreateChannel, onJoinRoom, onLogout, unread, currentUser, token, onOpenSettings, onReissueCode, onSetPrivacy, onDeleteRoom }: Props) {
+export default function ChannelLanding({ channels, onSelectChannel, onCreateChannel, onJoinRoom, onLogout, unread, currentUser, token, onOpenSettings, onReissueCode, onSetPrivacy, onDeleteRoom, onRefreshRooms }: Props) {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
@@ -193,7 +194,7 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
   const [joinError, setJoinError] = useState('');
 
   // 방장 액션 (확대된 우표, 주인 전용)
-  const [ownerBusy, setOwnerBusy] = useState<'reissue' | 'privacy' | null>(null);
+  const [ownerBusy, setOwnerBusy] = useState<'reissue' | 'privacy' | 'transfer' | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   // 차단 목록 (확대된 우표, 주인 전용)
@@ -202,6 +203,17 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
   const [bansError, setBansError] = useState('');
   const [unbanningId, setUnbanningId] = useState<number | null>(null);
   const [unbanError, setUnbanError] = useState('');
+
+  // 방장 넘기기 (확대된 우표, 주인 전용) — 후보 목록 로딩 → 대상 선택 → 확인
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [transferCandidates, setTransferCandidates] = useState<RoomMemberProfile[] | null>(null);
+  const [transferError, setTransferError] = useState('');
+  const [transferTargetId, setTransferTargetId] = useState<number | null>(null);
+
+  // 방 나가기 (확대된 우표, 주인이 아니고 참여 중일 때만)
+  const [leaveBusy, setLeaveBusy] = useState(false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
+  const [leaveError, setLeaveError] = useState('');
 
   // 우표 드래그 배치 (개인용 — localStorage, 회원별 키)
   const boardRef = useRef<HTMLDivElement>(null);
@@ -253,6 +265,12 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
     setBans(null);
     setBansError('');
     setUnbanError('');
+    setShowTransfer(false);
+    setTransferCandidates(null);
+    setTransferError('');
+    setTransferTargetId(null);
+    setConfirmLeave(false);
+    setLeaveError('');
   }, [focusedId]);
 
   const submitJoinCode = async () => {
@@ -326,6 +344,67 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
       setUnbanError(toUserMessage(err, '차단을 해제하지 못했어요.'));
     } finally {
       setUnbanningId(null);
+    }
+  };
+
+  const openTransfer = async () => {
+    if (!focused) return;
+    setShowTransfer(true);
+    setTransferCandidates(null);
+    setTransferError('');
+    setTransferTargetId(null);
+    try {
+      const profiles = await getRoomMemberProfiles(token, focused.id);
+      setTransferCandidates(profiles.filter((m) => String(m.id) !== currentUser.id));
+    } catch (err) {
+      setTransferError(toUserMessage(err, '참가자 목록을 불러오지 못했어요.'));
+    }
+  };
+
+  const confirmTransfer = async () => {
+    if (!focused || transferTargetId === null || ownerBusy) return;
+    setOwnerBusy('transfer');
+    setTransferError('');
+    try {
+      await transferOwnership(token, focused.id, String(transferTargetId));
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'NOT_JOINED_ROOM') {
+        setTransferError('그 참가자는 이미 방을 나갔어요.');
+      } else {
+        setTransferError(toUserMessage(err, '방장을 넘기지 못했어요.'));
+      }
+      setOwnerBusy(null);
+      return;
+    }
+    setShowTransfer(false);
+    setTransferTargetId(null);
+    try {
+      await onRefreshRooms();
+    } catch (refreshError) {
+      console.error('[Room] 방장 위임 후 목록 갱신 실패(무시하고 계속):', refreshError);
+    } finally {
+      setOwnerBusy(null);
+    }
+  };
+
+  const leaveRoom = async () => {
+    if (!focused || leaveBusy) return;
+    setLeaveBusy(true);
+    setLeaveError('');
+    try {
+      await leaveChatRoom(token, focused.id);
+    } catch (err) {
+      setLeaveError(toUserMessage(err, '방을 나가지 못했어요.'));
+      setLeaveBusy(false);
+      return;
+    }
+    setConfirmLeave(false);
+    try {
+      await onRefreshRooms();
+    } catch (refreshError) {
+      console.error('[Room] 방 나가기 후 목록 갱신 실패(무시하고 계속):', refreshError);
+    } finally {
+      setLeaveBusy(false);
     }
   };
 
@@ -754,6 +833,69 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
                         )}
                       </div>
                     )}
+                    <button
+                      onClick={() => (showTransfer ? setShowTransfer(false) : openTransfer())}
+                      disabled={ownerBusy !== null}
+                      className="w-full btn-label px-3 py-2 text-[12px] font-semibold cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-60 disabled:cursor-default"
+                    >
+                      <Crown className="w-3.5 h-3.5" /> {showTransfer ? '방장 넘기기 닫기' : '방장 넘기기'}
+                    </button>
+                    {showTransfer && (
+                      <div className="w-full max-h-40 overflow-y-auto rounded-[10px] border border-[#2d362f] bg-[#1b211d] p-2">
+                        {transferError && transferCandidates === null ? (
+                          <div className="py-2 text-center">
+                            <p className="text-[12px] text-rose-400">{transferError}</p>
+                            <button
+                              onClick={openTransfer}
+                              className="mt-1 text-[12px] font-semibold text-[#e6ece8] hover:underline cursor-pointer"
+                            >
+                              다시 시도
+                            </button>
+                          </div>
+                        ) : transferCandidates === null ? (
+                          <div className="py-3 text-center text-[12px] text-[#8a978d] select-none">불러오는 중…</div>
+                        ) : transferCandidates.length === 0 ? (
+                          <div className="py-3 text-center text-[12px] text-[#8a978d] select-none">넘길 수 있는 참가자가 없어요</div>
+                        ) : transferTargetId === null ? (
+                          <ul className="space-y-1">
+                            {transferCandidates.map((m) => (
+                              <li key={m.id}>
+                                <button
+                                  onClick={() => { setTransferTargetId(m.id); setTransferError(''); }}
+                                  className="w-full text-left px-1 py-1 text-[13px] text-[#e6ece8] hover:text-[#8a978d] transition-colors cursor-pointer truncate"
+                                >
+                                  {m.nickname}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <div className="flex flex-col items-center gap-2 py-1">
+                            <div className="text-[12px] text-red-400 text-center">
+                              {transferCandidates.find((m) => m.id === transferTargetId)?.nickname}님에게 방장을 넘길까요?
+                              넘기면 내 방장 권한은 즉시 사라지고, 되돌리려면 새 방장이 다시 넘겨줘야 해요.
+                            </div>
+                            {transferError && <p className="text-[12px] text-rose-400 text-center">{transferError}</p>}
+                            <div className="flex gap-2 w-full">
+                              <button
+                                onClick={() => { setTransferTargetId(null); setTransferError(''); }}
+                                disabled={ownerBusy !== null}
+                                className="flex-1 rounded-[10px] py-2 text-[12px] font-semibold border border-[#2d362f] text-[#e6ece8] hover:border-[#4a5a50] transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default"
+                              >
+                                취소
+                              </button>
+                              <button
+                                onClick={confirmTransfer}
+                                disabled={ownerBusy !== null}
+                                className="flex-1 rounded-[10px] py-2 text-[12px] font-bold border border-red-500/40 text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default"
+                              >
+                                {ownerBusy === 'transfer' ? '넘기는 중…' : '넘기기'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {!confirmDelete ? (
                       <button
                         onClick={() => setConfirmDelete(true)}
@@ -778,6 +920,40 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
                             className="flex-1 rounded-[10px] py-2 text-[12px] font-bold border border-red-500/40 text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default"
                           >
                             삭제
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {!focused.owner && focused.joined && (
+                  <div className="flex flex-col items-center gap-2 w-[240px] pt-1">
+                    {!confirmLeave ? (
+                      <button
+                        onClick={() => setConfirmLeave(true)}
+                        disabled={leaveBusy}
+                        className="text-[12px] text-[#8a978d] hover:text-red-400 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default"
+                      >
+                        방 나가기
+                      </button>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 w-full">
+                        <div className="text-[12px] text-red-400 text-center">정말 나갈까요? 되돌릴 수 없어요.</div>
+                        {leaveError && <p className="text-[12px] text-rose-400 text-center">{leaveError}</p>}
+                        <div className="flex gap-2 w-full">
+                          <button
+                            onClick={() => { setConfirmLeave(false); setLeaveError(''); }}
+                            disabled={leaveBusy}
+                            className="flex-1 rounded-[10px] py-2 text-[12px] font-semibold border border-[#2d362f] text-[#e6ece8] hover:border-[#4a5a50] transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default"
+                          >
+                            취소
+                          </button>
+                          <button
+                            onClick={leaveRoom}
+                            disabled={leaveBusy}
+                            className="flex-1 rounded-[10px] py-2 text-[12px] font-bold border border-red-500/40 text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default"
+                          >
+                            {leaveBusy ? '나가는 중…' : '나가기'}
                           </button>
                         </div>
                       </div>

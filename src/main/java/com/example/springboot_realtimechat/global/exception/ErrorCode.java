@@ -26,7 +26,7 @@ public enum ErrorCode {
     ROOM_MEMBERSHIP_REVOKED(403, "채팅방에서 나갔어요."),
     INVALID_INVITE_CODE(403, "초대 코드가 올바르지 않습니다."),
     ROOM_BANNED(403, "이 채팅방에 참여할 수 없습니다."),
-    OWNER_CANNOT_LEAVE(409, "방장은 방을 나갈 수 없습니다. 방을 삭제해 주세요."),
+    OWNER_CANNOT_LEAVE(409, "방장은 방을 나갈 수 없습니다. 방을 삭제하거나 다른 멤버에게 방장을 넘겨주세요."),
 
     // Message
     MESSAGE_NOT_FOUND(404, "해당 메시지를 찾을 수 없습니다."),
