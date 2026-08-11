@@ -310,6 +310,13 @@ export async function kickMember(token: string, chatroomId: string, memberId: st
   return request<void>(`/api/chatrooms/${chatroomId}/members/${memberId}`, { method: 'DELETE' }, token);
 }
 
+export async function transferOwnership(token: string, chatroomId: string, memberId: string) {
+  return request<BackendChatRoom>(`/api/chatrooms/${chatroomId}/owner`, {
+    method: 'PATCH',
+    body: JSON.stringify({ memberId: Number(memberId) }),
+  }, token);
+}
+
 export interface BackendBannedMember {
   memberId: number;
   nickname: string | null;
