@@ -164,4 +164,15 @@ class OwnerTransferTest {
         assertThat(reloaded.isPrivate()).isTrue();
         assertThat(reloaded.getInviteCode()).isEqualTo(code);
     }
+
+    @Test
+    void 주인없는_방의_멤버가_자기_자신에게_위임하려면_NOT_ROOM_OWNER가_나온다() {
+        Member a = memberService.create("t10-a@e.com", "1234", "에이");
+        ChatRoom room = chatRoomService.create("주인없는방", false, null);
+        chatRoomMemberService.join(a.getId(), room.getId(), null);
+
+        assertThatThrownBy(() -> chatRoomService.transferOwnership(room.getId(), a.getId(), a.getId()))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_ROOM_OWNER);
+    }
 }
