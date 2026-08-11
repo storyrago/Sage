@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type MouseEvent as Rea
 import { Plus, Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell, X, LogOut, Lock, UserX, Crown } from 'lucide-react';
 import { Channel, User } from '../types';
 import Avatar from './Avatar';
-import { ApiError, BackendBannedMember, getRoomBans, getRoomMemberProfiles, RoomMemberProfile, transferOwnership, unbanMember } from '../lib/api';
+import { ApiError, BackendBannedMember, getRoomBans, getRoomMemberProfiles, leaveChatRoom, RoomMemberProfile, transferOwnership, unbanMember } from '../lib/api';
 import { toUserMessage } from '../lib/errors';
 import { hash, unit, boardHeightPx, STAMP_W, STAMP_H, MIN_BOARD_W } from '../lib/stampLayout';
 import { parseSavedPositions, resolveStampPositions, stampStorageKey, type SavedPositionMap } from '../lib/stampPlacement';
@@ -210,6 +210,11 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
   const [transferError, setTransferError] = useState('');
   const [transferTargetId, setTransferTargetId] = useState<number | null>(null);
 
+  // 방 나가기 (확대된 우표, 주인이 아니고 참여 중일 때만)
+  const [leaveBusy, setLeaveBusy] = useState(false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
+  const [leaveError, setLeaveError] = useState('');
+
   // 우표 드래그 배치 (개인용 — localStorage, 회원별 키)
   const boardRef = useRef<HTMLDivElement>(null);
   const [boardW, setBoardW] = useState(MIN_BOARD_W);
@@ -264,6 +269,8 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
     setTransferCandidates(null);
     setTransferError('');
     setTransferTargetId(null);
+    setConfirmLeave(false);
+    setLeaveError('');
   }, [focusedId]);
 
   const submitJoinCode = async () => {
@@ -361,7 +368,11 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
     try {
       await transferOwnership(token, focused.id, String(transferTargetId));
     } catch (err) {
-      setTransferError(toUserMessage(err, '방장을 넘기지 못했어요.'));
+      if (err instanceof ApiError && err.code === 'NOT_JOINED_ROOM') {
+        setTransferError('그 참가자는 이미 방을 나갔어요.');
+      } else {
+        setTransferError(toUserMessage(err, '방장을 넘기지 못했어요.'));
+      }
       setOwnerBusy(null);
       return;
     }
@@ -373,6 +384,27 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
       console.error('[Room] 방장 위임 후 목록 갱신 실패(무시하고 계속):', refreshError);
     } finally {
       setOwnerBusy(null);
+    }
+  };
+
+  const leaveRoom = async () => {
+    if (!focused || leaveBusy) return;
+    setLeaveBusy(true);
+    setLeaveError('');
+    try {
+      await leaveChatRoom(token, focused.id);
+    } catch (err) {
+      setLeaveError(toUserMessage(err, '방을 나가지 못했어요.'));
+      setLeaveBusy(false);
+      return;
+    }
+    setConfirmLeave(false);
+    try {
+      await onRefreshRooms();
+    } catch (refreshError) {
+      console.error('[Room] 방 나가기 후 목록 갱신 실패(무시하고 계속):', refreshError);
+    } finally {
+      setLeaveBusy(false);
     }
   };
 
@@ -888,6 +920,40 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
                             className="flex-1 rounded-[10px] py-2 text-[12px] font-bold border border-red-500/40 text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default"
                           >
                             삭제
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {!focused.owner && focused.joined && (
+                  <div className="flex flex-col items-center gap-2 w-[240px] pt-1">
+                    {!confirmLeave ? (
+                      <button
+                        onClick={() => setConfirmLeave(true)}
+                        disabled={leaveBusy}
+                        className="text-[12px] text-[#8a978d] hover:text-red-400 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default"
+                      >
+                        방 나가기
+                      </button>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 w-full">
+                        <div className="text-[12px] text-red-400 text-center">정말 나갈까요? 되돌릴 수 없어요.</div>
+                        {leaveError && <p className="text-[12px] text-rose-400 text-center">{leaveError}</p>}
+                        <div className="flex gap-2 w-full">
+                          <button
+                            onClick={() => { setConfirmLeave(false); setLeaveError(''); }}
+                            disabled={leaveBusy}
+                            className="flex-1 rounded-[10px] py-2 text-[12px] font-semibold border border-[#2d362f] text-[#e6ece8] hover:border-[#4a5a50] transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default"
+                          >
+                            취소
+                          </button>
+                          <button
+                            onClick={leaveRoom}
+                            disabled={leaveBusy}
+                            className="flex-1 rounded-[10px] py-2 text-[12px] font-bold border border-red-500/40 text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default"
+                          >
+                            {leaveBusy ? '나가는 중…' : '나가기'}
                           </button>
                         </div>
                       </div>
