@@ -42,24 +42,31 @@
 답장은 그 집계의 **부분집합**이므로 같은 쿼리에 필드를 얹는다.
 
 ```sql
-LEFT JOIN m.replyTo p
+LEFT JOIN Message p ON p.id = m.replyTo.id AND p.member = cm.member
 ...
-COALESCE(SUM(CASE WHEN p.member = cm.member THEN 1 ELSE 0 END), 0) AS replyCount
+COUNT(p) AS replyCount
 ```
+
+판정 조건을 집계식이 아니라 **조인 `ON` 절에 넣는다.** `COUNT(p)`가 곧 "나에게 온 답장" 개수다.
+
+`p.id = m.replyTo.id`는 FK 컬럼(`m.reply_to_id`)을 직접 읽으므로 추가 조인을 만들지 않는다.
+`p`는 PK로 매칭되어 최대 1행이므로 `COUNT(m)`의 값을 부풀리지 않는다.
 
 ### 함정 1 — 암묵 조인을 쓰면 안 된다
 
 `m.replyTo.member`로 경로 표현식을 쓰면 JPQL 암묵 조인이 **INNER JOIN**으로 떨어진다.
 `m`은 `LEFT JOIN ... ON`으로 붙어 있으므로, 답장이 하나도 없는 방은 `m` 행이 통째로 사라지고
-**해당 방의 `unreadCount`가 0으로 뭉개진다.** 반드시 명시 `LEFT JOIN m.replyTo p`를 쓴다.
+**해당 방의 `unreadCount`가 0으로 뭉개진다.** 반드시 명시 `LEFT JOIN`을 쓴다.
 
 이 함정은 해피패스 테스트로 안 잡힌다. 답장이 섞인 방만 검증하면 통과한다.
 **답장이 없는 방의 `unreadCount`가 보존되는지**를 별도 테스트로 잠근다.
 
-### 함정 2 — `SUM`은 `null`을 반환한다
+### 함정 2 — `SUM`을 쓰지 않는다
 
-집계 대상 행이 없으면 `SUM`은 0이 아니라 `null`이다.
-`UnreadCountProjection.getReplyCount()`가 원시형 `long`이라 `COALESCE` 없이는 NPE가 난다.
+`COALESCE(SUM(CASE WHEN ... THEN 1 ELSE 0 END), 0)` 형태도 같은 값을 낸다. 쓰지 않는 이유는
+집계 대상 행이 없을 때 `SUM`이 0이 아니라 `null`을 반환하기 때문이다.
+`getReplyCount()`가 원시형 `long`이라 `COALESCE`를 빠뜨리면 방이 빈 순간 NPE가 난다.
+`COUNT`는 `null`을 반환하지 않으므로 이 실수를 할 자리 자체가 없다.
 
 ### 불변식
 
@@ -83,23 +90,40 @@ COALESCE(SUM(CASE WHEN p.member = cm.member THEN 1 ELSE 0 END), 0) AS replyCount
 `RedisSubscriber`는 새 메시지마다 방 멤버를 순회하며 `/user/queue/unread`로 개인 통지를 보낸다.
 그 자리에서 "이 답장의 부모 메시지 작성자 == 이 멤버"를 판정해 `UnreadEvent.isReplyToMe`를 싣는다.
 
-### 함정 3 — 트랜잭션 밖의 LAZY 초기화
+판정에는 부모 메시지의 작성자 id가 필요한데, `MessageResponse`에는 `replyToId`밖에 없다.
+**부모 작성자 id는 `RedisSubscriber`가 리포지토리로 직접 조회한다.**
 
-판정에는 부모 메시지의 작성자 id가 필요하다. 그런데 `MessageResponse`에는 `replyToId`밖에 없고,
-`replyTo.getMember().getId()`는 프록시 초기화를 요구한다.
+```java
+Optional<Long> findAuthorIdById(Long messageId);   // MessageRepository
+```
 
-**`MessageResponse.from(message)`는 `MessageService`의 트랜잭션 밖(`ChatMessageController`)에서
-호출된다.** 필드를 그대로 추가하면 `LazyInitializationException`으로 메시지 전송 전체가 죽는다.
-현재 `replyToId`가 무사한 것은 프록시 초기화 없이 식별자만 읽기 때문이다.
+답장인 메시지(`replyToId != null`)에 대해서만, 방 멤버 순회 **전에 한 번** 조회한다.
+`RedisSubscriber`는 이미 메시지마다 `findMembersByChatRoomId`를 호출하고 있으므로,
+답장에 한해 PK 조회가 하나 늘어날 뿐이다.
 
-**해법: `MessageResponse` 생성을 트랜잭션 안(서비스)으로 옮긴다.**
-REST 수정·삭제 경로에도 같은 지뢰가 있으므로 한 번에 정리한다.
+### 함정 3 — `MessageResponse`에 필드를 늘리지 않는 이유
+
+부모 작성자 id를 `MessageResponse`에 실어 보내는 편이 조회 없이 끝나 보이지만, 위험하다.
+
+`MessageResponse.from(message)`는 `MessageService`의 트랜잭션 **밖**
+(`ChatMessageController`)에서 호출된다. STOMP 메시지 처리는 HTTP 요청이 아니므로
+`open-in-view`(현재 미설정 = 기본 `true`)의 보호를 받지 못한다.
+지금 무사한 것은 `create`가 작성자·방·부모 메시지를 이미 실체로 로드해 두었고,
+`replyTo.getId()`가 프록시 초기화 없이 식별자만 읽기 때문이다.
+`replyTo.getMember()`처럼 **새로운 프록시 경로를 하나라도 더 타면**
+`LazyInitializationException`으로 메시지 전송 전체가 죽을 수 있다.
+
+이걸 안전하게 만들려면 `MessageResponse` 생성을 서비스 안으로 옮겨야 하는데,
+호출 지점이 신규·수정·삭제 3곳이라 이번 작업 범위에 비해 변경이 크다.
+리포지토리 조회 한 번이 더 작고, 더 확실하다.
 
 ### 변경 지점
 
-- `MessageResponse` — `replyToMemberId` 추가, 생성 위치를 서비스로 이동
+- `MessageRepository` — `findAuthorIdById`
 - `UnreadEvent` — `isReplyToMe` 추가
-- `RedisSubscriber` — 멤버 순회 시 판정
+- `RedisSubscriber` — 부모 작성자 조회 후 멤버 순회 시 판정
+
+`MessageResponse`는 건드리지 않는다.
 
 ## 3. 프론트
 
@@ -123,7 +147,7 @@ REST 수정·삭제 경로에도 같은 지뢰가 있으므로 한 번에 정리
 
 - 리포지토리 쿼리 테스트 — `replyCount` 정확도, 위 경계 조건 5개,
   `replyCount ≤ unreadCount` 불변식
-- `MessageResponse` 이동 후 STOMP 전송 회귀 — `LazyInitializationException`이 나지 않는지
+- `RedisSubscriber` 판정 테스트 — 답장 수신자에게만 `isReplyToMe`가 실리는지
 - `./gradlew test`
 - 프론트 `npm run lint && npm run build`
 - 실제 화면 — 답장을 받은 방의 우표 배지가 구분되는지, 방에 들어가면 사라지는지
