@@ -160,7 +160,7 @@ interface Props {
   onCreateChannel: (name: string, isPrivate: boolean) => Promise<Channel>;
   onJoinRoom: (channelId: string, inviteCode: string) => Promise<void>;
   onLogout: () => void;
-  unread?: Record<string, number>;
+  unread?: Record<string, { count: number; replies: number }>;
   currentUser: User;
   token: string;
   onOpenSettings: () => void;
@@ -621,7 +621,9 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
             const p = positions[i];
             const dim = (hoveredId !== null && hoveredId !== ch.id) || (focusedId !== null && focusedId !== ch.id);
             const hidden = focusedId === ch.id; // 확대 클론이 대신 표시되는 동안 원본 숨김
-            const count = unread?.[ch.id] ?? 0;
+            const entry = unread?.[ch.id];
+            const count = entry?.count ?? 0;
+            const replies = entry?.replies ?? 0;
             const dragging = drag !== null && drag.id === ch.id && drag.moved;
             const left = dragging ? `${drag!.leftPct.toFixed(2)}%` : p.left;
             const top = dragging ? `${drag!.topPct.toFixed(2)}%` : p.top;

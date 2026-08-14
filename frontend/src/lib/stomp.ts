@@ -19,7 +19,7 @@ interface StompClientOptions {
   onMessage: (message: BackendMessage) => void;
   onPresence?: (roomId: string, onlineMemberIds: string[]) => void;
   onTyping?: (p: { chatroomId: string; memberId: string; nickname: string; typing: boolean }) => void;
-  onUnread?: (evt: { chatroomId: number; messageId: number }) => void;
+  onUnread?: (evt: { chatroomId: number; messageId: number; replyToMe: boolean }) => void;
   /** 특정 목적지의 인가 거부. 세션은 살아있으므로 재연결하지 않는다. */
   onAuthzError?: (err: WsAuthzError) => void;
   onDisconnect: () => void;
@@ -188,7 +188,7 @@ export class SpringStompClient {
             typing: p.typing,
           });
         } else if (kind === 'unread') {
-          this.options.onUnread?.(payload as { chatroomId: number; messageId: number });
+          this.options.onUnread?.(payload as { chatroomId: number; messageId: number; replyToMe: boolean });
         } else if (kind === 'authzerror') {
           this.options.onAuthzError?.(payload as WsAuthzError);
         } else {

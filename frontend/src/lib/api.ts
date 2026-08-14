@@ -201,6 +201,7 @@ export async function getMessages(
 export interface UnreadCount {
   chatroomId: number;
   unreadCount: number;
+  replyCount: number;
   lastReadMessageId: number | null;
 }
 
