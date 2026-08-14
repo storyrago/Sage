@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
-import { Plus, Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell, X, LogOut, Lock, UserX, Crown } from 'lucide-react';
+import { Plus, Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell, X, LogOut, Lock, UserX, Crown, Reply } from 'lucide-react';
 import { Channel, User } from '../types';
 import Avatar from './Avatar';
 import { ApiError, BackendBannedMember, getRoomBans, getRoomMemberProfiles, leaveChatRoom, RoomMemberProfile, transferOwnership, unbanMember } from '../lib/api';
@@ -665,6 +665,14 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
                   {count > 0 && (
                     <span key={count} className="contents">
                       <Postmark count={count} />
+                    </span>
+                  )}
+                  {replies > 0 && (
+                    <span
+                      aria-label={`나에게 온 답장 ${replies}개`}
+                      className="absolute right-1 top-1 md:right-1.5 md:top-1.5 w-4 h-4 md:w-5 md:h-5 rounded-full bg-[#C2402C] flex items-center justify-center pointer-events-none"
+                    >
+                      <Reply className="w-2.5 h-2.5 md:w-3 md:h-3 text-[#f5efe6]" strokeWidth={2.5} />
                     </span>
                   )}
                   {ch.locked && !ch.joined && (
