@@ -31,4 +31,8 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 
     @Query("SELECT MAX(m.id) FROM Message m WHERE m.chatRoom = :room")
     Long findMaxIdByChatRoom(@Param("room") ChatRoom room);
+
+    /** 부모 메시지 작성자 판정용. FK 컬럼만 읽으므로 조인이 생기지 않는다. 탈퇴자·없는 메시지는 null. */
+    @Query("SELECT m.member.id FROM Message m WHERE m.id = :messageId")
+    Long findAuthorIdById(@Param("messageId") Long messageId);
 }
