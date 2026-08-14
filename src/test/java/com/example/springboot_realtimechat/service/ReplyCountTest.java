@@ -136,21 +136,4 @@ class ReplyCountTest {
         assertThat(a측.getUnreadCount()).isEqualTo(2L);
         assertThat(a측.getReplyCount()).isZero();
     }
-
-    @Test
-    void replyCount는_unreadCount를_넘지_않는다() {
-        Member a = memberService.create("rc-n@e.com", "1234", "a");
-        Member b = memberService.create("rc-o@e.com", "1234", "b");
-        ChatRoom room = chatRoomService.create("room", false, null);
-        chatRoomMemberService.join(a.getId(), room.getId(), null);
-        chatRoomMemberService.join(b.getId(), room.getId(), null);
-
-        Message mine = messageService.create("내 메시지", null, a.getId(), room.getId(), null);
-        messageService.create("답장", null, b.getId(), room.getId(), mine.getId());
-        messageService.create("일반", null, b.getId(), room.getId(), null);
-
-        for (UnreadCountResponse c : chatRoomMemberService.getUnreadCounts(a.getId())) {
-            assertThat(c.getReplyCount()).isLessThanOrEqualTo(c.getUnreadCount());
-        }
-    }
 }

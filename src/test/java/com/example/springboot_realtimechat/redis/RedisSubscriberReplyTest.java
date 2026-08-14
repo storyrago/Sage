@@ -77,6 +77,9 @@ class RedisSubscriberReplyTest {
 
         // 보낸 사람에겐 통지하지 않는다
         verify(messagingTemplate, never()).convertAndSendToUser(eq("2"), eq("/queue/unread"), any(Object.class));
+
+        // 부모 작성자 조회는 멤버 수와 무관하게 메시지당 한 번만 실행된다
+        verify(messageRepository, times(1)).findAuthorIdById(50L);
     }
 
     @Test
