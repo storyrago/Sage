@@ -169,7 +169,8 @@ public class ChatRoomMemberService {
 
     public List<UnreadCountResponse> getUnreadCounts(Long memberId) {
         return chatRoomMemberRepository.findUnreadCountsByMemberId(memberId).stream()
-                .map(p -> new UnreadCountResponse(p.getChatroomId(), p.getUnreadCount(), p.getLastReadMessageId()))
+                .map(p -> new UnreadCountResponse(
+                        p.getChatroomId(), p.getUnreadCount(), p.getReplyCount(), p.getLastReadMessageId()))
                 .toList();
     }
 

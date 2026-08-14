@@ -23,7 +23,8 @@ public interface ChatRoomMemberRepository extends JpaRepository<ChatRoomMember, 
     @Query("""
         SELECT cm.chatRoom.id AS chatroomId,
                cm.lastReadMessageId AS lastReadMessageId,
-               COUNT(m) AS unreadCount
+               COUNT(m) AS unreadCount,
+               COUNT(p) AS replyCount
         FROM ChatRoomMember cm
         JOIN cm.chatRoom r
         LEFT JOIN Message m
@@ -31,6 +32,9 @@ public interface ChatRoomMemberRepository extends JpaRepository<ChatRoomMember, 
            AND (m.member IS NULL OR m.member <> cm.member)
            AND m.deleted = false
            AND (cm.lastReadMessageId IS NULL OR m.id > cm.lastReadMessageId)
+        LEFT JOIN Message p
+            ON p.id = m.replyTo.id
+           AND p.member = cm.member
         WHERE cm.member.id = :memberId
           AND r.deletedAt IS NULL
         GROUP BY cm.chatRoom.id, cm.lastReadMessageId

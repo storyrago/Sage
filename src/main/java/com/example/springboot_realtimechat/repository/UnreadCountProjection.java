@@ -4,4 +4,5 @@ public interface UnreadCountProjection {
     Long getChatroomId();
     Long getLastReadMessageId();
     long getUnreadCount();
+    long getReplyCount();
 }
