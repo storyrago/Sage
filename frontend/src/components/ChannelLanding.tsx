@@ -670,9 +670,11 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
                   {replies > 0 && (
                     <span
                       aria-label={`나에게 온 답장 ${replies}개`}
-                      className="absolute right-1 top-1 md:right-1.5 md:top-1.5 w-4 h-4 md:w-5 md:h-5 rounded-full bg-[#C2402C] flex items-center justify-center pointer-events-none"
+                      // 우상단은 마스킹테이프, 우하단은 날짜가 쓰고 있어 좌하단에 둔다.
+                      // 종이색 링은 같은 붉은 잉크인 소인과 겹쳐 보이지 않게 갈라준다.
+                      className="absolute left-1.5 bottom-3 md:left-2 md:bottom-4 w-5 h-5 md:w-6 md:h-6 rounded-full bg-[#C2402C] ring-2 ring-[#e8ece4] shadow-[0_2px_4px_rgba(0,0,0,0.35)] flex items-center justify-center pointer-events-none"
                     >
-                      <Reply className="w-2.5 h-2.5 md:w-3 md:h-3 text-[#f5efe6]" strokeWidth={2.5} />
+                      <Reply className="w-3 h-3 md:w-3.5 md:h-3.5 text-[#f5efe6]" strokeWidth={2.5} />
                     </span>
                   )}
                   {ch.locked && !ch.joined && (
