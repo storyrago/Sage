@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
-import { Plus, Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell, X, LogOut, Lock, UserX, Crown } from 'lucide-react';
+import { Plus, Hash, Code, Music, Shuffle, Gamepad2, MessageCircle, Bell, X, LogOut, Lock, UserX, Crown, Reply } from 'lucide-react';
 import { Channel, User } from '../types';
 import Avatar from './Avatar';
 import { ApiError, BackendBannedMember, getRoomBans, getRoomMemberProfiles, leaveChatRoom, RoomMemberProfile, transferOwnership, unbanMember } from '../lib/api';
@@ -160,7 +160,7 @@ interface Props {
   onCreateChannel: (name: string, isPrivate: boolean) => Promise<Channel>;
   onJoinRoom: (channelId: string, inviteCode: string) => Promise<void>;
   onLogout: () => void;
-  unread?: Record<string, number>;
+  unread?: Record<string, { count: number; replies: number }>;
   currentUser: User;
   token: string;
   onOpenSettings: () => void;
@@ -621,7 +621,9 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
             const p = positions[i];
             const dim = (hoveredId !== null && hoveredId !== ch.id) || (focusedId !== null && focusedId !== ch.id);
             const hidden = focusedId === ch.id; // 확대 클론이 대신 표시되는 동안 원본 숨김
-            const count = unread?.[ch.id] ?? 0;
+            const entry = unread?.[ch.id];
+            const count = entry?.count ?? 0;
+            const replies = entry?.replies ?? 0;
             const dragging = drag !== null && drag.id === ch.id && drag.moved;
             const left = dragging ? `${drag!.leftPct.toFixed(2)}%` : p.left;
             const top = dragging ? `${drag!.topPct.toFixed(2)}%` : p.top;
@@ -663,6 +665,16 @@ export default function ChannelLanding({ channels, onSelectChannel, onCreateChan
                   {count > 0 && (
                     <span key={count} className="contents">
                       <Postmark count={count} />
+                    </span>
+                  )}
+                  {replies > 0 && (
+                    <span
+                      aria-label={`나에게 온 답장 ${replies}개`}
+                      // 우상단은 마스킹테이프, 우하단은 날짜가 쓰고 있어 좌하단에 둔다.
+                      // 종이색 링은 같은 붉은 잉크인 소인과 겹쳐 보이지 않게 갈라준다.
+                      className="absolute left-1.5 bottom-3 md:left-2 md:bottom-4 w-5 h-5 md:w-6 md:h-6 rounded-full bg-[#C2402C] ring-2 ring-[#e8ece4] shadow-[0_2px_4px_rgba(0,0,0,0.35)] flex items-center justify-center pointer-events-none"
+                    >
+                      <Reply className="w-3 h-3 md:w-3.5 md:h-3.5 text-[#f5efe6]" strokeWidth={2.5} />
                     </span>
                   )}
                   {ch.locked && !ch.joined && (

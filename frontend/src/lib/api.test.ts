@@ -1,5 +1,13 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { toMessage, BackendMessage, deleteAccount, logout, exchangeOAuthCode, setUnauthorizedHandler } from './api';
+import {
+  toMessage,
+  BackendMessage,
+  deleteAccount,
+  logout,
+  exchangeOAuthCode,
+  setUnauthorizedHandler,
+  getUnreadCounts,
+} from './api';
 
 const base: BackendMessage = {
   messageId: 1,
@@ -100,6 +108,27 @@ describe('deleteAccount', () => {
     expect(String(url)).toContain('/api/members/me');
     expect(init.method).toBe('DELETE');
     expect(new Headers(init.headers).get('Authorization')).toBe('Bearer tok-123');
+  });
+});
+
+describe('getUnreadCounts', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    setUnauthorizedHandler(null);
+  });
+
+  it('replyCount를 그대로 파싱해서 돌려준다', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify([{ chatroomId: 3, unreadCount: 5, replyCount: 2, lastReadMessageId: 10 }]),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await getUnreadCounts('tok-123');
+
+    expect(result[0].replyCount).toBe(2);
   });
 });
 

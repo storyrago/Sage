@@ -72,7 +72,7 @@ export default function App() {
   const [reconnectCount, setReconnectCount] = useState<number>(0);
   const [reconnectGaveUp, setReconnectGaveUp] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState<string>('채팅 정보를 불러오는 중입니다.');
-  const [unread, setUnread] = useState<Record<string, number>>({});
+  const [unread, setUnread] = useState<Record<string, { count: number; replies: number }>>({});
   const [roomLastRead, setRoomLastRead] = useState<Record<string, number | null>>({});
   const [notice, setNotice] = useState<string | null>(null);
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
@@ -242,7 +242,7 @@ export default function App() {
         try {
           const counts = await getUnreadCounts(token);
           if (cancelled) return;
-          setUnread(Object.fromEntries(counts.map((c) => [String(c.chatroomId), c.unreadCount])));
+          setUnread(Object.fromEntries(counts.map((c) => [String(c.chatroomId), { count: c.unreadCount, replies: c.replyCount }])));
           setRoomLastRead(Object.fromEntries(counts.map((c) => [String(c.chatroomId), c.lastReadMessageId])));
         } catch (unreadError) {
           console.error('[Unread] 안읽음 개수 조회 실패(무시하고 계속):', unreadError);
@@ -315,7 +315,7 @@ export default function App() {
           // 여기서 새어나가면 "메시지를 불러오지 못했어요"로 잘못 표시된다.
           try {
             await markRoomRead(token, selectedChannelId);
-            setUnread((prev) => ({ ...prev, [selectedChannelId]: 0 }));
+            setUnread((prev) => ({ ...prev, [selectedChannelId]: { count: 0, replies: 0 } }));
           } catch (readError) {
             console.error('[Unread] 입장 시 읽음 처리 실패(무시하고 계속):', readError);
           }
@@ -381,7 +381,7 @@ export default function App() {
           // 재연결 중 놓쳤을 수 있는 안읽음 이벤트를 보정 (경계는 건드리지 않음)
           getUnreadCounts(token)
             .then((counts) => {
-              setUnread(Object.fromEntries(counts.map((c) => [String(c.chatroomId), c.unreadCount])));
+              setUnread(Object.fromEntries(counts.map((c) => [String(c.chatroomId), { count: c.unreadCount, replies: c.replyCount }])));
             })
             .catch((e) => console.error('[Unread] 재연결 후 안읽음 재조회 실패:', e));
           // 끊긴 동안 강퇴·삭제당했을 수 있다. 그 통지는 재연결 시 구독 거부로만 드러나므로
@@ -445,10 +445,13 @@ export default function App() {
             timers.delete(memberId);
           }
         },
-        onUnread: ({ chatroomId }) => {
+        onUnread: ({ chatroomId, replyToMe }) => {
           const roomId = String(chatroomId);
           if (roomId === selectedChannelRef.current) return; // 지금 보는 방은 무시
-          setUnread((prev) => ({ ...prev, [roomId]: (prev[roomId] ?? 0) + 1 }));
+          setUnread((prev) => {
+            const cur = prev[roomId] ?? { count: 0, replies: 0 };
+            return { ...prev, [roomId]: { count: cur.count + 1, replies: cur.replies + (replyToMe ? 1 : 0) } };
+          });
         },
         onAuthzError: ({ code, message, destination }) => {
           // 세션은 살아있고 특정 목적지만 거부된 것이므로 재연결하지 않는다.
