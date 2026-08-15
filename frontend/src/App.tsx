@@ -35,6 +35,7 @@ import {
 } from './lib/api';
 import { SpringStompClient } from './lib/stomp';
 import { reconnectDelayMs, reconnectExhausted } from './lib/reconnect';
+import { createReadMarker } from './lib/readMarker';
 import { useTheme } from './lib/useTheme';
 import { toUserMessage, isSessionExpiredError } from './lib/errors';
 
@@ -84,13 +85,23 @@ export default function App() {
   const typingSentAtRef = useRef<number>(0);
   const typingActiveRef = useRef<boolean>(false);
   const typingExpiryRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-  const lastMarkReadAtRef = useRef<number>(0);
   const toastIdRef = useRef(0);
+  const readMarkerRef = useRef<ReturnType<typeof createReadMarker> | null>(null);
 
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     selectedChannelRef.current = selectedChannelId;
+  }, [selectedChannelId]);
+
+  // 방을 떠날 때, 창 안에서 억제돼 예약만 돼 있던 읽음 처리를 그 자리에서 보낸다.
+  // 예약된 보충은 방을 떠나면 취소되므로(떠난 뒤 도착한 메시지까지 읽음 처리되는 것을 막기 위해),
+  // 떠나는 시점에 보내지 않으면 마지막으로 본 메시지가 안읽음으로 남는다.
+  useEffect(() => {
+    if (!selectedChannelId) return;
+    return () => {
+      readMarkerRef.current?.flush();
+    };
   }, [selectedChannelId]);
 
   // 실패를 사용자에게 알린다. 같은 문구가 연달아 나도 다시 보이도록 id를 증가시킨다.
@@ -348,6 +359,12 @@ export default function App() {
     let attempt = 0;
     setReconnectGaveUp(false);   // 로컬 시도 횟수와 배너 상태가 어긋나지 않게 함께 초기화한다
 
+    const readMarker = createReadMarker(
+      (roomId) => markRoomRead(token, roomId).catch((e) => console.error('[Unread] 읽음 처리 실패:', e)),
+      (roomId) => selectedChannelRef.current === roomId,
+    );
+    readMarkerRef.current = readMarker;
+
     const scheduleReconnect = () => {
       if (disposed || reconnectTimer) return;
       setConnected(false);
@@ -414,11 +431,7 @@ export default function App() {
             // (현재 열려 있는 화면은 ChatArea가 입장 시점 스냅샷을 ref로 고정해두므로 영향 없음)
             setRoomLastRead((prev) => ({ ...prev, [roomId]: Number(backendMessage.messageId) }));
 
-            const now = Date.now();
-            if (now - lastMarkReadAtRef.current >= 1000) {
-              lastMarkReadAtRef.current = now;
-              markRoomRead(token, roomId).catch((e) => console.error('[Unread] 읽음 처리 실패:', e));
-            }
+            readMarker.mark(roomId);
           }
         },
         onPresence: (roomId, ids) => {
@@ -491,6 +504,8 @@ export default function App() {
       if (reconnectTimer) {
         clearTimeout(reconnectTimer);
       }
+      readMarker.cancel();
+      readMarkerRef.current = null;
       stompRef.current?.disconnect();
       stompRef.current = null;
     };
