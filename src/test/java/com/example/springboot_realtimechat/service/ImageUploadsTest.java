@@ -78,7 +78,7 @@ class ImageUploadsTest {
     // 키가 그대로 URL 경로가 되므로 파일명이 키를 오염시키면 안 된다.
     @Test
     void 파일명에서_경로문자와_공백을_제거한다() {
-        assertThat(ImageUploads.sanitizeFilename("../../etc/passwd")).isEqualTo("etcpasswd");
+        assertThat(ImageUploads.sanitizeFilename("../../etc/passwd")).isEqualTo("....etcpasswd");
         assertThat(ImageUploads.sanitizeFilename("my photo (1).png")).isEqualTo("myphoto1.png");
         assertThat(ImageUploads.sanitizeFilename("a\nb.png")).isEqualTo("ab.png");
     }
@@ -87,5 +87,17 @@ class ImageUploadsTest {
     void 파일명이_비거나_전부_걸러지면_기본값을_쓴다() {
         assertThat(ImageUploads.sanitizeFilename(null)).isEqualTo("image");
         assertThat(ImageUploads.sanitizeFilename("///")).isEqualTo("image");
+    }
+
+    // 슬래시가 제거되므로 정규화된 이름은 키 접두사를 벗어날 수 없다. 남은 점은 무해하다.
+    @Test
+    void 정규화된_파일명에는_경로_구분자가_남지_않는다() {
+        assertThat(ImageUploads.sanitizeFilename("../../etc/passwd")).doesNotContain("/");
+        assertThat(ImageUploads.sanitizeFilename("a/b\\c.png")).doesNotContain("/", "\\");
+    }
+
+    @Test
+    void 확장자_구분점을_지우지_않는다() {
+        assertThat(ImageUploads.sanitizeFilename("photo..jpg")).isEqualTo("photo..jpg");
     }
 }

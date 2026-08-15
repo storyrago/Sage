@@ -66,7 +66,8 @@ public final class ImageUploads {
     /** 키가 그대로 URL 경로가 되므로 영숫자·점·하이픈만 남긴다. ".."은 경로 탈출에 쓰이므로 먼저 제거한다. */
     public static String sanitizeFilename(String original) {
         if (original == null) return "image";
-        String cleaned = original.replace("..", "").replaceAll("[^A-Za-z0-9.-]", "");
+        // 슬래시 제거가 경로 구분자를 제거하므로 정규화된 이름은 키 접두사를 벗어날 수 없다. 남은 점은 무해하다.
+        String cleaned = original.replaceAll("[^A-Za-z0-9.-]", "");
         return cleaned.isBlank() ? "image" : cleaned;
     }
 }
