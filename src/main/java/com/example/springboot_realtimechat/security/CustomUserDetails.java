@@ -31,7 +31,8 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public String getUsername() {
-        return email;
+        // 식별자는 불변인 member id. 이메일은 바뀔 수 있고 없을 수도 있다
+        return String.valueOf(memberId);
     }
 
     @Override

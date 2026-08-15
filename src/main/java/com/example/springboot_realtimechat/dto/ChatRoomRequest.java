@@ -1,5 +1,6 @@
 package com.example.springboot_realtimechat.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
@@ -9,4 +10,7 @@ import lombok.Setter;
 public class ChatRoomRequest {
     @NotBlank
     private String name;
+
+    @JsonProperty("private")
+    private boolean isPrivate;
 }

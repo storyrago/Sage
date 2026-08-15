@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- 기동 소음 로거 억제 등 Boot 기본 설정 재사용. CONSOLE_LOG_PATTERN만 아래에서 재정의한다 -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- Boot 기본 콘솔 패턴은 %clr(ANSI 컬러)를 쓴다. 터미널에서는 보기 좋지만, docker 로그를
+         파일로 모으면(json-file 드라이버) 이스케이프 코드가 그대로 섞여 지저분해진다.
+         컬러 없는 텍스트 패턴으로 교체한다: 시각·레벨·추적ID·로거·메시지.
+         추적 ID는 RequestIdFilter가 MDC(requestId)에 심는다. 없는 로그(기동 로그·스케줄러 등)에서도
+         깨지지 않도록 기본값 '-'를 둔다. -->
+    <property name="CONSOLE_LOG_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{requestId:--}] %logger{36} - %msg%n"/>
+
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

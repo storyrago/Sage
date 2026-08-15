@@ -44,7 +44,7 @@ class ServiceFlowTest {
     @Test
     void 채팅방_생성() {
         // when
-        ChatRoom chatRoom = chatRoomService.create("room1");
+        ChatRoom chatRoom = chatRoomService.create("room1", false, null);
 
         // then
         assertThat(chatRoom.getId()).isNotNull();
@@ -55,10 +55,10 @@ class ServiceFlowTest {
     void 채팅방_참여() {
         // given
         Member member = memberService.create("join@email.com", "1234", "joiner");
-        ChatRoom chatRoom = chatRoomService.create("join-room");
+        ChatRoom chatRoom = chatRoomService.create("join-room", false, null);
 
         // when
-        ChatRoomMember chatRoomMember = chatRoomMemberService.join(member.getId(), chatRoom.getId());
+        ChatRoomMember chatRoomMember = chatRoomMemberService.join(member.getId(), chatRoom.getId(), null);
 
         // then
         assertThat(chatRoomMember.getId()).isNotNull();
@@ -70,11 +70,11 @@ class ServiceFlowTest {
     void 메시지_전송() {
         // given
         Member member = memberService.create("message@email.com", "1234", "sender");
-        ChatRoom chatRoom = chatRoomService.create("message-room");
-        chatRoomMemberService.join(member.getId(), chatRoom.getId());
+        ChatRoom chatRoom = chatRoomService.create("message-room", false, null);
+        chatRoomMemberService.join(member.getId(), chatRoom.getId(), null);
 
         // when
-        Message message = messageService.create("hello", null, member.getId(), chatRoom.getId());
+        Message message = messageService.create("hello", null, member.getId(), chatRoom.getId(), null);
 
         // then
         assertThat(message.getId()).isNotNull();
@@ -87,10 +87,10 @@ class ServiceFlowTest {
     void 미참여자_메시지_전송_실패() {
         // given
         Member member = memberService.create("outsider@email.com", "1234", "outsider");
-        ChatRoom chatRoom = chatRoomService.create("private-room");
+        ChatRoom chatRoom = chatRoomService.create("private-room", false, null);
 
         // when & then
-        assertThatThrownBy(() -> messageService.create("hello", null, member.getId(), chatRoom.getId()))
+        assertThatThrownBy(() -> messageService.create("hello", null, member.getId(), chatRoom.getId(), null))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.NOT_JOINED_ROOM);
@@ -100,11 +100,11 @@ class ServiceFlowTest {
     void 중복_참여_실패() {
         // given
         Member member = memberService.create("duplicate@email.com", "1234", "member");
-        ChatRoom chatRoom = chatRoomService.create("duplicate-room");
-        chatRoomMemberService.join(member.getId(), chatRoom.getId());
+        ChatRoom chatRoom = chatRoomService.create("duplicate-room", false, null);
+        chatRoomMemberService.join(member.getId(), chatRoom.getId(), null);
 
         // when & then
-        assertThatThrownBy(() -> chatRoomMemberService.join(member.getId(), chatRoom.getId()))
+        assertThatThrownBy(() -> chatRoomMemberService.join(member.getId(), chatRoom.getId(), null))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.ALREADY_JOINED_ROOM);

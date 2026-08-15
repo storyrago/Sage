@@ -12,19 +12,31 @@ import java.util.List;
 @Entity
 @Getter
 @NoArgsConstructor
-@Table(name = "members")
+@Table(
+        name = "members",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_members_provider",
+                columnNames = {"provider", "provider_id"}
+        )
+)
 public class Member {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(unique = true)
     private String email;
 
-    @Column(nullable = false)
+    @Column
     private String password;
 
-    @Column(length=10)
+    @Column(nullable = false, length = 20)
+    private String provider = "LOCAL";
+
+    @Column(name = "provider_id", length = 255)
+    private String providerId;
+
+    @Column(length = 20)
     private String nickname;
 
     @Column(name = "profile_image_url", length = 500)
@@ -33,6 +45,9 @@ public class Member {
     @Column(name = "created_at", nullable = false, updatable = false)
     @CreationTimestamp
     private LocalDateTime createdAt;
+
+    @Column(name = "onboarded_at")
+    private LocalDateTime onboardedAt;
 
     @OneToMany(mappedBy = "member")
     private List<Message> messages = new ArrayList<>();
@@ -48,6 +63,36 @@ public class Member {
 
     public void updateProfileImageUrl(String profileImageUrl){
         this.profileImageUrl = profileImageUrl;
+    }
+
+    public void updateNickname(String nickname) {
+        this.nickname = nickname;
+    }
+
+    public void markOnboarded() {
+        if (this.onboardedAt == null) {
+            this.onboardedAt = LocalDateTime.now();
+        }
+    }
+
+    public boolean isOnboarded() {
+        return this.onboardedAt != null;
+    }
+
+    public static Member ofSocial(String provider, String providerId, String email,
+                                  String nickname, String profileImageUrl) {
+        Member m = new Member();
+        m.provider = provider;
+        m.providerId = providerId;
+        m.email = email;
+        m.password = null;
+        m.nickname = nickname;
+        m.profileImageUrl = profileImageUrl;
+        return m;
+    }
+
+    public void updateEmail(String email) {
+        this.email = email;
     }
 }
 

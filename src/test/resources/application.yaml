@@ -14,6 +14,19 @@ spring:
   h2:
     console:
       enabled: true
+  flyway:
+    enabled: false   # 테스트는 H2 create-drop로 스키마 생성, Flyway 미개입
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: test-client-id
+            client-secret: test-client-secret
+            scope:
+              - openid
+              - email
+              - profile
 
 jwt:
   secret: test-secret-key-for-jwt-authentication-1234567890
@@ -23,3 +36,14 @@ aws:
   s3:
     bucket: test-bucket
     region: ap-northeast-2
+
+app:
+  frontend-url: http://localhost:5173
+
+management:
+  otlp:
+    metrics:
+      export:
+        # 이 파일은 main의 application.yaml을 대체하고 상속하지 않는다. micrometer-registry-otlp가
+        # 테스트 런타임에도 있어 명시적으로 꺼두지 않으면 빈 URL로 주기적 푸시를 시도해 에러 로그가 난다.
+        enabled: false

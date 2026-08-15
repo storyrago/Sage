@@ -27,7 +27,7 @@
 
 | 주요 기능 | 설명 |
 |---|---|
-| **회원 / 인증** | 회원가입, 로그인 시 **JWT 발급**. REST는 필터로, WebSocket은 **STOMP CONNECT 시** 토큰 검증 |
+| **회원 / 인증** | 로그인 시 **JWT 발급** (이메일 · Google OAuth). REST는 필터로, WebSocket은 **STOMP CONNECT 시** 토큰 검증 |
 | **채팅방** | 생성 · 조회 · 입장 · 나가기 · 참여자 목록. 미참여자의 메시지 전송 차단 |
 | **실시간 채팅** | **WebSocket(STOMP)** 송수신. **Redis Pub/Sub** 경유로 **모든 서버의 구독자**에게 브로드캐스트 |
 | **이미지** | **S3** 업로드 후 공개 URL 발급 → **프로필 이미지 / 채팅 이미지**로 첨부 |
@@ -76,8 +76,6 @@
 | Method | Path | 인증 | 설명 |
 |:---:|---|:---:|---|
 | `POST` | `/api/auth/login` | — | 로그인 → `{ tokenType, accessToken }` |
-| `POST` | `/api/members` | — | 회원가입 |
-| `GET` | `/api/members` | ✅ | 회원 목록 |
 | `GET` | `/api/members/me` | ✅ | 내 정보 |
 | `GET` | `/api/members/{id}` | ✅ | 회원 단건 조회 |
 | `PATCH` | `/api/members/me/profile-image` | ✅ | 프로필 이미지 변경 |
@@ -89,9 +87,8 @@
 |:---:|---|:---:|---|
 | `POST` | `/api/chatrooms` | ✅ | 채팅방 생성 |
 | `GET` | `/api/chatrooms` | ✅ | 채팅방 목록 |
-| `GET` | `/api/chatrooms/{id}` | ✅ | 채팅방 조회 |
 | `POST` | `/api/chatrooms/{chatroomId}/members` | ✅ | 채팅방 입장 |
-| `GET` | `/api/chatrooms/{chatroomId}/members` | ✅ | 참여자 목록 |
+| `GET` | `/api/chatrooms/{chatroomId}/members` | ✅ | 참여자 목록 (해당 방 멤버만 조회 가능) |
 | `DELETE` | `/api/chatrooms/{chatroomId}/members` | ✅ | 채팅방 나가기 |
 
 ### 메시지 / 이미지
@@ -151,6 +148,8 @@ JWT_SECRET={32바이트 이상 랜덤 문자열}
 ```bash
 docker compose up -d        # GHCR 이미지 pull → 기동
 ```
+- `image:`의 `IMAGE_TAG`는 필수 값이라 미설정 시 즉시 실패합니다. 배포 스크립트가 매 배포마다 `.env`에 `IMAGE_TAG=<배포된 SHA>`를 기록해 두므로, EC2에서는 위 명령이 그대로 동작합니다.
+- 특정 버전으로 띄우려면 태그를 직접 지정합니다: `IMAGE_TAG=<sha> docker compose up -d`
 - 외부 의존: **MySQL(RDS)**, **S3**
 - 접속: **https://sagertc.duckdns.org**
 - ⚠️ `web`(nginx)은 TLS 인증서(`/etc/letsencrypt`)가 필요합니다. 인증서 없는 **로컬에선 아래 4번(`bootRun`) + 프론트 `npm --prefix frontend run dev`** 로 개발하세요.

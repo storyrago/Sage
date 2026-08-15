@@ -1,9 +1,10 @@
 export interface User {
   id: string;
-  email: string;
+  email: string | null;   // 소셜 제공자가 이메일을 주지 않을 수 있다
   displayName: string;
   avatar: string; // Tailored color index, gradient, or icon abbreviation
   photoUrl?: string;
+  onboarded: boolean;
 }
 
 export interface Message {
@@ -13,7 +14,12 @@ export interface Message {
   userId: string;
   userName: string;
   userAvatar: string;
+  userPhotoUrl?: string;
   createdAt: number; // unix epoch ms
+  replyToId?: string; // 답장 대상 메시지 ID
+  imageUrl?: string; // 업로드된 이미지 URL
+  edited?: boolean; // 수정됨 표시
+  deleted?: boolean; // 소프트 삭제
 }
 
 export interface Channel {
@@ -22,6 +28,10 @@ export interface Channel {
   description?: string;
   createdBy: string;
   createdAt: number; // unix epoch ms
+  locked: boolean;
+  joined: boolean;
+  owner: boolean;
+  inviteCode?: string; // 방 주인일 때만 내려온다
 }
 
 export interface Presence {

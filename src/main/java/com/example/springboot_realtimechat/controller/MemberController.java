@@ -1,9 +1,10 @@
 package com.example.springboot_realtimechat.controller;
 
 import com.example.springboot_realtimechat.domain.Member;
-import com.example.springboot_realtimechat.dto.MemberRequest;
 import com.example.springboot_realtimechat.dto.MemberResponse;
+import com.example.springboot_realtimechat.dto.NicknameRequest;
 import com.example.springboot_realtimechat.dto.ProfileImageRequest;
+import com.example.springboot_realtimechat.dto.PublicMemberResponse;
 import com.example.springboot_realtimechat.security.CustomUserDetails;
 import com.example.springboot_realtimechat.service.MemberService;
 import jakarta.validation.Valid;
@@ -12,21 +13,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/members")
 public class MemberController {
     private final MemberService memberService;
-
-    @GetMapping
-    public List<MemberResponse> getAllMembers(){
-        List<Member> memberList = memberService.getMemberList();
-        return memberList.stream()
-                .map(MemberResponse::from)
-                .toList();
-    }
 
     @GetMapping("/me")
     public MemberResponse getMe(@AuthenticationPrincipal CustomUserDetails customUserDetails){
@@ -35,19 +26,28 @@ public class MemberController {
     }
 
     @GetMapping("/{id}")
-    public MemberResponse getMemberById(@PathVariable Long id){
+    public PublicMemberResponse getMemberById(@PathVariable Long id){
         Member member = memberService.getMemberById(id);
+        return PublicMemberResponse.from(member);
+    }
+
+    @PatchMapping("/me")
+    public MemberResponse updateMe(
+            @AuthenticationPrincipal CustomUserDetails customUserDetails,
+            @Valid @RequestBody NicknameRequest request) {
+
+        Member member = memberService.updateNickname(
+                customUserDetails.getMemberId(),
+                request.getNickname());
+
         return MemberResponse.from(member);
     }
 
-    @PostMapping
-    public MemberResponse create(@Valid @RequestBody MemberRequest memberRequest){
-       Member member = memberService.create(
-               memberRequest.getEmail(),
-               memberRequest.getPassword(),
-               memberRequest.getNickname()
-       );
+    @PostMapping("/me/onboarding")
+    public MemberResponse completeOnboarding(
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
 
+        Member member = memberService.completeOnboarding(customUserDetails.getMemberId());
         return MemberResponse.from(member);
     }
 

@@ -1,0 +1,4 @@
+ALTER TABLE members MODIFY password VARCHAR(255) NULL;
+ALTER TABLE members ADD COLUMN provider VARCHAR(20) NOT NULL DEFAULT 'LOCAL';
+ALTER TABLE members ADD COLUMN google_sub VARCHAR(255) NULL;
+ALTER TABLE members ADD CONSTRAINT uk_members_google_sub UNIQUE (google_sub);

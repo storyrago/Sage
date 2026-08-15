@@ -1,9 +1,12 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
+/* 폰트 체인은 글리프 단위로 앞에서부터 찾는다 — 영문은 Plus Jakarta Sans, 한글은 Pretendard로 갈려서
+   맥·윈도우가 같은 한글 폰트를 쓰게 된다.
+   mono 체인에도 Pretendard를 넣은 이유: 채널 이름·버튼 라벨처럼 한글이 mono 자리에 오는 곳이 있는데,
+   그대로 두면 윈도우에서 굴림이 잡힌다. 숫자·영문은 앞의 JetBrains Mono가 먼저 잡아 mono 느낌은 유지된다. */
 @theme {
-  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-sans: "Plus Jakarta Sans", "Pretendard Variable", Pretendard, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "Pretendard Variable", Pretendard, monospace;
 }
 
 /* Semantic sage tokens — light default, dark override */
@@ -93,13 +96,15 @@ body {
 }
 
 /* Custom gorgeous scrollbar styles for clean visual density */
+/* 맥은 오버레이 스크롤바라 공간을 안 먹지만, 윈도우는 공간을 차지하고 마우스로 드래그하는 일이 많아
+   6px은 잡기 어렵고 트랙이 안 보이면 스크롤 가능 영역인지 알 수 없다. */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgba(148, 163, 184, 0.07);
 }
 
 ::-webkit-scrollbar-thumb {
@@ -111,7 +116,12 @@ body {
   background: rgba(148, 163, 184, 0.4);
 }
 
+/* 우표 종이결: 큰 얼룩(톤 불균일) 한 층. feTurbulence로 생성 — 이미지 에셋 없음. */
 .stamp-paper {
+  position: relative;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='m'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.011' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.52 0 0 0 0 0.48 0 0 0 0 0.38 1.0 0.8 0 0 -0.63'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23m)'/%3E%3C/svg%3E");
+  background-size: 260px 260px;
+  box-shadow: inset 0 0 14px rgba(94, 88, 70, 0.16);
   -webkit-mask:
     linear-gradient(#000 0 0) 50%/calc(100% - 11px) calc(100% - 11px) no-repeat,
     radial-gradient(circle 5px, #000 96%, #0000) 0 0/12px 12px round;
@@ -122,6 +132,19 @@ body {
   mask-composite: add;
 }
 
+/* 잔결(섬유 반점)은 인쇄면 위까지 덮어야 한 장의 종이로 읽힌다. */
+.stamp-paper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.45' numOctaves='5' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-size: 140px 140px;
+  mix-blend-mode: multiply;
+  opacity: 0.3;
+}
+
 /* 채널 랜딩 우표 "다다닥" 등장 (index 순서로 stagger) */
 @keyframes stampIn {
   0%   { opacity: 0; transform: scale(1.5) translateY(-14px); }
@@ -129,7 +152,112 @@ body {
   100% { transform: scale(1); }
 }
 .stamp-in { animation: stampIn 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) backwards; }
+
+/* 안읽음 소인 "쿵" 찍히는 등장 (count 변경 시 key로 리플레이) */
+@keyframes postmarkStrike {
+  from { opacity: 0; transform: rotate(-13deg) scale(1.24); }
+  to   { opacity: 0.92; transform: rotate(-13deg) scale(1); }
+}
+.postmark-strike { animation: postmarkStrike 0.5s cubic-bezier(0.2, 1.5, 0.4, 1) both; }
 @media (prefers-reduced-motion: reduce) {
   .stamp-in { animation: none; }
+  .postmark-strike { animation: none; }
+}
+
+/* 채널 랜딩 우표 보드 — 행 수에 따라 늘어나는 높이(--board-h, 컴포넌트가 채널 수로 계산해 넘긴다).
+   모바일은 grid 흐름 배치라 이 높이와 무관 — md 이상에서만 적용한다. */
+@media (min-width: 768px) {
+  .stamp-board {
+    height: var(--board-h, 560px);
+  }
+}
+
+/* 우표를 게시판에 붙인 마스킹테이프 — 갤러리 타일 우상단 1곳에만.
+   안읽음 소인이 좌상단이라 겹치지 않는다. 크기는 96×128(모바일)→132×176(데스크톱) 타일 비율에 맞춰 확대.
+   각도/길이/오프셋은 채널마다 컴포넌트가 커스텀 프로퍼티로 흔든다 — 변수가 없으면 기존 모양 그대로. */
+.stamp-tape {
+  position: absolute;
+  top: var(--tape-top, -5px);
+  right: var(--tape-right, -5px);
+  width: var(--tape-w, 34px);
+  height: var(--tape-h, 13px);
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.09) 0 3px, transparent 3px 7px),
+    linear-gradient(180deg, rgba(244, 240, 226, 0.90), rgba(226, 220, 202, 0.82));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  clip-path: polygon(4% 0, 96% 5%, 100% 95%, 2% 100%);
+  transform: rotate(var(--tape-rot, 45deg));   /* 모서리 대각선과 나란히 — 절반은 종이, 절반은 보드를 문다 */
+}
+@media (min-width: 768px) {
+  .stamp-tape {
+    top: var(--tape-top-md, -7px);
+    right: var(--tape-right-md, -7px);
+    width: var(--tape-w-md, 46px);
+    height: var(--tape-h-md, 17px);
+  }
+}
+
+/* 종이 라벨 버튼 — 점선 안쪽 테두리로 톱니를 암시만 함(우표의 톱니는 재사용하지 않는다).
+   크기·여백·폰트는 사용처의 유틸리티 클래스가 맡고, 여기서는 종이 배경/모양만 담당한다. */
+.btn-label {
+  position: relative;
+  background-color: #f4f1e7;
+  color: #2c352f;
+  border-radius: 4px;
+  box-shadow: 0 4px 9px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(90, 99, 87, 0.28);
+}
+.btn-label::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1.4px dashed rgba(90, 99, 87, 0.42);
+  border-radius: 2px;
+  pointer-events: none;
+}
+.btn-label:hover:not(:disabled) {
+  background-color: #fbf9f3;
+}
+.btn-label:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* 고스트 변형 — 다이얼로그의 취소 성격 버튼에 .btn-label과 함께 사용 */
+.btn-label.btn-label-ghost {
+  background-color: transparent;
+  color: #e6ece8;
+  box-shadow: inset 0 0 0 1px rgba(230, 236, 232, 0.32);
+}
+.btn-label.btn-label-ghost::after {
+  border-color: rgba(230, 236, 232, 0.3);
+}
+.btn-label.btn-label-ghost:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+/* 소인 도장 버튼 — 화면당 "입장하기" 하나만. 안읽음 소인과 같은 언어라 남발하지 않는다 */
+.btn-stamp {
+  background: transparent;
+  color: #7AAE92;
+  font: 800 15px var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 14px 30px;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 2.4px #7AAE92, inset 0 0 0 4.6px transparent, inset 0 0 0 5.6px rgba(122, 174, 146, 0.55);
+  transform: rotate(-1.6deg);
+}
+.btn-stamp:hover:not(:disabled) {
+  color: #9CCBB2;
+  box-shadow: inset 0 0 0 2.4px #9CCBB2, inset 0 0 0 4.6px transparent, inset 0 0 0 5.6px rgba(156, 203, 178, 0.55);
+}
+
+/* 세 버튼 모두 기본 스타일을 덮어쓰므로 포커스 링을 명시적으로 되살린다 */
+.btn-label:focus-visible,
+.btn-label-ghost:focus-visible,
+.btn-stamp:focus-visible {
+  outline: 2px solid #9CCBB2;
+  outline-offset: 2px;
 }
 

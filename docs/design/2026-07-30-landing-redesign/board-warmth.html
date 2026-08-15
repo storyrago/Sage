@@ -1,0 +1,135 @@
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:0; font-family: ui-sans-serif, system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif; color:#e6ece8; background:#0d0f0e; }
+
+  .ctl { padding:16px 22px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; background:#121614; box-shadow:inset 0 -1px 0 rgba(255,255,255,.06); }
+  .ctl label { font-size:12.5px; font-weight:700; }
+  input[type=range] { width:260px; accent-color:#7AAE92; }
+  .out { font:700 13px ui-monospace, monospace; color:#9CCBB2; background:rgba(122,174,146,.12); padding:5px 10px; border-radius:6px; }
+  .hint { font-size:11.5px; color:#8b978f; }
+
+  /* ── 테이프 목업과 완전히 동일한 질감 처리 ──
+     노이즈를 배경에 직접 얹고(blend 모드 없음), ::after로 가로 결, inset 비네트. */
+  .board {
+    position: relative; min-height:420px; padding:26px 24px 34px; overflow:hidden;
+    background-color:#141917;                      /* ← 슬라이더가 이 값만 바꾼다 */
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23f)' opacity='0.55'/%3E%3C/svg%3E");
+    background-size:180px 180px;
+    box-shadow: inset 0 0 120px rgba(0,0,0,.55);
+  }
+  .board::after {
+    content:''; position:absolute; inset:0; pointer-events:none;
+    background-image: repeating-linear-gradient(0deg, rgba(255,255,255,.014) 0 1px, transparent 1px 3px);
+  }
+
+  .bar { position:relative; z-index:2; display:flex; align-items:center; gap:9px; margin-bottom:26px; }
+  .brand { font-weight:800; font-size:15px; margin-right:auto; }
+
+  .b-label { background-color:#f4f1e7; color:#2c352f; font-weight:800; font-size:12px; padding:9px 15px; border-radius:4px;
+             border:none; cursor:pointer; position:relative; flex-shrink:0;
+             box-shadow:0 4px 9px rgba(0,0,0,.4), inset 0 0 0 1px rgba(90,99,87,.28);
+             background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='m2'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.011' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.52 0 0 0 0 0.48 0 0 0 0 0.38 1.0 0.8 0 0 -0.63'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23m2)'/%3E%3C/svg%3E");
+             background-size:260px 260px; }
+  .b-label::after { content:''; position:absolute; inset:4px; border:1.3px dashed rgba(90,99,87,.42); border-radius:2px; }
+  .b-icon { width:34px; height:34px; border-radius:3px; background:transparent; border:none; cursor:pointer; flex-shrink:0;
+            box-shadow:inset 0 0 0 1px rgba(230,236,232,.28); color:#c7d2cb; display:inline-flex; align-items:center; justify-content:center; }
+  .b-stamp { background:transparent; color:#7AAE92; font:800 11.5px ui-monospace, monospace; letter-spacing:.08em;
+             text-transform:uppercase; padding:9px 16px; border:none; cursor:pointer; border-radius:3px; transform:rotate(-1.6deg);
+             box-shadow: inset 0 0 0 2.2px #7AAE92, inset 0 0 0 4.2px transparent, inset 0 0 0 5.2px rgba(122,174,146,.55); }
+
+  .field { position:relative; z-index:2; height:300px; }
+  .mount { position:absolute; width:104px; height:139px; filter:drop-shadow(0 7px 11px rgba(0,0,0,.5)); }
+  .stamp { width:100%; height:100%; padding:8px; display:flex; flex-direction:column;
+    background-color:#fbf9f3;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='m'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.011' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.52 0 0 0 0 0.48 0 0 0 0 0.38 1.0 0.8 0 0 -0.63'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23m)'/%3E%3C/svg%3E");
+    background-size:260px 260px; box-shadow: inset 0 0 12px rgba(94,88,70,.16);
+    -webkit-mask: linear-gradient(#000 0 0) 50%/calc(100% - 9px) calc(100% - 9px) no-repeat,
+                  radial-gradient(circle 4px, #000 96%, #0000) 0 0/10px 10px round;
+    -webkit-mask-composite:source-over;
+    mask: linear-gradient(#000 0 0) 50%/calc(100% - 9px) calc(100% - 9px) no-repeat,
+          radial-gradient(circle 4px, #000 96%, #0000) 0 0/10px 10px round;
+    mask-composite:add; }
+  .s-name { font:700 7px ui-monospace, monospace; color:#5a6357; text-transform:uppercase; }
+  .s-art { flex:1; margin:5px 0; border-radius:2px; display:flex; align-items:center; justify-content:center;
+           background:radial-gradient(115% 115% at 50% 25%, #dfe9df, #cbd7c4 68%, #b6c4ac);
+           box-shadow: inset 0 0 0 1px rgba(90,99,87,.18); }
+  .s-art svg { width:21px; height:21px; stroke:#5E9079; opacity:.8; fill:none; stroke-width:1.5; }
+  .s-date { font:400 6px ui-monospace, monospace; color:#5a6357; align-self:flex-end; }
+  .tape { position:absolute; top:-8px; right:-11px; width:44px; height:16px; transform:rotate(38deg);
+          background: repeating-linear-gradient(90deg, rgba(255,255,255,.05) 0 3px, transparent 3px 7px),
+                      linear-gradient(180deg, rgba(242,238,225,.5), rgba(232,227,210,.38));
+          box-shadow:0 1px 3px rgba(0,0,0,.35); clip-path:polygon(3% 0,97% 4%,100% 96%,2% 100%); }
+  .pm { position:absolute; left:6px; top:9px; width:73px; height:52px; transform:rotate(-13deg); opacity:.92; }
+
+  .foot { position:relative; z-index:2; margin-top:6px; font-size:11.5px; color:#8b978f; line-height:1.6; }
+</style>
+
+<div class="ctl">
+  <label for="w">갈색 강도</label>
+  <input id="w" type="range" min="0" max="100" value="26">
+  <span class="out" id="hex">#141917</span>
+  <span class="hint">0 = 지금 그대로 · 질감은 테이프 목업과 동일하게 고정</span>
+</div>
+
+<div class="board" id="board">
+  <div class="bar">
+    <span class="brand">Sage</span>
+    <button class="b-icon" aria-label="프로필"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg></button>
+    <button class="b-label">채널 만들기</button>
+    <button class="b-icon" aria-label="로그아웃"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg></button>
+  </div>
+
+  <div class="field" id="field"></div>
+
+  <div class="foot">우표를 확대하면 나오는 액션 → <button class="b-stamp">입장하기</button></div>
+</div>
+
+<script>
+  const POS = [
+    { l: 3,  t: 6,  r: -8 }, { l: 21, t: 0,  r: 6 },
+    { l: 15, t: 46, r: -4 }, { l: 39, t: 16, r: 9 },
+    { l: 57, t: 48, r: -7 }, { l: 63, t: 4,  r: 5 },
+  ];
+  const NAMES = ['공지사항','잡담','개발','음악','사진','공지'];
+  const ART = [
+    '<path d="M4 4h16v12H5.2L4 17.5V4z"/>',
+    '<path d="M12 3v18M3 12h18"/>',
+    '<path d="M8 6l-5 6 5 6M16 6l5 6-5 6"/>',
+    '<path d="M9 18V5l10-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/>',
+    '<rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3.5"/>',
+    '<path d="M4 4h16v12H5.2L4 17.5V4z"/>',
+  ];
+  const field = document.getElementById('field');
+  POS.forEach((p, i) => {
+    const d = document.createElement('div');
+    d.className = 'mount';
+    d.style.left = p.l + '%'; d.style.top = p.t + '%'; d.style.transform = `rotate(${p.r}deg)`;
+    d.innerHTML =
+      '<div class="stamp"><div class="s-name">' + NAMES[i] + '</div>' +
+      '<div class="s-art"><svg viewBox="0 0 24 24">' + ART[i] + '</svg></div>' +
+      '<div class="s-date">07/2026</div></div>' +
+      (i === 0 || i === 3
+        ? '<svg class="pm" viewBox="0 0 186 132"><g fill="none" stroke="#C2402C" stroke-linecap="round"><circle cx="56" cy="58" r="45" stroke-width="3.4"/><circle cx="56" cy="58" r="37" stroke-width="1.2"/></g><text x="56" y="75" text-anchor="middle" fill="#C2402C" style="font-weight:800;font-size:46px">' + (i === 0 ? 3 : 7) + '</text></svg>'
+        : '') +
+      '<div class="tape"></div>';
+    field.appendChild(d);
+  });
+
+  // #141917 → 세피아 쪽으로 선형 보간. R을 올리고 B를 낮춰 "온도만" 이동시킨다.
+  const FROM = [0x14, 0x19, 0x17];
+  const TO   = [0x28, 0x22, 0x18];
+  const board = document.getElementById('board');
+  const out = document.getElementById('hex');
+  const slider = document.getElementById('w');
+
+  function apply() {
+    const k = slider.value / 100;
+    const c = FROM.map((f, i) => Math.round(f + (TO[i] - f) * k));
+    const hex = '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('');
+    board.style.backgroundColor = hex;
+    out.textContent = hex;
+  }
+  slider.addEventListener('input', apply);
+  apply();
+</script>

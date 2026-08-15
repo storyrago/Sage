@@ -1,13 +1,14 @@
-import { useState, useRef, useEffect, FormEvent, ChangeEvent } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, FormEvent, ChangeEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Channel, Message, Presence, User } from '../types';
 import Avatar from './Avatar';
-import { getRoomMemberProfiles, BackendMember } from '../lib/api';
+import { getRoomMemberProfiles, kickMember, RoomMemberProfile, uploadImage } from '../lib/api';
 import { avatarForId } from '../lib/avatar';
+import { toUserMessage } from '../lib/errors';
 import {
-  Send, ArrowDown,
-  MessageCircle, Hash, Info, Users, X,
-  ArrowLeft, Sun, Moon, Settings2
+  Send, CornerUpLeft, ArrowDown,
+  MessageCircle, Hash, Info, Users, X, UserX,
+  ArrowLeft, Sun, Moon, Settings2, Plus, Loader2, Pencil, Trash2
 } from 'lucide-react';
 
 interface ChatAreaProps {
@@ -16,7 +17,9 @@ interface ChatAreaProps {
   presences: Presence[];
   currentUser: User;
   token: string;
-  onSendMessage: (text: string) => void;
+  onSendMessage: (text: string, replyToId?: string) => Promise<void>;
+  onSendImage: (imageUrl: string) => Promise<void>;
+  onNotify: (text: string) => void;
   onTypeStateChange: (isTyping: boolean) => void;
   onOpenProfile: (userId: string) => void;
   onlineMemberIds: Set<string>;
@@ -24,7 +27,17 @@ interface ChatAreaProps {
   onToggleTheme: () => void;
   onOpenSettings: () => void;
   onGoHome: () => void;
+  onLoadOlder?: () => void;
+  hasMoreOlder?: boolean;
+  loadingOlder?: boolean;
+  onEditMessage?: (messageId: string, content: string) => Promise<void>;
+  onDeleteMessage?: (messageId: string) => void;
+  unreadFromId?: number | null;
+  onImageExpired?: () => void;
 }
+
+// 백엔드 ImageUploads.ALLOWED_CONTENT_TYPES와 같은 기준.
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif'];
 
 export default function ChatArea({
   channel,
@@ -33,25 +46,60 @@ export default function ChatArea({
   currentUser,
   token,
   onSendMessage,
+  onSendImage,
+  onNotify,
   onTypeStateChange,
   onOpenProfile,
   onlineMemberIds,
   theme,
   onToggleTheme,
   onOpenSettings,
-  onGoHome
+  onGoHome,
+  onLoadOlder,
+  hasMoreOlder,
+  loadingOlder,
+  onEditMessage,
+  onDeleteMessage,
+  unreadFromId,
+  onImageExpired
 }: ChatAreaProps) {
   const [inputText, setInputText] = useState('');
+  const inputTextRef = useRef('');
+  const [sendError, setSendError] = useState('');
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
-  const [participants, setParticipants] = useState<BackendMember[] | null>(null);
+  const [participants, setParticipants] = useState<RoomMemberProfile[] | null>(null);
+  const [membersError, setMembersError] = useState('');
   const [showMembers, setShowMembers] = useState(false);
+  const [replyMessage, setReplyMessage] = useState<Message | null>(null);
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+  const [deletingMessage, setDeletingMessage] = useState<Message | null>(null);
+  const [kickTarget, setKickTarget] = useState<RoomMemberProfile | null>(null);
+  const [kicking, setKicking] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const scrolledChannelRef = useRef<string>('');   // 이 채널에 초기 스크롤(맨아래) 했는지
+  const prevScrollHeightRef = useRef(0);
+  const pendingPrependRef = useRef(false);
+  // 입장 시점 스냅샷: 경계(boundary)와 천장(ceiling = 입장 순간 로드된 최신 메시지 id)을 고정한다.
+  // 천장이 있어야 "보는 중 도착한 새 메시지" 위에 구분선이 생기지 않는다.
+  const unreadSnapshotRef = useRef<{ channelId: string; boundary: number | null; ceiling: number } | null>(null);
 
   // Filter messages for current channel only
   const channelMessages = messages.filter(m => m.channelId === channel.id);
+
+  if (channelMessages.length > 0 && unreadSnapshotRef.current?.channelId !== channel.id) {
+    unreadSnapshotRef.current = {
+      channelId: channel.id,
+      boundary: unreadFromId ?? null,
+      ceiling: channelMessages.reduce((mx, m) => Math.max(mx, Number(m.id)), 0),
+    };
+  }
+  const unreadSnap = unreadSnapshotRef.current?.channelId === channel.id ? unreadSnapshotRef.current : null;
 
   // Filter typing presence (excluding ourselves)
   const typingUsers = presences.filter(
@@ -63,6 +111,22 @@ export default function ChatArea({
     messagesEndRef.current?.scrollIntoView({ behavior });
   };
 
+  // 이미지가 로드되며 높이가 커지면, 맨 아래 근처였을 때 다시 맨 아래로 (이미지 전송/입장 시)
+  const handleImageLoad = () => {
+    const el = scrollContainerRef.current;
+    if (el && el.scrollHeight - el.scrollTop - el.clientHeight < 400) scrollToBottom('auto');
+  };
+
+  // 서명 URL이 만료되면 이미지가 깨진다. 메시지를 다시 불러오면 새 서명이 온다.
+  // 재시도는 URL마다 한 번만 한다 — 진짜로 깨진 이미지에서 무한 재조회가 돌면 안 되고,
+  // 컴포넌트 단위로 한 번만 하면 이후 만료를 영영 복구하지 못한다.
+  const retriedImageUrlsRef = useRef<Set<string>>(new Set());
+  const handleImageError = (url: string) => {
+    if (retriedImageUrlsRef.current.has(url)) return;
+    retriedImageUrlsRef.current.add(url);
+    onImageExpired?.();
+  };
+
   // Keep track of scroll position
   const handleScroll = () => {
     if (!scrollContainerRef.current) return;
@@ -71,51 +135,163 @@ export default function ChatArea({
     // Show scroll of bottom button if user has scrolled up significantly
     const isAtBottom = scrollHeight - scrollTop - clientHeight < 150;
     setShowScrollBottomBtn(!isAtBottom);
+
+    // 상단 근처 → 이전 페이지 로드 (초기 하단 스크롤 완료 후에만 트리거)
+    if (
+      scrollTop < 80 &&
+      hasMoreOlder &&
+      !loadingOlder &&
+      onLoadOlder &&
+      scrolledChannelRef.current === channel.id
+    ) {
+      prevScrollHeightRef.current = scrollHeight;
+      pendingPrependRef.current = true;
+      onLoadOlder();
+    }
   };
 
-  // Scroll to bottom on first load or when channel changes
+  // 전송/수정 실패 콜백은 async 대기 중 사용자가 새로 입력한 내용을 알아야 한다.
+  // state는 콜백 클로저에 옛 값으로 갇히므로 ref로 최신값을 따로 추적한다.
   useEffect(() => {
-    scrollToBottom('auto');
+    inputTextRef.current = inputText;
+  }, [inputText]);
+
+  // 채널 전환 시 입력/모달 상태 초기화 (스크롤은 아래 통합 이펙트가 처리)
+  useEffect(() => {
     setInputText('');
     setShowMembers(false);
     setParticipants(null);
+    setReplyMessage(null);
+    setEditingMessage(null);
+    setDeletingMessage(null);
+    setKickTarget(null);
   }, [channel.id]);
 
-  // Scroll on new messages if close to bottom
+  // 스크롤: 방 입장/전환 시 무조건 맨 아래로, 같은 방 새 메시지는 근처에 있을 때만 따라감
   useEffect(() => {
-    if (!scrollContainerRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
-    const isCloseToBottom = scrollHeight - scrollTop - clientHeight < 250;
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    if (scrolledChannelRef.current !== channel.id) {
+      const firstUnread = unreadSnap?.boundary != null
+        ? channelMessages.find((m) => Number(m.id) > unreadSnap.boundary! && Number(m.id) <= unreadSnap.ceiling)
+        : undefined;
+      if (firstUnread) {
+        document.getElementById(`message-bubble-${firstUnread.id}`)?.scrollIntoView({ block: 'start' });
+      } else {
+        scrollToBottom('auto');                                    // 안읽음 없음 → 맨 아래
+      }
+      if (channelMessages.length > 0) scrolledChannelRef.current = channel.id;  // 메시지 로드 완료 표시
+    } else {
+      const { scrollTop, scrollHeight, clientHeight } = el;
+      if (scrollHeight - scrollTop - clientHeight < 250) {
+        setTimeout(() => scrollToBottom('smooth'), 50);            // 새 메시지, 근처면 따라감
+      }
+    }
+  }, [channel.id, channelMessages.length]);
 
-    if (isCloseToBottom) {
-      setTimeout(() => scrollToBottom('smooth'), 50);
+  // 이전 메시지 prepend 시 스크롤 위치 보존 (콘텐츠가 위로 늘어 점프하는 것 방지)
+  useLayoutEffect(() => {
+    const el = scrollContainerRef.current;
+    if (pendingPrependRef.current && el) {
+      const delta = el.scrollHeight - prevScrollHeightRef.current;
+      if (delta > 0) el.scrollTop += delta;
+      pendingPrependRef.current = false;
     }
   }, [channelMessages.length]);
 
   const openMembers = async () => {
     setShowMembers(true);
     setParticipants(null);
+    setMembersError('');
     try {
       const list = await getRoomMemberProfiles(token, channel.id);
       setParticipants(list);
-    } catch {
-      setParticipants([]);
+    } catch (err) {
+      // 빈 배열로 두면 "참가자가 없습니다"로 위장된다.
+      setMembersError(toUserMessage(err, '참가자를 불러오지 못했어요.'));
     }
   };
 
-  const handleSend = (e: FormEvent) => {
+  const handleKick = async () => {
+    if (!kickTarget || kicking) return;
+    setKicking(true);
+    try {
+      await kickMember(token, channel.id, String(kickTarget.id));
+      setParticipants((prev) => (prev ? prev.filter((m) => m.id !== kickTarget.id) : prev));
+      setKickTarget(null);
+    } catch (err) {
+      onNotify(toUserMessage(err, '내보내지 못했어요.'));
+    } finally {
+      setKicking(false);
+    }
+  };
+
+  const handleSend = async (e: FormEvent) => {
     e.preventDefault();
     const cleanText = inputText.trim();
     if (!cleanText) return;
 
-    onSendMessage(cleanText);
+    setSendError('');
     setInputText('');
 
-    // Stop typing state instantly on submit
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
     onTypeStateChange(false);
+
+    if (editingMessage) {
+      const editing = editingMessage;
+      setEditingMessage(null);
+      try {
+        await onEditMessage?.(editing.id, cleanText);
+      } catch (err) {
+        // 대기 중 사용자가 새로 입력을 시작했다면 그 내용을 덮지 않는다.
+        // 대신 보내지 못한 수정 내용을 오류 메시지에 실어 보존한다.
+        if (inputTextRef.current.trim()) {
+          setSendError(`보내지 못했어요: "${cleanText}"`);
+        } else {
+          setEditingMessage(editing);
+          setInputText(cleanText);
+          setSendError(toUserMessage(err, '메시지 수정에 실패했어요.'));
+        }
+      }
+      return;
+    }
+
+    const replyToId = replyMessage?.id;
+    const previousReply = replyMessage;
+    setReplyMessage(null);
+    try {
+      await onSendMessage(cleanText, replyToId);
+    } catch (err) {
+      // 전송은 낙관적 렌더가 아니라 실패하면 화면에 아무것도 남지 않는다.
+      // 답장 대상은 항상 복원해 다음 재전송이 조용히 일반 메시지로 바뀌지 않게 한다.
+      setReplyMessage(previousReply);
+      // 대기 중 사용자가 새로 입력을 시작했다면 그 내용을 덮지 않는다.
+      // 대신 보내지 못한 내용을 오류 메시지에 실어 보존한다.
+      if (inputTextRef.current.trim()) {
+        setSendError(`보내지 못했어요: "${cleanText}"`);
+      } else {
+        setInputText(cleanText);
+        setSendError(toUserMessage(err, '메시지를 보내지 못했어요. 다시 시도해 주세요.'));
+      }
+    }
+  };
+
+  const handleUpload = async (file: File) => {
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      onNotify('JPG, PNG, GIF 이미지만 올릴 수 있어요.');
+      return;
+    }
+    setUploading(true);
+    try {
+      const url = await uploadImage(token, file, 'chat');
+      await onSendImage(url);
+    } catch (err) {
+      onNotify(toUserMessage(err, '이미지를 보내지 못했어요.'));
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -152,7 +328,22 @@ export default function ChatArea({
   };
 
   return (
-    <div className="flex-1 h-full flex flex-col bg-bg font-sans relative">
+    <div
+      className="flex-1 min-w-0 h-full flex flex-col bg-bg font-sans relative"
+      onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+      onDragLeave={(e) => { if (e.currentTarget === e.target) setDragging(false); }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragging(false);
+        const file = e.dataTransfer.files?.[0];
+        if (file) handleUpload(file);
+      }}
+    >
+      {dragging && (
+        <div className="absolute inset-0 z-40 bg-accent-subtle/90 border-2 border-dashed border-accent flex items-center justify-center pointer-events-none">
+          <div className="text-accent-text font-bold text-lg select-none">여기에 이미지를 놓으세요 🖼️</div>
+        </div>
+      )}
 
       {/* CHANNEL CHAT HEADER */}
       <div className="h-16 border-b border-border bg-surface backdrop-blur-md px-3 md:px-6 flex items-center justify-between z-10 relative">
@@ -244,44 +435,68 @@ export default function ChatArea({
                 </button>
               </div>
 
-              {participants === null && (
-                <div className="py-6 text-center text-xs text-muted select-none">불러오는 중…</div>
-              )}
+              {membersError ? (
+                <div className="px-3 py-4 text-center">
+                  <p className="text-[12px] text-rose-400">{membersError}</p>
+                  <button
+                    onClick={openMembers}
+                    className="mt-2 text-[12px] font-semibold text-accent-text hover:underline cursor-pointer"
+                  >
+                    다시 시도
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {participants === null && (
+                    <div className="py-6 text-center text-xs text-muted select-none">불러오는 중…</div>
+                  )}
 
-              {participants !== null && participants.length === 0 && (
-                <div className="py-6 text-center text-xs text-muted select-none">참가자가 없습니다.</div>
-              )}
+                  {participants !== null && participants.length === 0 && (
+                    <div className="py-6 text-center text-xs text-muted select-none">참가자가 없습니다.</div>
+                  )}
 
-              {participants !== null && participants.length > 0 && (
-                <ul className="space-y-1">
-                  {participants.map((member) => (
-                    <li key={member.id}>
-                      <button
-                        onClick={() => {
-                          onOpenProfile(String(member.id));
-                          setShowMembers(false);
-                        }}
-                        className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-surface-2 transition-colors cursor-pointer text-left"
-                      >
-                        <div className="relative flex-shrink-0">
-                          <Avatar
-                            photoUrl={member.profileImageUrl ?? undefined}
-                            gradient={avatarForId(member.id)}
-                            name={member.nickname}
-                            className="w-8 h-8 rounded-lg text-xs"
-                          />
-                          {onlineMemberIds.has(String(member.id)) && (
-                            <span
-                              className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-surface"
-                              title="온라인"
-                            />
+                  {participants !== null && participants.length > 0 && (
+                    <ul className="space-y-1">
+                      {participants.map((member) => (
+                        <li key={member.id} className="flex items-center gap-1">
+                          <button
+                            onClick={() => {
+                              onOpenProfile(String(member.id));
+                              setShowMembers(false);
+                            }}
+                            className="flex-1 min-w-0 flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-surface-2 transition-colors cursor-pointer text-left"
+                          >
+                            <div className="relative flex-shrink-0">
+                              <Avatar
+                                photoUrl={member.profileImageUrl ?? undefined}
+                                gradient={avatarForId(member.id)}
+                                name={member.nickname}
+                                className="w-8 h-8 rounded-lg text-xs"
+                              />
+                              {onlineMemberIds.has(String(member.id)) && (
+                                <span
+                                  className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-surface"
+                                  title="온라인"
+                                />
+                              )}
+                            </div>
+                            <span className="text-sm font-medium text-text truncate">{member.nickname}</span>
+                          </button>
+                          {channel.owner && String(member.id) !== currentUser.id && (
+                            <button
+                              onClick={() => setKickTarget(member)}
+                              className="flex-shrink-0 w-7 h-7 rounded-lg text-muted hover:text-rose-500 hover:bg-surface-2 transition-colors cursor-pointer flex items-center justify-center"
+                              title="내보내기"
+                              aria-label={`${member.nickname} 내보내기`}
+                            >
+                              <UserX className="w-3.5 h-3.5" />
+                            </button>
                           )}
-                        </div>
-                        <span className="text-sm font-medium text-text truncate">{member.nickname}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
               )}
             </motion.div>
           )}
@@ -292,73 +507,165 @@ export default function ChatArea({
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-3 md:px-6 py-4 space-y-4 relative"
+        className="flex-1 overflow-y-auto overflow-x-clip px-3 md:px-6 py-4 space-y-4 relative"
       >
 
-        {/* Topic Welcome Banner */}
-        <div className="py-6 border-b border-border mb-4 flex flex-col items-center text-center">
-          <div className="w-12 h-12 rounded-2xl bg-accent-subtle border border-transparent text-accent-text flex items-center justify-center mb-3">
-            <MessageCircle className="w-6 h-6" />
-          </div>
-          <h3 className="text-md font-bold text-text">#{channel.name} 채널의 비행이 시작되었습니다!</h3>
-          <p className="text-xs text-muted mt-1 max-w-sm">
-            {channel.description} 이공간에 참여자들과 유쾌한 대화를 시작해 보세요.
-          </p>
-        </div>
+        {loadingOlder && (
+          <div className="py-3 text-center text-xs text-muted select-none">이전 메시지 불러오는 중…</div>
+        )}
 
-        {channelMessages.map((msg) => {
+        {/* Topic Welcome Banner */}
+        {!hasMoreOlder && (
+          <div className="py-6 border-b border-border mb-4 flex flex-col items-center text-center">
+            <div className="w-12 h-12 rounded-2xl bg-accent-subtle border border-transparent text-accent-text flex items-center justify-center mb-3">
+              <MessageCircle className="w-6 h-6" />
+            </div>
+            <h3 className="text-md font-bold text-text">#{channel.name} 채널의 비행이 시작되었습니다!</h3>
+            <p className="text-xs text-muted mt-1 max-w-sm">
+              {channel.description} 이공간에 참여자들과 유쾌한 대화를 시작해 보세요.
+            </p>
+          </div>
+        )}
+
+        {channelMessages.map((msg, i) => {
           const isSelf = msg.userId === currentUser.id;
           const imageUrl = getEmbeddedImageUrl(msg.text);
+          const parentMsg = msg.replyToId ? messages.find(m => m.id === msg.replyToId) : null;
+          const isFirstUnread =
+            unreadSnap?.boundary != null &&
+            Number(msg.id) > unreadSnap.boundary &&
+            Number(msg.id) <= unreadSnap.ceiling &&
+            (i === 0 || Number(channelMessages[i - 1].id) <= unreadSnap.boundary);
 
           return (
-            <motion.div
-              key={msg.id}
+            <div key={msg.id}>
+              {isFirstUnread && (
+                <div className="flex items-center gap-2 my-3 select-none">
+                  <div className="flex-1 h-px bg-rose-300" />
+                  <span className="text-[11px] font-bold text-rose-500">여기부터 안 읽음</span>
+                  <div className="flex-1 h-px bg-rose-300" />
+                </div>
+              )}
+              <motion.div
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-              className={`flex items-start gap-3 group relative max-w-3xl ${isSelf ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}
+              className={`flex items-start gap-3 group relative max-w-3xl min-w-0 scroll-mt-10 ${isSelf ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}
               id={`message-bubble-${msg.id}`}
             >
 
               {/* User Avatar Badge */}
-              <button onClick={() => onOpenProfile(msg.userId)} className="cursor-pointer self-start flex-shrink-0" aria-label={`${msg.userName} 프로필`}>
-                <Avatar gradient={msg.userAvatar} name={msg.userName} className="w-9 h-9 rounded-xl text-xs font-sans shadow-md" />
+              <button
+                onClick={() => { if (msg.userId) onOpenProfile(msg.userId); }}
+                disabled={!msg.userId}
+                className="cursor-pointer self-start flex-shrink-0 disabled:cursor-default"
+                aria-label={`${msg.userName} 프로필`}
+              >
+                <Avatar photoUrl={msg.userPhotoUrl} gradient={msg.userAvatar} name={msg.userName} className="w-9 h-9 rounded-xl text-xs font-sans shadow-md" />
               </button>
 
               {/* Chat Bubble Body Container */}
-              <div className="space-y-1 max-w-[85%]">
+              <div className="space-y-1 max-w-[85%] min-w-0">
 
                 {/* Header Profile Title */}
                 <div className={`flex items-center gap-2 text-[11px] ${isSelf ? 'justify-end' : 'justify-start'}`}>
-                  <button onClick={() => onOpenProfile(msg.userId)} className="font-bold text-text cursor-pointer hover:text-accent-text transition-colors" aria-label={`${msg.userName} 프로필`}>
+                  <button
+                    onClick={() => { if (msg.userId) onOpenProfile(msg.userId); }}
+                    disabled={!msg.userId}
+                    className="font-bold text-text cursor-pointer hover:text-accent-text transition-colors disabled:cursor-default disabled:hover:text-text"
+                    aria-label={`${msg.userName} 프로필`}
+                  >
                     {msg.userName}
                   </button>
-                  <span className="text-faint font-medium select-none">{formatTime(msg.createdAt)}</span>
+                  <span className="text-faint font-medium select-none">{formatTime(msg.createdAt)}{msg.edited && !msg.deleted ? ' · 수정됨' : ''}</span>
                 </div>
+
+                {/* Reply display box inside bubble if replies to parent */}
+                {parentMsg && (
+                  <div className="text-xs px-3 py-1.5 rounded-lg text-muted bg-surface-2 border border-border mb-1 flex items-center gap-1.5">
+                    <CornerUpLeft className="w-3 h-3 text-faint flex-shrink-0" />
+                    <span className="font-bold text-text flex-shrink-0">{parentMsg.userName}:</span>
+                    <span className="truncate min-w-0">{parentMsg.text}</span>
+                  </div>
+                )}
 
                 {/* Actual Message Text Block */}
-                <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words whitespace-pre-wrap ${
-                  isSelf
-                    ? 'bg-accent border border-accent text-accent-fg rounded-tr-none'
-                    : 'bg-bubble-other border border-border text-text rounded-tl-none'
-                }`}>
-                  {msg.text}
+                {msg.deleted ? (
+                  <div className="px-4 py-2.5 rounded-2xl text-sm italic text-faint bg-surface-2 border border-border">
+                    삭제된 메시지입니다
+                  </div>
+                ) : (
+                  <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap ${
+                    isSelf
+                      ? 'bg-accent border border-accent text-accent-fg rounded-tr-none'
+                      : 'bg-bubble-other border border-border text-text rounded-tl-none'
+                  }`}>
+                    {msg.text && <span>{msg.text}</span>}
 
-                  {/* Render Embedded Image Link thumbnail if exists */}
-                  {imageUrl && (
-                    <div className="mt-2.5 rounded-xl overflow-hidden border border-border bg-bg">
-                      <img
-                        src={imageUrl}
-                        alt="Shared interactive link"
-                        referrerPolicy="no-referrer"
-                        className="max-h-60 w-full object-cover cursor-pointer hover:opacity-95 transition-opacity"
-                        onClick={() => window.open(imageUrl, '_blank')}
-                      />
-                    </div>
+                    {/* 업로드된 이미지 (imageUrl 필드) */}
+                    {msg.imageUrl && (
+                      <div className={`${msg.text ? 'mt-2.5' : ''} rounded-xl overflow-hidden border border-border bg-bg`}>
+                        <img
+                          src={msg.imageUrl}
+                          alt="첨부 이미지"
+                          referrerPolicy="no-referrer"
+                          className="max-h-60 w-full object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                          onClick={() => window.open(msg.imageUrl, '_blank')}
+                          onLoad={handleImageLoad}
+                          onError={() => handleImageError(msg.imageUrl!)}
+                        />
+                      </div>
+                    )}
+
+                    {/* 텍스트에 박힌 URL 이미지 (하위호환) */}
+                    {imageUrl && (
+                      <div className="mt-2.5 rounded-xl overflow-hidden border border-border bg-bg">
+                        <img
+                          src={imageUrl}
+                          alt="Shared interactive link"
+                          referrerPolicy="no-referrer"
+                          className="max-h-60 w-full object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                          onClick={() => window.open(imageUrl, '_blank')}
+                          onLoad={handleImageLoad}
+                          onError={() => handleImageError(imageUrl)}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {!msg.deleted && (
+                <div className={`self-end flex-shrink-0 flex items-center opacity-0 group-hover:opacity-100 transition-opacity ${isSelf ? '-mr-1' : '-ml-1'}`}>
+                  <button
+                    onClick={() => { setReplyMessage(msg); setEditingMessage(null); }}
+                    className="p-1.5 text-muted hover:text-accent-text rounded-lg cursor-pointer hover:bg-surface-2"
+                    title="답장 달기"
+                  >
+                    <CornerUpLeft className="w-3.5 h-3.5" />
+                  </button>
+                  {isSelf && (
+                    <>
+                      <button
+                        onClick={() => { setEditingMessage(msg); setReplyMessage(null); setInputText(msg.text); }}
+                        className="p-1.5 text-muted hover:text-accent-text rounded-lg cursor-pointer hover:bg-surface-2"
+                        title="수정"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setDeletingMessage(msg)}
+                        className="p-1.5 text-muted hover:text-rose-500 rounded-lg cursor-pointer hover:bg-surface-2"
+                        title="삭제"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </>
                   )}
                 </div>
-              </div>
-            </motion.div>
+              )}
+              </motion.div>
+            </div>
           );
         })}
 
@@ -381,7 +688,7 @@ export default function ChatArea({
       </AnimatePresence>
 
       {/* LIVE CHAT MESSAGES TYPING STATUS BAR */}
-      <div className="h-5 px-6 pb-2 text-xs font-medium text-accent-text flex items-center gap-1.5 select-none font-sans">
+      <div className="h-5 px-4 md:px-6 pb-2 text-xs font-medium text-accent-text flex items-center gap-1.5 select-none font-sans">
         <AnimatePresence>
           {typingUsers.length > 0 && (
             <motion.div
@@ -406,13 +713,79 @@ export default function ChatArea({
       {/* CHAT INPUT AREA PANEL */}
       <div className="border-t border-border p-4 bg-surface relative z-10">
 
-        <form onSubmit={handleSend} className="flex gap-2">
+        {/* Active Edit Banner */}
+        <AnimatePresence>
+          {editingMessage && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 38, opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="bg-accent-subtle border border-transparent rounded-xl px-3 flex items-center justify-between text-xs text-accent-text font-bold mb-3 overflow-hidden select-none"
+            >
+              <span className="truncate flex items-center gap-1.5">
+                <Pencil className="w-3.5 h-3.5" />
+                메시지 수정 중
+              </span>
+              <button
+                onClick={() => { setEditingMessage(null); setInputText(''); }}
+                className="text-[10px] uppercase text-accent-text hover:text-text bg-surface-2 border border-border rounded px-1.5 py-0.5 cursor-pointer font-bold"
+              >
+                취소
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Active Reply Banner */}
+        <AnimatePresence>
+          {replyMessage && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 38, opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="bg-accent-subtle border border-transparent rounded-xl px-3 flex items-center justify-between text-xs text-accent-text font-bold mb-3 overflow-hidden select-none"
+            >
+              <span className="truncate flex items-center gap-1.5">
+                <CornerUpLeft className="w-3.5 h-3.5" />
+                {replyMessage.userName}의 메시지: &quot;{replyMessage.text}&quot; 에 답장하는 중
+              </span>
+              <button
+                onClick={() => setReplyMessage(null)}
+                className="text-[10px] uppercase text-accent-text hover:text-text bg-surface-2 border border-border rounded px-1.5 py-0.5 cursor-pointer font-bold"
+              >
+                취소
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {sendError && (
+          <p className="mb-2 text-[12px] text-rose-400">{sendError}</p>
+        )}
+
+        <form onSubmit={handleSend} className="flex gap-2 items-stretch">
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/gif"
+            hidden
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.target.value = ''; }}
+          />
+          <button
+            type="button"
+            onClick={() => imageInputRef.current?.click()}
+            disabled={uploading}
+            title="이미지 첨부"
+            className="w-11 flex-shrink-0 rounded-2xl border border-border bg-surface-2 text-muted hover:text-accent-text hover:border-accent flex items-center justify-center cursor-pointer transition-all disabled:opacity-40"
+          >
+            {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
+          </button>
 
           {/* Main Input Text Control */}
           <div className="flex-1 bg-surface-2 border border-border focus-within:border-accent rounded-2xl flex items-center px-4 py-3 transition-colors">
             <input
               type="text"
-              placeholder="메시지를 입력하세요... (이미지 공유를 원하시면 URL 웹 경로를 입력해 주세요 🖼️)"
+              placeholder="메시지를 입력하세요"
               value={inputText}
               onChange={handleInputChange}
               className="bg-transparent flex-1 text-text text-sm outline-none placeholder-text-faint w-full"
@@ -434,6 +807,70 @@ export default function ChatArea({
           </button>
         </form>
       </div>
+
+      {/* 삭제 확인 모달 (앱 테마) — 다른 모달들과 동일하게 조건부 마운트 */}
+      {deletingMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/55 backdrop-blur-[3px]" onClick={() => setDeletingMessage(null)} />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.15 }}
+            className="relative w-full max-w-[320px] bg-surface border border-border rounded-3xl p-5 shadow-2xl"
+          >
+            <h3 className="text-[15px] font-bold text-text">메시지 삭제</h3>
+            <p className="text-[13px] text-muted mt-1.5 leading-relaxed">이 메시지를 삭제할까요?</p>
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => setDeletingMessage(null)}
+                className="flex-1 rounded-xl py-2.5 text-[13px] font-bold border border-border text-text hover:bg-surface-2 transition-colors cursor-pointer"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => { onDeleteMessage?.(deletingMessage.id); setDeletingMessage(null); }}
+                className="flex-1 rounded-xl py-2.5 text-[13px] font-bold bg-rose-500 hover:bg-rose-600 text-white transition-colors cursor-pointer"
+              >
+                삭제
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* 강퇴 확인 모달 */}
+      {kickTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/55 backdrop-blur-[3px]" onClick={() => !kicking && setKickTarget(null)} />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.15 }}
+            className="relative w-full max-w-[320px] bg-surface border border-border rounded-3xl p-5 shadow-2xl"
+          >
+            <h3 className="text-[15px] font-bold text-text">참가자 내보내기</h3>
+            <p className="text-[13px] text-muted mt-1.5 leading-relaxed">
+              {kickTarget.nickname}님을 이 방에서 내보낼까요?
+            </p>
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => setKickTarget(null)}
+                disabled={kicking}
+                className="flex-1 rounded-xl py-2.5 text-[13px] font-bold border border-border text-text hover:bg-surface-2 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleKick}
+                disabled={kicking}
+                className="flex-1 rounded-xl py-2.5 text-[13px] font-bold bg-rose-500 hover:bg-rose-600 text-white transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default"
+              >
+                {kicking ? '내보내는 중…' : '내보내기'}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

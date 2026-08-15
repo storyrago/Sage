@@ -3,18 +3,41 @@ import { Channel, Message, User } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
-export interface AuthPayload {
-  email: string;
-  password: string;
+// 서버가 내려주는 오류 코드를 그대로 들고 다닌다. 문구가 바뀌어도 분기가 깨지지 않게 하려는 것이다.
+export class ApiError extends Error {
+  readonly status: number;
+  readonly code?: string;
+
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.code = code;
+  }
 }
 
-export interface SignupPayload extends AuthPayload {
-  nickname: string;
+// 401은 호출 지점이 많아 각자 확인하면 반드시 빠뜨린다. 한 곳에서 처리기를 받아 둔다.
+// 등록은 App이 마운트 시 한 번만 한다.
+let unauthorizedHandler: (() => void) | null = null;
+
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  unauthorizedHandler = handler;
 }
 
 export interface BackendMember {
   id: number;
-  email: string;
+  email: string | null;
+  nickname: string;
+  profileImageUrl?: string | null;
+  createdAt?: string;
+  onboarded: boolean;
+}
+
+export type RoomMemberProfile = BackendPublicMember;
+
+/** 타인 조회 응답. 이메일이 없다. */
+export interface BackendPublicMember {
+  id: number;
   nickname: string;
   profileImageUrl?: string | null;
   createdAt?: string;
@@ -24,20 +47,45 @@ export interface BackendChatRoom {
   id: number;
   name: string;
   createdAt?: string;
+  locked: boolean;
+  joined: boolean;
+  owner: boolean;
+  inviteCode?: string; // 방 주인일 때만 키가 존재한다
 }
 
 export interface BackendMessage {
   messageId: number;
   content: string;
-  memberId: number;
-  nickname: string;
+  memberId: number | null;
+  nickname: string | null;
+  profileImageUrl?: string | null;
   chatroomId: number;
   createdAt?: string;
+  replyToId?: number | null;
+  imageUrl?: string | null;
+  editedAt?: string | null;
+  deleted?: boolean;
 }
 
-interface LoginResponse {
-  tokenType: string;
-  accessToken: string;
+// 응답 본문에서 code·message를 뽑아 ApiError로 던진다. 401이면 등록된 처리기를 먼저 부른다.
+// 코드가 UNAUTHORIZED(또는 없음 — 프록시가 준 코드 없는 401)일 때만 처리기를 부른다.
+// INVALID_PASSWORD·SOCIAL_LOGIN_ONLY 같은 다른 401 코드는 세션을 지우면 안 된다.
+// multipart 업로드는 request()를 쓸 수 없어(Content-Type을 브라우저가 정해야 한다) 이 헬퍼를 공유한다.
+async function throwApiError(response: Response): Promise<never> {
+  const text = await response.text();
+  let message = text || `요청 실패: ${response.status}`;
+  let code: string | undefined;
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed.message === 'string') message = parsed.message;
+    if (parsed && typeof parsed.code === 'string') code = parsed.code;
+  } catch {
+    /* JSON 아님 — 원문 유지 */
+  }
+  if (response.status === 401 && (code === undefined || code === 'UNAUTHORIZED')) {
+    unauthorizedHandler?.();
+  }
+  throw new ApiError(message, response.status, code);
 }
 
 async function request<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
@@ -54,15 +102,7 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    let message = text || `요청 실패: ${response.status}`;
-    try {
-      const parsed = JSON.parse(text);
-      if (parsed && typeof parsed.message === 'string') message = parsed.message;
-    } catch {
-      /* JSON 아님 — 원문 유지 */
-    }
-    throw new Error(message);
+    await throwApiError(response);
   }
 
   if (response.status === 204) {
@@ -72,19 +112,45 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
   return response.json() as Promise<T>;
 }
 
-export async function signup(payload: SignupPayload) {
-  return request<BackendMember>('/api/members', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
+/**
+ * 서버가 이 토큰을 즉시 무효화한다. 세션을 지우기 전에 부른다.
+ * 전역 401 처리기가 "세션이 만료되었어요"를 띄우면 안 되므로 request()를 쓰지 않는다.
+ */
+export async function logout(token: string): Promise<void> {
+  // 서버가 답하지 않아도 세션 정리가 막히면 안 된다. 끊기면 아래 catch가 안내를 띄운다.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal,
+    });
+    // 401은 서버가 이 토큰을 이미 받지 않는다는 뜻이다. 무효화의 목적은 달성됐으므로 실패가 아니다.
+    if (!response.ok && response.status !== 401) {
+      throw new ApiError('로그아웃에 실패했습니다.', response.status);
+    }
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
-export async function login(payload: AuthPayload) {
-  const response = await request<LoginResponse>('/api/auth/login', {
+/**
+ * 소셜 로그인 리다이렉트가 실어 온 일회용 코드를 액세스 토큰으로 바꾼다.
+ * 코드도 토큰도 URL에 싣지 않는다 — 쿼리에 넣으면 액세스 로그에 남는다.
+ * 실패는 이 흐름 안에서 안내하므로 전역 401 처리기를 타지 않게 request()를 쓰지 않는다.
+ */
+export async function exchangeOAuthCode(code: string): Promise<string> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/oauth/token`, {
     method: 'POST',
-    body: JSON.stringify(payload),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
   });
-  return response.accessToken;
+  if (!response.ok) {
+    throw new ApiError('소셜 로그인에 실패했습니다.', response.status);
+  }
+  const body = (await response.json()) as { accessToken: string };
+  return body.accessToken;
 }
 
 export async function getMe(token: string) {
@@ -95,68 +161,114 @@ export async function getChatRooms(token: string) {
   return request<BackendChatRoom[]>('/api/chatrooms', {}, token);
 }
 
-export async function createChatRoom(token: string, name: string) {
+export async function createChatRoom(token: string, name: string, isPrivate: boolean) {
   return request<BackendChatRoom>('/api/chatrooms', {
     method: 'POST',
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, private: isPrivate }),
   }, token);
 }
 
-export async function joinChatRoom(token: string, chatroomId: string) {
+export async function joinChatRoom(token: string, chatroomId: string, inviteCode?: string) {
   try {
-    await request(`/api/chatrooms/${chatroomId}/members`, { method: 'POST' }, token);
+    await request(`/api/chatrooms/${chatroomId}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ inviteCode: inviteCode ?? null }),
+    }, token);
   } catch (error) {
-    const message = error instanceof Error ? error.message : '';
-    if (!message.includes('ALREADY_JOINED_ROOM') && !message.includes('already') && !message.includes('이미 참여')) {
-      throw error;
-    }
+    // 이미 참여 중인 방에 다시 들어가는 것은 실패가 아니다.
+    if (error instanceof ApiError && error.code === 'ALREADY_JOINED_ROOM') return;
+    throw error;
   }
 }
 
-export async function getMessages(token: string, chatroomId: string) {
-  return request<BackendMessage[]>(`/api/chatrooms/${chatroomId}/messages`, {}, token);
+export interface PagedMessages {
+  messages: BackendMessage[];
+  hasMore: boolean;
 }
 
-export async function sendMessage(token: string, chatroomId: string, content: string) {
+export async function getMessages(
+  token: string,
+  chatroomId: string,
+  before?: number,
+  limit = 30,
+): Promise<PagedMessages> {
+  const params = new URLSearchParams();
+  if (before != null) params.set('before', String(before));
+  params.set('limit', String(limit));
+  return request<PagedMessages>(`/api/chatrooms/${chatroomId}/messages?${params.toString()}`, {}, token);
+}
+
+export interface UnreadCount {
+  chatroomId: number;
+  unreadCount: number;
+  replyCount: number;
+  lastReadMessageId: number | null;
+}
+
+export async function getUnreadCounts(token: string): Promise<UnreadCount[]> {
+  return request<UnreadCount[]>('/api/chatrooms/unread', {}, token);
+}
+
+export async function markRoomRead(token: string, chatroomId: string): Promise<void> {
+  return request<void>(`/api/chatrooms/${chatroomId}/read`, { method: 'POST' }, token);
+}
+
+export async function sendMessage(token: string, chatroomId: string, content: string, replyToId?: string, imageUrl?: string) {
   return request<BackendMessage>(`/api/chatrooms/${chatroomId}/messages`, {
     method: 'POST',
+    body: JSON.stringify({ content, replyToId: replyToId ? Number(replyToId) : null, imageUrl: imageUrl ?? null }),
+  }, token);
+}
+
+export async function updateMessage(token: string, chatroomId: string, messageId: string, content: string) {
+  return request<BackendMessage>(`/api/chatrooms/${chatroomId}/messages/${messageId}`, {
+    method: 'PATCH',
     body: JSON.stringify({ content }),
   }, token);
 }
 
+export async function deleteMessage(token: string, chatroomId: string, messageId: string) {
+  return request<BackendMessage>(`/api/chatrooms/${chatroomId}/messages/${messageId}`, {
+    method: 'DELETE',
+  }, token);
+}
+
 export async function getMemberById(token: string, id: string) {
-  return request<BackendMember>(`/api/members/${id}`, {}, token);
+  return request<BackendPublicMember>(`/api/members/${id}`, {}, token);
 }
 
 export interface BackendChatRoomMember {
   id: number;
   memberId: number;
   chatRoomId: number;
+  nickname: string;
+  profileImageUrl?: string | null;
 }
 
 export async function getChatRoomMembers(token: string, chatroomId: string) {
   return request<BackendChatRoomMember[]>(`/api/chatrooms/${chatroomId}/members`, {}, token);
 }
 
-// DTO엔 이름이 없어 memberId로 각 회원을 조회(N+1). 방이 작아 허용. 향후 백엔드 DTO에 nickname 추가 시 단순화 가능.
-export async function getRoomMemberProfiles(token: string, chatroomId: string): Promise<BackendMember[]> {
+// 참가자 목록 응답에 nickname·프로필사진이 포함되어 단일 요청으로 매핑(멤버별 조회 N+1 제거).
+export async function getRoomMemberProfiles(token: string, chatroomId: string): Promise<RoomMemberProfile[]> {
   const members = await getChatRoomMembers(token, chatroomId);
-  return Promise.all(members.map((m) => getMemberById(token, String(m.memberId))));
+  return members.map((m) => ({
+    id: m.memberId,
+    nickname: m.nickname,
+    profileImageUrl: m.profileImageUrl,
+  }));
 }
 
-export async function uploadImage(token: string, file: File): Promise<string> {
+export async function uploadImage(token: string, file: File, purpose: 'profile' | 'chat'): Promise<string> {
   const form = new FormData();
   form.append('file', file);
-  const res = await fetch(`${API_BASE_URL}/api/images`, {
+  const res = await fetch(`${API_BASE_URL}/api/images?purpose=${purpose}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` }, // Content-Type은 브라우저가 boundary 포함해 자동 설정
     body: form,
   });
   if (!res.ok) {
-    const text = await res.text();
-    let message = text || `업로드 실패: ${res.status}`;
-    try { const p = JSON.parse(text); if (p?.message) message = p.message; } catch { /* keep */ }
-    throw new Error(message);
+    await throwApiError(res);
   }
   const data = (await res.json()) as { url: string };
   return data.url;
@@ -169,6 +281,67 @@ export async function updateProfileImage(token: string, imageUrl: string) {
   }, token);
 }
 
+export async function updateNickname(token: string, nickname: string) {
+  return request<BackendMember>('/api/members/me', {
+    method: 'PATCH',
+    body: JSON.stringify({ nickname }),
+  }, token);
+}
+
+export async function deleteAccount(token: string): Promise<void> {
+  await request('/api/members/me', { method: 'DELETE' }, token);
+}
+
+export async function deleteChatRoom(token: string, chatroomId: string) {
+  return request<void>(`/api/chatrooms/${chatroomId}`, { method: 'DELETE' }, token);
+}
+
+export async function reissueInviteCode(token: string, chatroomId: string) {
+  return request<BackendChatRoom>(`/api/chatrooms/${chatroomId}/invite-code`, { method: 'POST' }, token);
+}
+
+export async function setRoomPrivacy(token: string, chatroomId: string, isPrivate: boolean) {
+  return request<BackendChatRoom>(`/api/chatrooms/${chatroomId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ private: isPrivate }),
+  }, token);
+}
+
+export async function leaveChatRoom(token: string, chatroomId: string): Promise<void> {
+  return request<void>(`/api/chatrooms/${chatroomId}/members`, { method: 'DELETE' }, token);
+}
+
+export async function kickMember(token: string, chatroomId: string, memberId: string) {
+  return request<void>(`/api/chatrooms/${chatroomId}/members/${memberId}`, { method: 'DELETE' }, token);
+}
+
+export async function transferOwnership(token: string, chatroomId: string, memberId: string) {
+  return request<BackendChatRoom>(`/api/chatrooms/${chatroomId}/owner`, {
+    method: 'PATCH',
+    body: JSON.stringify({ memberId: Number(memberId) }),
+  }, token);
+}
+
+export interface BackendBannedMember {
+  memberId: number;
+  nickname: string | null;
+  bannedAt: string;
+}
+
+export async function getRoomBans(token: string, chatroomId: string) {
+  return request<BackendBannedMember[]>(`/api/chatrooms/${chatroomId}/bans`, {}, token);
+}
+
+export async function unbanMember(token: string, chatroomId: string, memberId: string) {
+  return request<void>(`/api/chatrooms/${chatroomId}/bans/${memberId}`, { method: 'DELETE' }, token);
+}
+
+export async function completeOnboarding(token: string) {
+  return request<BackendMember>('/api/members/me/onboarding', {
+    method: 'POST',
+  }, token);
+}
+
 export function toUser(member: BackendMember): User {
   return {
     id: String(member.id),
@@ -176,6 +349,7 @@ export function toUser(member: BackendMember): User {
     displayName: member.nickname,
     avatar: avatarForId(member.id),
     photoUrl: member.profileImageUrl ?? undefined,
+    onboarded: member.onboarded,
   };
 }
 
@@ -186,17 +360,28 @@ export function toChannel(room: BackendChatRoom): Channel {
     description: `${room.name} 대화방`,
     createdBy: 'backend',
     createdAt: room.createdAt ? Date.parse(room.createdAt) : Date.now(),
+    locked: room.locked,
+    joined: room.joined,
+    owner: room.owner,
+    inviteCode: room.inviteCode,
   };
 }
 
 export function toMessage(message: BackendMessage): Message {
+  // 탈퇴한 회원의 메시지는 작성자가 없다. 내용과 대화 구조는 그대로 남는다.
+  const memberId = message.memberId;
   return {
     id: String(message.messageId),
     channelId: String(message.chatroomId),
     text: message.content,
-    userId: String(message.memberId),
-    userName: message.nickname,
-    userAvatar: avatarForId(message.memberId),
+    userId: memberId == null ? '' : String(memberId),
+    userName: memberId == null ? '삭제된 사용자' : (message.nickname ?? ''),
+    userAvatar: memberId == null ? avatarForId('deleted') : avatarForId(memberId),
+    userPhotoUrl: message.profileImageUrl ?? undefined,
     createdAt: message.createdAt ? Date.parse(message.createdAt) : Date.now(),
+    replyToId: message.replyToId != null ? String(message.replyToId) : undefined,
+    imageUrl: message.imageUrl ?? undefined,
+    edited: message.editedAt != null,
+    deleted: message.deleted ?? false,
   };
 }
