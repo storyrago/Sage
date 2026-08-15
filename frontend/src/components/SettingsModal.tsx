@@ -130,7 +130,7 @@ export default function SettingsModal({ open, onClose, currentUser, token, onUpd
               >
                 사진 변경
               </button>
-              <input ref={fileRef} type="file" accept="image/*" hidden onChange={handlePhoto} />
+              <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/gif" hidden onChange={handlePhoto} />
               {photoError && <p className="text-[12px] text-red-300 mt-1.5">{photoError}</p>}
             </div>
           </div>

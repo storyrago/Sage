@@ -100,4 +100,22 @@ class ImageUploadsTest {
     void 확장자_구분점을_지우지_않는다() {
         assertThat(ImageUploads.sanitizeFilename("photo..jpg")).isEqualTo("photo..jpg");
     }
+
+    // 실제로 거대 이미지를 디코딩하면 테스트 JVM이 OOM 나므로, 한계값 자체는 숫자로만 검증한다.
+    @Test
+    void 오천만_픽셀_이하는_통과한다() {
+        ImageUploads.rejectIfTooLarge(7000, 7000); // 49,000,000
+    }
+
+    @Test
+    void 오천만_픽셀_초과는_거절한다() {
+        assertThatThrownBy(() -> ImageUploads.rejectIfTooLarge(30000, 30000))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_IMAGE);
+    }
+
+    @Test
+    void 일반적인_사진_크기는_통과한다() {
+        ImageUploads.rejectIfTooLarge(4032, 3024); // 흔한 스마트폰 사진 해상도
+    }
 }

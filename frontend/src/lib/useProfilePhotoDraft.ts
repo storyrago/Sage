@@ -4,6 +4,8 @@ import { uploadImage, updateProfileImage } from './api';
 // 백엔드 spring.servlet.multipart.max-file-size(10MB)·nginx client_max_body_size(10m)와 같은 기준.
 // 서버까지 갔다가 실패하면 큰 파일을 올리는 시간을 버린다.
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+// 백엔드 ImageUploads.ALLOWED_CONTENT_TYPES와 같은 기준.
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif'];
 
 // 프로필 사진을 "고른 상태"로 들고 있다가 확정 시점에 업로드·저장한다.
 // 온보딩 화면과 설정 모달이 같은 동작을 공유한다.
@@ -22,8 +24,8 @@ export function useProfilePhotoDraft(token: string) {
   }, [previewUrl]);
 
   const pick = useCallback((f: File) => {
-    if (!f.type.startsWith('image/')) {
-      setError('이미지 파일만 올릴 수 있어요.');
+    if (!ALLOWED_IMAGE_TYPES.includes(f.type)) {
+      setError('JPG, PNG, GIF 이미지만 올릴 수 있어요.');
       return;
     }
     if (f.size > MAX_IMAGE_BYTES) {

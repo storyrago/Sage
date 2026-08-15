@@ -5,9 +5,12 @@ import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Iterator;
 import java.util.Set;
 
 /** 업로드 파일 검증과 키 조립. 공개 접두사에 임의 파일이 올라가지 못하게 막는다. */
@@ -31,13 +34,23 @@ public final class ImageUploads {
     }
 
     private static final Set<String> ALLOWED_CONTENT_TYPES =
-            Set.of("image/jpeg", "image/png", "image/gif", "image/webp");
+            Set.of("image/jpeg", "image/png", "image/gif");
 
     /** 기본값을 두지 않는다. 용도를 잘못 지정한 업로드가 조용히 공개되면 안 된다. */
     public static Purpose parsePurpose(String raw) {
         if ("profile".equals(raw)) return Purpose.PROFILE;
         if ("chat".equals(raw)) return Purpose.CHAT;
         throw new CustomException(ErrorCode.INVALID_IMAGE_PURPOSE);
+    }
+
+    // 1MB PNG가 30000x30000으로 풀리면 라스터가 수 GB가 된다. 헤더만 읽어 그런 이미지를 디코딩 전에 걸러낸다.
+    private static final long MAX_PIXELS = 50_000_000L;
+
+    /** 순수 함수로 분리해 거대 이미지를 실제로 디코딩하지 않고도 한계값을 테스트할 수 있게 한다. */
+    public static void rejectIfTooLarge(int width, int height) {
+        if ((long) width * (long) height > MAX_PIXELS) {
+            throw new CustomException(ErrorCode.INVALID_IMAGE);
+        }
     }
 
     /**
@@ -52,10 +65,25 @@ public final class ImageUploads {
         if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType)) {
             throw new CustomException(ErrorCode.INVALID_IMAGE);
         }
-        try (InputStream in = file.getInputStream()) {
-            BufferedImage decoded = ImageIO.read(in);
-            if (decoded == null) {
+        try (InputStream in = file.getInputStream();
+             ImageInputStream iis = ImageIO.createImageInputStream(in)) {
+            if (iis == null) {
                 throw new CustomException(ErrorCode.INVALID_IMAGE);
+            }
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(iis);
+            if (!readers.hasNext()) {
+                throw new CustomException(ErrorCode.INVALID_IMAGE);
+            }
+            ImageReader reader = readers.next();
+            try {
+                reader.setInput(iis);
+                rejectIfTooLarge(reader.getWidth(0), reader.getHeight(0));
+                BufferedImage decoded = reader.read(0);
+                if (decoded == null) {
+                    throw new CustomException(ErrorCode.INVALID_IMAGE);
+                }
+            } finally {
+                reader.dispose();
             }
         } catch (IOException e) {
             throw new CustomException(ErrorCode.INVALID_IMAGE);
@@ -63,7 +91,7 @@ public final class ImageUploads {
         return contentType;
     }
 
-    /** 키가 그대로 URL 경로가 되므로 영숫자·점·하이픈만 남긴다. ".."은 경로 탈출에 쓰이므로 먼저 제거한다. */
+    /** 키가 그대로 URL 경로가 되므로 영숫자·점·하이픈만 남긴다. */
     public static String sanitizeFilename(String original) {
         if (original == null) return "image";
         // 슬래시 제거가 경로 구분자를 제거하므로 정규화된 이름은 키 접두사를 벗어날 수 없다. 남은 점은 무해하다.

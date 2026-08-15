@@ -36,6 +36,9 @@ interface ChatAreaProps {
   onImageExpired?: () => void;
 }
 
+// 백엔드 ImageUploads.ALLOWED_CONTENT_TYPES와 같은 기준.
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif'];
+
 export default function ChatArea({
   channel,
   messages,
@@ -276,7 +279,10 @@ export default function ChatArea({
   };
 
   const handleUpload = async (file: File) => {
-    if (!file.type.startsWith('image/')) return;   // 이미지만
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      onNotify('JPG, PNG, GIF 이미지만 올릴 수 있어요.');
+      return;
+    }
     setUploading(true);
     try {
       const url = await uploadImage(token, file, 'chat');
@@ -761,7 +767,7 @@ export default function ChatArea({
           <input
             ref={imageInputRef}
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/gif"
             hidden
             onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.target.value = ''; }}
           />
