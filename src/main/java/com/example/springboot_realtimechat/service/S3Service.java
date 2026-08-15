@@ -6,12 +6,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectTaggingRequest;
 import software.amazon.awssdk.services.s3.model.Tag;
 import software.amazon.awssdk.services.s3.model.Tagging;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.UUID;
 
 @Service
@@ -19,6 +23,7 @@ import java.util.UUID;
 public class S3Service {
 
     private final S3Client s3Client;                 // S3Config의 빈 주입
+    private final S3Presigner s3Presigner;
 
     @Value("${aws.s3.bucket}")
     private String bucket;
@@ -56,6 +61,29 @@ public class S3Service {
                         .tagSet(Tag.builder().key("orphan").value("true").build())
                         .build())
                 .build());
+    }
+
+    /**
+     * 채팅 이미지는 서명된 URL로만 읽는다.
+     * profiles/는 공개이므로 서명하지 않는다 — 서명하면 응답마다 URL이 바뀌어 아바타 캐시가 무효화된다.
+     * 우리 버킷이 아닌 값은 그대로 돌려준다(본문에 박힌 외부 URL 하위호환).
+     */
+    public String presignedGetUrl(String storedUrl, Duration ttl) {
+        String key = extractKey(storedUrl);
+        if (key == null) return storedUrl;
+        if (key.startsWith(ImageUploads.Purpose.PROFILE.prefix())) return storedUrl;
+
+        GetObjectRequest get = GetObjectRequest.builder()
+                .bucket(bucket)
+                .key(key)
+                .build();
+
+        return s3Presigner.presignGetObject(GetObjectPresignRequest.builder()
+                        .signatureDuration(ttl)
+                        .getObjectRequest(get)
+                        .build())
+                .url()
+                .toString();
     }
 
     private String publicUrlPrefix() {
