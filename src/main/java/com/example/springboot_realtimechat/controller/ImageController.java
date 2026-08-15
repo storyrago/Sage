@@ -1,5 +1,6 @@
 package com.example.springboot_realtimechat.controller;
 
+import com.example.springboot_realtimechat.service.ImageUploads;
 import com.example.springboot_realtimechat.service.S3Service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -17,8 +18,10 @@ public class ImageController {
     private final S3Service s3Service;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Map<String, String>> upload(@RequestParam("file") MultipartFile file) {
-        String url = s3Service.upload(file);
+    public ResponseEntity<Map<String, String>> upload(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "purpose", required = false) String purpose) {
+        String url = s3Service.upload(file, ImageUploads.parsePurpose(purpose));
         return ResponseEntity.ok(Map.of("url", url));
     }
 }

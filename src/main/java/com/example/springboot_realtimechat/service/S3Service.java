@@ -25,25 +25,22 @@ public class S3Service {
     @Value("${aws.s3.region}")
     private String region;
 
-    public String upload(MultipartFile file) {
-        // ① 고유한 파일 이름(key) 생성
-        String key = UUID.randomUUID() + "_" + file.getOriginalFilename();
+    public String upload(MultipartFile file, ImageUploads.Purpose purpose) {
+        String contentType = ImageUploads.verifyImage(file);
+        String key = purpose.prefix() + UUID.randomUUID() + "_" + ImageUploads.sanitizeFilename(file.getOriginalFilename());
 
-        // ② 업로드 요청 만들기
         PutObjectRequest request = PutObjectRequest.builder()
                 .bucket(bucket)
                 .key(key)
-                .contentType(file.getContentType())
+                .contentType(contentType)   // 클라이언트가 보낸 값이 아니라 검증된 값을 쓴다
                 .build();
 
-        // ③ 실제 업로드
         try {
             s3Client.putObject(request, RequestBody.fromBytes(file.getBytes()));
         } catch (IOException e) {
             throw new RuntimeException("S3 업로드 실패", e);
         }
 
-        // ④ 공개 URL 조립해서 반환
         return publicUrlPrefix() + key;
     }
 
