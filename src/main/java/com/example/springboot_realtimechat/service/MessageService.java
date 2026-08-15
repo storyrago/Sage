@@ -28,6 +28,7 @@ public class MessageService {
     private final ChatRoomService chatRoomService;
     private final ApplicationEventPublisher eventPublisher;
     private final RoomAccess roomAccess;
+    private final S3Service s3Service;
 
     public record MessagePage(List<Message> messages, boolean hasMore) {}
 
@@ -42,6 +43,15 @@ public class MessageService {
 
         if (!roomAccess.isMember(memberId, chatroomId)) {
             throw new CustomException(ErrorCode.NOT_JOINED_ROOM);
+        }
+
+        // 우리 버킷 키인데 보내는 사람의 채팅 키가 아니면 서명 대상에서 제외한다.
+        // 외부 URL(우리 버킷이 아님)은 그대로 통과시킨다.
+        if (imageUrl != null && !imageUrl.isBlank()) {
+            String key = s3Service.extractKey(imageUrl);
+            if (key != null && !key.startsWith(ImageUploads.Purpose.CHAT.prefix() + memberId + "/")) {
+                throw new CustomException(ErrorCode.INVALID_IMAGE_REFERENCE);
+            }
         }
 
         Message replyTo = replyToId != null

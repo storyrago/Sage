@@ -259,10 +259,10 @@ export async function getRoomMemberProfiles(token: string, chatroomId: string): 
   }));
 }
 
-export async function uploadImage(token: string, file: File): Promise<string> {
+export async function uploadImage(token: string, file: File, purpose: 'profile' | 'chat'): Promise<string> {
   const form = new FormData();
   form.append('file', file);
-  const res = await fetch(`${API_BASE_URL}/api/images`, {
+  const res = await fetch(`${API_BASE_URL}/api/images?purpose=${purpose}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` }, // Content-Type은 브라우저가 boundary 포함해 자동 설정
     body: form,

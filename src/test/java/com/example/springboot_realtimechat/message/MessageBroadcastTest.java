@@ -11,6 +11,7 @@ import com.example.springboot_realtimechat.security.JwtTokenProvider;
 import com.example.springboot_realtimechat.service.ChatRoomMemberService;
 import com.example.springboot_realtimechat.service.ChatRoomService;
 import com.example.springboot_realtimechat.service.MemberService;
+import com.example.springboot_realtimechat.service.S3Service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -28,7 +29,9 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -48,7 +51,11 @@ class MessageBroadcastTest {
     @Autowired ChatMessageController chatMessageController;
 
     @MockitoBean RedisPublisher redisPublisher;
+    @MockitoBean S3Service s3Service;
 
+    private static final String BUCKET_PREFIX = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/";
+
+    private String RAW_IMAGE_URL;
     private Member author;
     private Long roomId;
 
@@ -58,6 +65,11 @@ class MessageBroadcastTest {
         ChatRoom room = chatRoomService.create("방송방", false, null);
         roomId = room.getId();
         chatRoomMemberService.join(author.getId(), roomId, null);
+        RAW_IMAGE_URL = BUCKET_PREFIX + "rooms/" + author.getId() + "/stomp_photo.png";
+
+        // 입력을 그대로 감싼 값을 돌려줘서, 발행된 imageUrl이 서명을 거쳤는지 그대로 드러나게 한다.
+        when(s3Service.presignedGetUrl(any(), any()))
+                .thenAnswer(invocation -> "SIGNED::" + invocation.getArgument(0));
     }
 
     @Test
@@ -96,5 +108,21 @@ class MessageBroadcastTest {
         verify(redisPublisher).publish(captor.capture());
         assertThat(captor.getValue().getChatroomId()).isEqualTo(roomId);
         assertThat(captor.getValue().getContent()).isEqualTo("STOMP로 보낸 메시지");
+    }
+
+    @Test
+    void STOMP로_보낸_메시지의_imageUrl도_서명된다() {
+        CustomUserDetails userDetails = new CustomUserDetails(author.getId(), author.getEmail());
+        Authentication principal = new UsernamePasswordAuthenticationToken(
+                userDetails, null, userDetails.getAuthorities());
+        MessageRequest request = new MessageRequest();
+        request.setContent("사진 보냄");
+        request.setImageUrl(RAW_IMAGE_URL);
+
+        chatMessageController.sendMessage(roomId, request, principal);
+
+        ArgumentCaptor<MessageResponse> captor = ArgumentCaptor.forClass(MessageResponse.class);
+        verify(redisPublisher).publish(captor.capture());
+        assertThat(captor.getValue().getImageUrl()).isEqualTo("SIGNED::" + RAW_IMAGE_URL);
     }
 }

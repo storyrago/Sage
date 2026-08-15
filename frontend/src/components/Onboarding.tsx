@@ -101,7 +101,7 @@ export default function Onboarding({ user, token, onDone }: OnboardingProps) {
           <input
             ref={fileRef}
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/gif"
             hidden
             onChange={(e) => {
               const f = e.target.files?.[0];

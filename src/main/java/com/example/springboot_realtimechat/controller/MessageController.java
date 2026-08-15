@@ -7,6 +7,7 @@ import com.example.springboot_realtimechat.dto.MessageResponse;
 import com.example.springboot_realtimechat.dto.MessageUpdateRequest;
 import com.example.springboot_realtimechat.redis.RedisPublisher;
 import com.example.springboot_realtimechat.security.CustomUserDetails;
+import com.example.springboot_realtimechat.service.MessageResponseFactory;
 import com.example.springboot_realtimechat.service.MessageService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ import java.util.List;
 public class MessageController {
     private final MessageService messageService;
     private final RedisPublisher redisPublisher;
+    private final MessageResponseFactory messageResponseFactory;
 
     @PostMapping
     public MessageResponse sendMessage(
@@ -33,7 +35,7 @@ public class MessageController {
                 customUserDetails.getMemberId(),
                 chatroomId,
                 messageRequest.getReplyToId());
-        MessageResponse response = MessageResponse.from(message);
+        MessageResponse response = messageResponseFactory.of(message);
         redisPublisher.publish(response); // 새 메시지를 방 전체에 실시간 전파
         return response;
     }
@@ -48,7 +50,7 @@ public class MessageController {
         MessageService.MessagePage page = messageService.getMessages(
                 chatroomId, customUserDetails.getMemberId(), before, capped);
         List<MessageResponse> messages = page.messages().stream()
-                .map(MessageResponse::from)
+                .map(messageResponseFactory::of)
                 .toList();
         return new MessagePageResponse(messages, page.hasMore());
     }
@@ -60,7 +62,7 @@ public class MessageController {
             @AuthenticationPrincipal CustomUserDetails customUserDetails,
             @Valid @RequestBody MessageUpdateRequest request) {
         Message message = messageService.update(chatroomId, messageId, customUserDetails.getMemberId(), request.getContent());
-        MessageResponse response = MessageResponse.from(message);
+        MessageResponse response = messageResponseFactory.of(message);
         redisPublisher.publish(response); // 수정 결과를 방 전체에 실시간 전파
         return response;
     }
@@ -71,7 +73,7 @@ public class MessageController {
             @PathVariable Long messageId,
             @AuthenticationPrincipal CustomUserDetails customUserDetails) {
         Message message = messageService.delete(chatroomId, messageId, customUserDetails.getMemberId());
-        MessageResponse response = MessageResponse.from(message);
+        MessageResponse response = messageResponseFactory.of(message);
         redisPublisher.publish(response); // 삭제 상태를 방 전체에 실시간 전파
         return response;
     }

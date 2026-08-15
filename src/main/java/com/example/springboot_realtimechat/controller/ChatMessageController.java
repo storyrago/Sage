@@ -9,6 +9,7 @@ import com.example.springboot_realtimechat.dto.TypingResponse;
 import com.example.springboot_realtimechat.redis.RedisPublisher;
 import com.example.springboot_realtimechat.security.CustomUserDetails;
 import com.example.springboot_realtimechat.service.MemberService;
+import com.example.springboot_realtimechat.service.MessageResponseFactory;
 import com.example.springboot_realtimechat.service.MessageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
@@ -25,6 +26,7 @@ public class ChatMessageController {
     private final MessageService messageService;
     private final MemberService memberService;
     private final RedisPublisher redisPublisher;
+    private final MessageResponseFactory messageResponseFactory;
 
     @MessageMapping("/chatrooms/{chatroomId}/messages")
     public void sendMessage(
@@ -39,7 +41,7 @@ public class ChatMessageController {
                 customUserDetails.getMemberId(),
                 chatroomId,
                 messageRequest.getReplyToId());
-        MessageResponse messageResponse = MessageResponse.from(message);
+        MessageResponse messageResponse = messageResponseFactory.of(message);
         redisPublisher.publish(messageResponse);
     }
 

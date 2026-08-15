@@ -33,7 +33,11 @@ interface ChatAreaProps {
   onEditMessage?: (messageId: string, content: string) => Promise<void>;
   onDeleteMessage?: (messageId: string) => void;
   unreadFromId?: number | null;
+  onImageExpired?: () => void;
 }
+
+// 백엔드 ImageUploads.ALLOWED_CONTENT_TYPES와 같은 기준.
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif'];
 
 export default function ChatArea({
   channel,
@@ -56,7 +60,8 @@ export default function ChatArea({
   loadingOlder,
   onEditMessage,
   onDeleteMessage,
-  unreadFromId
+  unreadFromId,
+  onImageExpired
 }: ChatAreaProps) {
   const [inputText, setInputText] = useState('');
   const inputTextRef = useRef('');
@@ -110,6 +115,16 @@ export default function ChatArea({
   const handleImageLoad = () => {
     const el = scrollContainerRef.current;
     if (el && el.scrollHeight - el.scrollTop - el.clientHeight < 400) scrollToBottom('auto');
+  };
+
+  // 서명 URL이 만료되면 이미지가 깨진다. 메시지를 다시 불러오면 새 서명이 온다.
+  // 재시도는 URL마다 한 번만 한다 — 진짜로 깨진 이미지에서 무한 재조회가 돌면 안 되고,
+  // 컴포넌트 단위로 한 번만 하면 이후 만료를 영영 복구하지 못한다.
+  const retriedImageUrlsRef = useRef<Set<string>>(new Set());
+  const handleImageError = (url: string) => {
+    if (retriedImageUrlsRef.current.has(url)) return;
+    retriedImageUrlsRef.current.add(url);
+    onImageExpired?.();
   };
 
   // Keep track of scroll position
@@ -264,10 +279,13 @@ export default function ChatArea({
   };
 
   const handleUpload = async (file: File) => {
-    if (!file.type.startsWith('image/')) return;   // 이미지만
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      onNotify('JPG, PNG, GIF 이미지만 올릴 수 있어요.');
+      return;
+    }
     setUploading(true);
     try {
-      const url = await uploadImage(token, file);
+      const url = await uploadImage(token, file, 'chat');
       await onSendImage(url);
     } catch (err) {
       onNotify(toUserMessage(err, '이미지를 보내지 못했어요.'));
@@ -594,6 +612,7 @@ export default function ChatArea({
                           className="max-h-60 w-full object-cover cursor-pointer hover:opacity-95 transition-opacity"
                           onClick={() => window.open(msg.imageUrl, '_blank')}
                           onLoad={handleImageLoad}
+                          onError={() => handleImageError(msg.imageUrl!)}
                         />
                       </div>
                     )}
@@ -608,6 +627,7 @@ export default function ChatArea({
                           className="max-h-60 w-full object-cover cursor-pointer hover:opacity-95 transition-opacity"
                           onClick={() => window.open(imageUrl, '_blank')}
                           onLoad={handleImageLoad}
+                          onError={() => handleImageError(imageUrl)}
                         />
                       </div>
                     )}
@@ -747,7 +767,7 @@ export default function ChatArea({
           <input
             ref={imageInputRef}
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/gif"
             hidden
             onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.target.value = ''; }}
           />
