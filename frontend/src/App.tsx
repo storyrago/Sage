@@ -35,6 +35,7 @@ import {
 } from './lib/api';
 import { SpringStompClient } from './lib/stomp';
 import { reconnectDelayMs, reconnectExhausted } from './lib/reconnect';
+import { createReadMarker } from './lib/readMarker';
 import { useTheme } from './lib/useTheme';
 import { toUserMessage, isSessionExpiredError } from './lib/errors';
 
@@ -84,7 +85,6 @@ export default function App() {
   const typingSentAtRef = useRef<number>(0);
   const typingActiveRef = useRef<boolean>(false);
   const typingExpiryRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-  const lastMarkReadAtRef = useRef<number>(0);
   const toastIdRef = useRef(0);
 
   const { theme, toggleTheme } = useTheme();
@@ -348,6 +348,11 @@ export default function App() {
     let attempt = 0;
     setReconnectGaveUp(false);   // 로컬 시도 횟수와 배너 상태가 어긋나지 않게 함께 초기화한다
 
+    const readMarker = createReadMarker(
+      (roomId) => markRoomRead(token, roomId).catch((e) => console.error('[Unread] 읽음 처리 실패:', e)),
+      (roomId) => selectedChannelRef.current === roomId,
+    );
+
     const scheduleReconnect = () => {
       if (disposed || reconnectTimer) return;
       setConnected(false);
@@ -414,11 +419,7 @@ export default function App() {
             // (현재 열려 있는 화면은 ChatArea가 입장 시점 스냅샷을 ref로 고정해두므로 영향 없음)
             setRoomLastRead((prev) => ({ ...prev, [roomId]: Number(backendMessage.messageId) }));
 
-            const now = Date.now();
-            if (now - lastMarkReadAtRef.current >= 1000) {
-              lastMarkReadAtRef.current = now;
-              markRoomRead(token, roomId).catch((e) => console.error('[Unread] 읽음 처리 실패:', e));
-            }
+            readMarker.mark(roomId);
           }
         },
         onPresence: (roomId, ids) => {
@@ -491,6 +492,7 @@ export default function App() {
       if (reconnectTimer) {
         clearTimeout(reconnectTimer);
       }
+      readMarker.cancel();
       stompRef.current?.disconnect();
       stompRef.current = null;
     };
