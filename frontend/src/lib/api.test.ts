@@ -7,6 +7,7 @@ import {
   exchangeOAuthCode,
   setUnauthorizedHandler,
   getUnreadCounts,
+  uploadImage,
 } from './api';
 
 const base: BackendMessage = {
@@ -129,6 +130,40 @@ describe('getUnreadCounts', () => {
     const result = await getUnreadCounts('tok-123');
 
     expect(result[0].replyCount).toBe(2);
+  });
+});
+
+describe('uploadImage', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('purpose가 chat이면 요청 URL에 purpose=chat을 싣는다', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ url: 'https://example.com/img.png' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await uploadImage('tok-123', new File(['x'], 'x.png'), 'chat');
+
+    expect(String(fetchMock.mock.calls[0][0])).toContain('purpose=chat');
+  });
+
+  it('purpose가 profile이면 요청 URL에 purpose=profile을 싣는다', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ url: 'https://example.com/img.png' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await uploadImage('tok-123', new File(['x'], 'x.png'), 'profile');
+
+    expect(String(fetchMock.mock.calls[0][0])).toContain('purpose=profile');
   });
 });
 

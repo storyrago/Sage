@@ -115,11 +115,12 @@ export default function ChatArea({
   };
 
   // 서명 URL이 만료되면 이미지가 깨진다. 메시지를 다시 불러오면 새 서명이 온다.
-  // 재시도는 한 번만 한다 — 진짜로 깨진 이미지에서 무한 재조회가 돌면 안 된다.
-  const imageRetriedRef = useRef(false);
-  const handleImageError = () => {
-    if (imageRetriedRef.current) return;
-    imageRetriedRef.current = true;
+  // 재시도는 URL마다 한 번만 한다 — 진짜로 깨진 이미지에서 무한 재조회가 돌면 안 되고,
+  // 컴포넌트 단위로 한 번만 하면 이후 만료를 영영 복구하지 못한다.
+  const retriedImageUrlsRef = useRef<Set<string>>(new Set());
+  const handleImageError = (url: string) => {
+    if (retriedImageUrlsRef.current.has(url)) return;
+    retriedImageUrlsRef.current.add(url);
     onImageExpired?.();
   };
 
@@ -605,7 +606,7 @@ export default function ChatArea({
                           className="max-h-60 w-full object-cover cursor-pointer hover:opacity-95 transition-opacity"
                           onClick={() => window.open(msg.imageUrl, '_blank')}
                           onLoad={handleImageLoad}
-                          onError={handleImageError}
+                          onError={() => handleImageError(msg.imageUrl!)}
                         />
                       </div>
                     )}
@@ -620,7 +621,7 @@ export default function ChatArea({
                           className="max-h-60 w-full object-cover cursor-pointer hover:opacity-95 transition-opacity"
                           onClick={() => window.open(imageUrl, '_blank')}
                           onLoad={handleImageLoad}
-                          onError={handleImageError}
+                          onError={() => handleImageError(imageUrl)}
                         />
                       </div>
                     )}
