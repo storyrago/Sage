@@ -45,7 +45,8 @@ public enum ErrorCode {
     // Image
     INVALID_IMAGE(400, "JPG, PNG, GIF 이미지만 올릴 수 있어요."),
     INVALID_IMAGE_PURPOSE(400, "이미지 용도가 올바르지 않습니다."),
-    INVALID_IMAGE_REFERENCE(400, "사용할 수 없는 이미지입니다.");
+    INVALID_IMAGE_REFERENCE(400, "사용할 수 없는 이미지입니다."),
+    IMAGE_TOO_LARGE(400, "이미지 해상도가 너무 큽니다. 더 작은 이미지를 올려주세요.");
 
     private final int status;
     private final String message;

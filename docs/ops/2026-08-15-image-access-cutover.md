@@ -11,7 +11,21 @@
 좁히는 순간부터 `rooms/`·레거시 루트 GET은 이 IAM 사용자 자신의 정책으로만 평가된다.
 `PutObject`만 있고 `GetObject`가 없으면 채팅 이미지가 한 번에 전부 깨진다.
 
-이 IAM 사용자 정책에 다음이 있는지 콘솔에서 확인한다:
+지금 시점(버킷 정책이 아직 `Principal: "*"`)에 서명된 `rooms/` URL을 curl로 호출하면 IAM 사용자
+정책에 `GetObject`가 있든 없든 200이 나온다. S3는 같은 계정 요청을 자격증명 정책과 버킷 정책의
+**합집합**으로 승인하므로, 버킷 정책만으로도 통과하기 때문이다. 즉 이 curl 확인은 IAM 사용자에게
+자기 권한이 있는지를 검증하지 못하고, 앱이 3단계 이후 깨질지 여부와 무관하게 항상 초록불이다.
+
+그래서 게이트는 **자격증명 정책 자체**로 건다. IAM 시뮬레이터로 직접 확인한다:
+
+```bash
+aws iam simulate-principal-policy \
+  --policy-source-arn arn:aws:iam::<계정ID>:user/<앱-IAM-사용자> \
+  --action-names s3:GetObject \
+  --resource-arns arn:aws:s3:::realtimechat-images-storyrago/rooms/x
+```
+
+결과가 `allowed`여야 한다. 참고로 정책에 다음이 있어야 통과한다:
 
 ```json
 {
@@ -21,12 +35,8 @@
 }
 ```
 
-버킷 정책을 건드리기 **전에**, 실행 중인 앱에서 `rooms/` 객체의 서명된 URL을 하나 받아 직접 호출해
-200이 나오는지 확인한다 — 콘솔 정책 읽기만으로는 실수를 잡지 못한다.
-
-```bash
-curl -s -o /dev/null -w '%{http_code}\n' "<앱이 돌려준 서명된 rooms/ URL>"
-```
+서명된 URL을 직접 호출하는 확인은 4단계(전환 후 검증)에 남겨둔다 — 그 시점에는 버킷 정책이
+이미 좁혀져 있어 200이 곧 IAM 사용자의 실제 권한을 뜻한다.
 
 ## 1. 코드 배포
 
@@ -74,14 +84,17 @@ aws s3 rm "s3://realtimechat-images-storyrago/<KEY>"
 
 메시지 `content`에 텍스트로 박힌 이미지 URL(예: 채팅으로 URL을 직접 붙여넣은 경우)은
 `imageUrl` 컬럼이 아니라서 서명 대상이 아니다. 프론트가 `content`에서 추출해 그대로 렌더링하므로
-정책 전환 시점에 영구히 깨진다.
+정책 전환 시점에 영구히 깨진다. `profiles/` 아래 URL은 전환 후에도 공개로 계속 열리므로 제외한다.
 
 ```sql
-SELECT COUNT(*) FROM messages WHERE content LIKE '%amazonaws.com/%';
+SELECT COUNT(*) FROM messages
+WHERE content LIKE '%amazonaws.com/%'
+  AND content NOT LIKE '%amazonaws.com/profiles/%';
 ```
 
-0이면 신경 쓸 것이 없다. 0이 아니면 그 메시지들은 전환 후 이미지가 깨진 채로 보인다 —
-전환을 진행할지는 운영자가 그 개수를 보고 판단한다.
+이 값이 "전환 후 본문에서 깨질 이미지가 박힌 메시지 수"다. 0이면 신경 쓸 것이 없다.
+0이 아니면 그 메시지들은 전환 후 이미지가 깨진 채로 보인다 — 전환을 진행할지는 운영자가
+그 개수를 보고 판단한다.
 
 ## 3. 버킷 정책 교체
 

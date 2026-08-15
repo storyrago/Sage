@@ -119,4 +119,14 @@ class S3ServiceTest {
         assertThat(s3Service.presignedGetUrl("", Duration.ofHours(1))).isEmpty();
         verify(presigner, never()).presignGetObject(any(GetObjectPresignRequest.class));
     }
+
+    // extractKey가 인식하지 못하는 URL 형태는 서명 대상에서도 빠진다.
+    // MessageService.create의 인증 검사도 같은 extractKey를 쓰므로, 인증을 통과한 값은 여기서도 그대로 통과할 뿐 서명되지 않는다.
+    @Test
+    void 경로형_URL은_서명하지_않고_그대로_돌려준다() {
+        String pathStyleUrl = "https://s3.ap-northeast-2.amazonaws.com/test-bucket/rooms/999/x.png";
+
+        assertThat(s3Service.presignedGetUrl(pathStyleUrl, Duration.ofHours(1))).isEqualTo(pathStyleUrl);
+        verify(presigner, never()).presignGetObject(any(GetObjectPresignRequest.class));
+    }
 }

@@ -43,13 +43,13 @@ public final class ImageUploads {
         throw new CustomException(ErrorCode.INVALID_IMAGE_PURPOSE);
     }
 
-    // 1MB PNG가 30000x30000으로 풀리면 라스터가 수 GB가 된다. 헤더만 읽어 그런 이미지를 디코딩 전에 걸러낸다.
-    private static final long MAX_PIXELS = 50_000_000L;
+    // 컨테이너 힙(~250MB) 기준으로 라스터 상한을 잡는다. ImageIO 디코딩은 픽셀당 4바이트라 16MP가 약 64MB.
+    private static final long MAX_PIXELS = 16_000_000L;
 
     /** 순수 함수로 분리해 거대 이미지를 실제로 디코딩하지 않고도 한계값을 테스트할 수 있게 한다. */
     public static void rejectIfTooLarge(int width, int height) {
         if ((long) width * (long) height > MAX_PIXELS) {
-            throw new CustomException(ErrorCode.INVALID_IMAGE);
+            throw new CustomException(ErrorCode.IMAGE_TOO_LARGE);
         }
     }
 

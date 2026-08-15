@@ -170,4 +170,47 @@ public class MessageServiceTest {
 
         assertThat(saved.getImageUrl()).isEmpty();
     }
+
+    // 접두사 비교에 구분자 "/"가 없으면 "rooms/{id}9".startsWith("rooms/{id}")가 참이 되어,
+    // 자신의 아이디가 문자열로 다른 회원 폴더의 접두사가 되는 순간 그 폴더도 자기 것처럼 통과한다.
+    // 실제 DB 아이디 값은 시퀀스라 예측할 수 없으므로, 회원 자신의 아이디에 숫자를 이어붙여
+    // "존재하지 않지만 내 아이디를 접두사로 갖는 폴더"를 만들어 결정적으로 재현한다.
+    @Test
+    void 자신의_아이디를_접두사로_갖는_다른_폴더_키는_거절된다() {
+        Member member = memberService.create("prefixvictim@email.com", "1234", "pv");
+        ChatRoom chatRoom = chatRoomService.create("room11", false, null);
+        chatRoomMemberService.join(member.getId(), chatRoom.getId(), null);
+
+        String collidingKey = BUCKET_PREFIX + "rooms/" + member.getId() + "9/a.png";
+
+        assertThatThrownBy(() -> messageService.create(null, collidingKey, member.getId(), chatRoom.getId(), null))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_IMAGE_REFERENCE);
+    }
+
+    // extractKey가 인식하지 못하는 URL 형태는 admission 검사와 서명 검사 양쪽에서 동일하게 "우리 버킷 아님"으로 취급된다.
+    // 두 판단이 같은 extractKey에서 갈라지므로, 인증 검사를 통과한 값은 서명도 받지 못하고 그대로 저장된다.
+    @Test
+    void 경로형_URL은_인증_검사도_서명도_통과하지_못한다() {
+        Member member = memberService.create("pathstyle@email.com", "1234", "ps");
+        ChatRoom chatRoom = chatRoomService.create("room12", false, null);
+        chatRoomMemberService.join(member.getId(), chatRoom.getId(), null);
+        String pathStyleUrl = "https://s3.ap-northeast-2.amazonaws.com/test-bucket/rooms/999/x.png";
+
+        Message saved = messageService.create(null, pathStyleUrl, member.getId(), chatRoom.getId(), null);
+        assertThat(saved.getImageUrl()).isEqualTo(pathStyleUrl);
+    }
+
+    // 발신자 자신의 접두사 안이라도 ".."이 섞이면 통과된다. SigV4는 경로를 정규화하지 않아 서명이 그 리터럴 키만 가리키고,
+    // 정규화하는 브라우저가 접근하면 서명 불일치로 막히므로 오늘 시점에는 악용 불가능하다 — 키 처리를 바꿀 때 다시 볼 것.
+    @Test
+    void 자신의_접두사_안의_dot_dot_경로도_허용된다() {
+        Member member = memberService.create("dotdot@email.com", "1234", "dd");
+        ChatRoom chatRoom = chatRoomService.create("room13", false, null);
+        chatRoomMemberService.join(member.getId(), chatRoom.getId(), null);
+        String traversalKey = BUCKET_PREFIX + "rooms/" + member.getId() + "/../6/secret.png";
+
+        Message saved = messageService.create(null, traversalKey, member.getId(), chatRoom.getId(), null);
+        assertThat(saved.getImageUrl()).isEqualTo(traversalKey);
+    }
 }
