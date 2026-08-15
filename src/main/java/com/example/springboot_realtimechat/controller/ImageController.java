@@ -1,10 +1,12 @@
 package com.example.springboot_realtimechat.controller;
 
+import com.example.springboot_realtimechat.security.CustomUserDetails;
 import com.example.springboot_realtimechat.service.ImageUploads;
 import com.example.springboot_realtimechat.service.S3Service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -20,8 +22,9 @@ public class ImageController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Map<String, String>> upload(
             @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "purpose", required = false) String purpose) {
-        String url = s3Service.upload(file, ImageUploads.parsePurpose(purpose));
+            @RequestParam(value = "purpose", required = false) String purpose,
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
+        String url = s3Service.upload(file, ImageUploads.parsePurpose(purpose), customUserDetails.getMemberId());
         return ResponseEntity.ok(Map.of("url", url));
     }
 }

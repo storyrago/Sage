@@ -30,9 +30,12 @@ public class S3Service {
     @Value("${aws.s3.region}")
     private String region;
 
-    public String upload(MultipartFile file, ImageUploads.Purpose purpose) {
+    public String upload(MultipartFile file, ImageUploads.Purpose purpose, Long uploaderId) {
         String contentType = ImageUploads.verifyImage(file);
-        String key = purpose.prefix() + UUID.randomUUID() + "_" + ImageUploads.sanitizeFilename(file.getOriginalFilename());
+        String name = UUID.randomUUID() + "_" + ImageUploads.sanitizeFilename(file.getOriginalFilename());
+        String key = purpose == ImageUploads.Purpose.CHAT
+                ? purpose.prefix() + uploaderId + "/" + name
+                : purpose.prefix() + name;
 
         PutObjectRequest request = PutObjectRequest.builder()
                 .bucket(bucket)
@@ -92,7 +95,7 @@ public class S3Service {
 
     // 우리 버킷 URL이면 키를, 아니면 null을 돌려준다.
     // 업로드가 URL을 문자열 연결로 조립하므로 역변환도 접두사 제거로 정확히 일치한다.
-    private String extractKey(String url) {
+    public String extractKey(String url) {
         if (url == null || url.isBlank()) return null;
 
         String prefix = publicUrlPrefix();

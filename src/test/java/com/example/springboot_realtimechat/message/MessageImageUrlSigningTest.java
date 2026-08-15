@@ -52,9 +52,9 @@ class MessageImageUrlSigningTest {
     @MockitoBean S3Service s3Service;
     @MockitoBean RedisPublisher redisPublisher;
 
-    private static final String RAW_IMAGE_URL =
-            "https://test-bucket.s3.ap-northeast-2.amazonaws.com/chat/abc_photo.png";
+    private static final String BUCKET_PREFIX = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/";
 
+    private String RAW_IMAGE_URL;
     private Member author;
     private Long roomId;
     private String token;
@@ -66,6 +66,7 @@ class MessageImageUrlSigningTest {
         roomId = room.getId();
         chatRoomMemberService.join(author.getId(), roomId, null);
         token = jwtTokenProvider.createAccessToken(author.getId(), author.getEmail());
+        RAW_IMAGE_URL = BUCKET_PREFIX + "rooms/" + author.getId() + "/abc_photo.png";
 
         // 입력을 그대로 감싼 값을 돌려줘서, 응답에 실린 imageUrl이 서명을 거쳤는지 그대로 드러나게 한다.
         when(s3Service.presignedGetUrl(any(), any()))

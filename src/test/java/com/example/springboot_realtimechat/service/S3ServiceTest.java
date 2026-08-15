@@ -2,12 +2,18 @@ package com.example.springboot_realtimechat.service;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.net.URL;
 import java.time.Duration;
 
@@ -21,19 +27,56 @@ class S3ServiceTest {
     private static final String REGION = "ap-northeast-2";
     private static final String PREFIX = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/";
 
+    private S3Client s3Client;
     private S3Presigner presigner;
     private S3Service s3Service;
 
     @BeforeEach
     void setUp() throws Exception {
+        s3Client = mock(S3Client.class);
         presigner = mock(S3Presigner.class);
-        s3Service = new S3Service(mock(S3Client.class), presigner);
+        s3Service = new S3Service(s3Client, presigner);
         ReflectionTestUtils.setField(s3Service, "bucket", BUCKET);
         ReflectionTestUtils.setField(s3Service, "region", REGION);
 
         PresignedGetObjectRequest signed = mock(PresignedGetObjectRequest.class);
         when(signed.url()).thenReturn(new URL("https://signed.example.com/x?sig=1"));
         when(presigner.presignGetObject(any(GetObjectPresignRequest.class))).thenReturn(signed);
+    }
+
+    private MockMultipartFile pngFile() throws Exception {
+        BufferedImage image = new BufferedImage(2, 2, BufferedImage.TYPE_INT_RGB);
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ImageIO.write(image, "png", out);
+        return new MockMultipartFile("file", "a.png", "image/png", out.toByteArray());
+    }
+
+    @Test
+    void 채팅_업로드_키는_업로더_id를_담는다() throws Exception {
+        s3Service.upload(pngFile(), ImageUploads.Purpose.CHAT, 42L);
+
+        ArgumentCaptor<PutObjectRequest> captor = ArgumentCaptor.forClass(PutObjectRequest.class);
+        verify(s3Client).putObject(captor.capture(), any(software.amazon.awssdk.core.sync.RequestBody.class));
+        assertThat(captor.getValue().key()).startsWith("rooms/42/");
+    }
+
+    @Test
+    void 프로필_업로드_키는_업로더_id를_담지_않는다() throws Exception {
+        s3Service.upload(pngFile(), ImageUploads.Purpose.PROFILE, 42L);
+
+        ArgumentCaptor<PutObjectRequest> captor = ArgumentCaptor.forClass(PutObjectRequest.class);
+        verify(s3Client).putObject(captor.capture(), any(software.amazon.awssdk.core.sync.RequestBody.class));
+        assertThat(captor.getValue().key()).startsWith("profiles/");
+    }
+
+    @Test
+    void 서명_요청은_전달받은_ttl을_그대로_싣는다() {
+        Duration ttl = Duration.ofMinutes(17);
+        s3Service.presignedGetUrl(PREFIX + "rooms/1/a.png", ttl);
+
+        ArgumentCaptor<GetObjectPresignRequest> captor = ArgumentCaptor.forClass(GetObjectPresignRequest.class);
+        verify(presigner).presignGetObject(captor.capture());
+        assertThat(captor.getValue().signatureDuration()).isEqualTo(ttl);
     }
 
     @Test

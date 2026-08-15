@@ -43,8 +43,9 @@ public enum ErrorCode {
     INTERNAL_SERVER_ERROR(500, "서버 내부 오류가 발생했습니다."),
 
     // Image
-    INVALID_IMAGE(400, "이미지 파일만 올릴 수 있어요."),
-    INVALID_IMAGE_PURPOSE(400, "이미지 용도가 올바르지 않습니다.");
+    INVALID_IMAGE(400, "JPG, PNG, GIF 이미지만 올릴 수 있어요."),
+    INVALID_IMAGE_PURPOSE(400, "이미지 용도가 올바르지 않습니다."),
+    INVALID_IMAGE_REFERENCE(400, "사용할 수 없는 이미지입니다.");
 
     private final int status;
     private final String message;

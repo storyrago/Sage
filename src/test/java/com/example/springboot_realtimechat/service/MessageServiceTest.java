@@ -95,4 +95,79 @@ public class MessageServiceTest {
                 .isInstanceOf(CustomException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EMPTY_MESSAGE);
     }
+
+    private static final String BUCKET_PREFIX = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/";
+
+    @Test
+    void 자신의_채팅_키는_허용된다() {
+        Member member = memberService.create("owner@email.com", "1234", "owner");
+        ChatRoom chatRoom = chatRoomService.create("room5", false, null);
+        chatRoomMemberService.join(member.getId(), chatRoom.getId(), null);
+        String ownKey = BUCKET_PREFIX + "rooms/" + member.getId() + "/a.png";
+
+        Message saved = messageService.create(null, ownKey, member.getId(), chatRoom.getId(), null);
+
+        assertThat(saved.getImageUrl()).isEqualTo(ownKey);
+    }
+
+    @Test
+    void 다른_멤버의_채팅_키는_거절된다() {
+        Member owner = memberService.create("owner2@email.com", "1234", "owner2");
+        Member other = memberService.create("other@email.com", "1234", "other");
+        ChatRoom chatRoom = chatRoomService.create("room6", false, null);
+        chatRoomMemberService.join(owner.getId(), chatRoom.getId(), null);
+        chatRoomMemberService.join(other.getId(), chatRoom.getId(), null);
+        String otherKey = BUCKET_PREFIX + "rooms/" + other.getId() + "/a.png";
+
+        assertThatThrownBy(() -> messageService.create(null, otherKey, owner.getId(), chatRoom.getId(), null))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_IMAGE_REFERENCE);
+    }
+
+    @Test
+    void profiles_키는_채팅_이미지로_거절된다() {
+        Member member = memberService.create("profileuser@email.com", "1234", "pu");
+        ChatRoom chatRoom = chatRoomService.create("room7", false, null);
+        chatRoomMemberService.join(member.getId(), chatRoom.getId(), null);
+        String profileKey = BUCKET_PREFIX + "profiles/a.png";
+
+        assertThatThrownBy(() -> messageService.create(null, profileKey, member.getId(), chatRoom.getId(), null))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_IMAGE_REFERENCE);
+    }
+
+    @Test
+    void 레거시_평면_키는_거절된다() {
+        Member member = memberService.create("legacyuser@email.com", "1234", "lu");
+        ChatRoom chatRoom = chatRoomService.create("room8", false, null);
+        chatRoomMemberService.join(member.getId(), chatRoom.getId(), null);
+        String legacyKey = BUCKET_PREFIX + "abc_photo.png";
+
+        assertThatThrownBy(() -> messageService.create(null, legacyKey, member.getId(), chatRoom.getId(), null))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_IMAGE_REFERENCE);
+    }
+
+    @Test
+    void 외부_URL은_그대로_허용된다() {
+        Member member = memberService.create("extuser@email.com", "1234", "eu");
+        ChatRoom chatRoom = chatRoomService.create("room9", false, null);
+        chatRoomMemberService.join(member.getId(), chatRoom.getId(), null);
+        String externalUrl = "https://example.com/somewhere/a.png";
+
+        Message saved = messageService.create(null, externalUrl, member.getId(), chatRoom.getId(), null);
+
+        assertThat(saved.getImageUrl()).isEqualTo(externalUrl);
+    }
+
+    @Test
+    void null_또는_빈_imageUrl은_허용된다() {
+        Member member = memberService.create("blankuser@email.com", "1234", "bu");
+        ChatRoom chatRoom = chatRoomService.create("room10", false, null);
+        chatRoomMemberService.join(member.getId(), chatRoom.getId(), null);
+
+        Message saved = messageService.create("빈 이미지", "", member.getId(), chatRoom.getId(), null);
+
+        assertThat(saved.getImageUrl()).isEmpty();
+    }
 }

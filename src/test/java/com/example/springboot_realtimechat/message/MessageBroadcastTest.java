@@ -53,9 +53,9 @@ class MessageBroadcastTest {
     @MockitoBean RedisPublisher redisPublisher;
     @MockitoBean S3Service s3Service;
 
-    private static final String RAW_IMAGE_URL =
-            "https://test-bucket.s3.ap-northeast-2.amazonaws.com/chat/stomp_photo.png";
+    private static final String BUCKET_PREFIX = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/";
 
+    private String RAW_IMAGE_URL;
     private Member author;
     private Long roomId;
 
@@ -65,6 +65,7 @@ class MessageBroadcastTest {
         ChatRoom room = chatRoomService.create("방송방", false, null);
         roomId = room.getId();
         chatRoomMemberService.join(author.getId(), roomId, null);
+        RAW_IMAGE_URL = BUCKET_PREFIX + "rooms/" + author.getId() + "/stomp_photo.png";
 
         // 입력을 그대로 감싼 값을 돌려줘서, 발행된 imageUrl이 서명을 거쳤는지 그대로 드러나게 한다.
         when(s3Service.presignedGetUrl(any(), any()))
