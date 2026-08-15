@@ -105,4 +105,65 @@ describe('createReadMarker', () => {
     vi.advanceTimersByTime(MARK_READ_THROTTLE_MS);
     expect(send).toHaveBeenCalledTimes(1);
   });
+
+  it('flush()는 예약된 보충을 즉시 보낸다', () => {
+    const send = vi.fn();
+    const { mark, flush } = createReadMarker(send, () => true);
+
+    mark('room-1');
+    vi.advanceTimersByTime(300);
+    mark('room-1');
+    flush();
+
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send).toHaveBeenNthCalledWith(2, 'room-1');
+  });
+
+  it('flush()는 그 방을 보고 있지 않아도 보낸다', () => {
+    const send = vi.fn();
+    const { mark, flush } = createReadMarker(send, () => false);
+
+    mark('room-1');
+    vi.advanceTimersByTime(300);
+    mark('room-1');
+    flush();
+
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
+  it('예약된 것이 없으면 flush()는 아무것도 보내지 않는다', () => {
+    const send = vi.fn();
+    const { mark, flush } = createReadMarker(send, () => true);
+
+    mark('room-1');
+    flush();
+
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it('flush() 후 시간이 지나도 중복으로 보내지 않는다', () => {
+    const send = vi.fn();
+    const { mark, flush } = createReadMarker(send, () => true);
+
+    mark('room-1');
+    vi.advanceTimersByTime(300);
+    mark('room-1');
+    flush();
+
+    vi.advanceTimersByTime(MARK_READ_THROTTLE_MS);
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
+  it('flush()도 스로틀 창을 새로 시작한다', () => {
+    const send = vi.fn();
+    const { mark, flush } = createReadMarker(send, () => true);
+
+    mark('room-1');
+    vi.advanceTimersByTime(300);
+    mark('room-1');
+    flush();
+    mark('room-1');
+
+    expect(send).toHaveBeenCalledTimes(2); // flush 직후 mark는 억제됨
+  });
 });

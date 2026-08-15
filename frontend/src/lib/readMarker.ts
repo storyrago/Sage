@@ -48,5 +48,18 @@ export function createReadMarker(
     }
   };
 
-  return { mark, cancel };
+  // 방을 떠나는 시점엔 그 방의 MAX가 아직 사용자가 본 그대로이므로, stillViewing으로
+  // "떠났는지"를 물으면 항상 거짓이 되어 정작 필요한 보충을 걸러버린다. 그래서 여기서는
+  // 묻지 않고 무조건 보낸다 — 지금이 맞는 시점인지는 호출자(떠나는 쪽)가 이미 판단했다.
+  const flush = (): void => {
+    if (!pendingTimer) return;
+    clearTimeout(pendingTimer);
+    pendingTimer = null;
+    const targetRoomId = pendingRoomId as string;
+    pendingRoomId = null;
+    lastSentAt = Date.now();
+    send(targetRoomId);
+  };
+
+  return { mark, cancel, flush };
 }

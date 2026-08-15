@@ -86,11 +86,22 @@ export default function App() {
   const typingActiveRef = useRef<boolean>(false);
   const typingExpiryRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const toastIdRef = useRef(0);
+  const readMarkerRef = useRef<ReturnType<typeof createReadMarker> | null>(null);
 
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     selectedChannelRef.current = selectedChannelId;
+  }, [selectedChannelId]);
+
+  // 방을 떠날 때, 창 안에서 억제돼 예약만 돼 있던 읽음 처리를 그 자리에서 보낸다.
+  // 예약된 보충은 방을 떠나면 취소되므로(떠난 뒤 도착한 메시지까지 읽음 처리되는 것을 막기 위해),
+  // 떠나는 시점에 보내지 않으면 마지막으로 본 메시지가 안읽음으로 남는다.
+  useEffect(() => {
+    if (!selectedChannelId) return;
+    return () => {
+      readMarkerRef.current?.flush();
+    };
   }, [selectedChannelId]);
 
   // 실패를 사용자에게 알린다. 같은 문구가 연달아 나도 다시 보이도록 id를 증가시킨다.
@@ -352,6 +363,7 @@ export default function App() {
       (roomId) => markRoomRead(token, roomId).catch((e) => console.error('[Unread] 읽음 처리 실패:', e)),
       (roomId) => selectedChannelRef.current === roomId,
     );
+    readMarkerRef.current = readMarker;
 
     const scheduleReconnect = () => {
       if (disposed || reconnectTimer) return;
@@ -493,6 +505,7 @@ export default function App() {
         clearTimeout(reconnectTimer);
       }
       readMarker.cancel();
+      readMarkerRef.current = null;
       stompRef.current?.disconnect();
       stompRef.current = null;
     };
