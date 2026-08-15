@@ -691,6 +691,23 @@ export default function App() {
                   refreshRooms(token).catch((e) => console.error('[Room] 랜딩 복귀 후 목록 갱신 실패:', e));
                 }
               }}
+              onImageExpired={() => {
+                if (!token || !selectedChannelId) return;
+                // 최신 페이지만 다시 받아 서명을 갱신한다. 다른 방 메시지와
+                // 이미 더 불러온 과거 메시지는 그대로 두고 최신 구간만 덮어쓴다.
+                getMessages(token, selectedChannelId)
+                  .then((page) => {
+                    const mapped = page.messages.map(toMessage);
+                    setMessages((prev) => {
+                      const mappedIds = new Set(mapped.map((m) => m.id));
+                      const kept = prev.filter(
+                        (m) => m.channelId !== selectedChannelId || !mappedIds.has(m.id)
+                      );
+                      return [...kept, ...mapped];
+                    });
+                  })
+                  .catch((e) => console.error('[Image] 만료된 이미지 갱신 실패:', e));
+              }}
               onLoadOlder={() => loadOlderMessages(selectedChannelId)}
               hasMoreOlder={pageState[selectedChannelId]?.hasMore ?? false}
               loadingOlder={pageState[selectedChannelId]?.loading ?? false}

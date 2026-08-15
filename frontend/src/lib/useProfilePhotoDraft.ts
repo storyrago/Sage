@@ -48,7 +48,7 @@ export function useProfilePhotoDraft(token: string) {
     const run = (async () => {
       try {
         if (!uploadedUrlRef.current) {
-          uploadedUrlRef.current = await uploadImage(token, file);
+          uploadedUrlRef.current = await uploadImage(token, file, 'profile');
         }
         await updateProfileImage(token, uploadedUrlRef.current);
         setPhotoSaved(true);

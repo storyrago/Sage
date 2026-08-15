@@ -33,6 +33,7 @@ interface ChatAreaProps {
   onEditMessage?: (messageId: string, content: string) => Promise<void>;
   onDeleteMessage?: (messageId: string) => void;
   unreadFromId?: number | null;
+  onImageExpired?: () => void;
 }
 
 export default function ChatArea({
@@ -56,7 +57,8 @@ export default function ChatArea({
   loadingOlder,
   onEditMessage,
   onDeleteMessage,
-  unreadFromId
+  unreadFromId,
+  onImageExpired
 }: ChatAreaProps) {
   const [inputText, setInputText] = useState('');
   const inputTextRef = useRef('');
@@ -110,6 +112,15 @@ export default function ChatArea({
   const handleImageLoad = () => {
     const el = scrollContainerRef.current;
     if (el && el.scrollHeight - el.scrollTop - el.clientHeight < 400) scrollToBottom('auto');
+  };
+
+  // 서명 URL이 만료되면 이미지가 깨진다. 메시지를 다시 불러오면 새 서명이 온다.
+  // 재시도는 한 번만 한다 — 진짜로 깨진 이미지에서 무한 재조회가 돌면 안 된다.
+  const imageRetriedRef = useRef(false);
+  const handleImageError = () => {
+    if (imageRetriedRef.current) return;
+    imageRetriedRef.current = true;
+    onImageExpired?.();
   };
 
   // Keep track of scroll position
@@ -267,7 +278,7 @@ export default function ChatArea({
     if (!file.type.startsWith('image/')) return;   // 이미지만
     setUploading(true);
     try {
-      const url = await uploadImage(token, file);
+      const url = await uploadImage(token, file, 'chat');
       await onSendImage(url);
     } catch (err) {
       onNotify(toUserMessage(err, '이미지를 보내지 못했어요.'));
@@ -594,6 +605,7 @@ export default function ChatArea({
                           className="max-h-60 w-full object-cover cursor-pointer hover:opacity-95 transition-opacity"
                           onClick={() => window.open(msg.imageUrl, '_blank')}
                           onLoad={handleImageLoad}
+                          onError={handleImageError}
                         />
                       </div>
                     )}
@@ -608,6 +620,7 @@ export default function ChatArea({
                           className="max-h-60 w-full object-cover cursor-pointer hover:opacity-95 transition-opacity"
                           onClick={() => window.open(imageUrl, '_blank')}
                           onLoad={handleImageLoad}
+                          onError={handleImageError}
                         />
                       </div>
                     )}
