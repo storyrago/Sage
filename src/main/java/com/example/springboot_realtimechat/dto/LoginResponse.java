@@ -1,7 +1,6 @@
 package com.example.springboot_realtimechat.dto;
 
 import lombok.Getter;
-import lombok.Setter;
 
 @Getter
 public class LoginResponse {

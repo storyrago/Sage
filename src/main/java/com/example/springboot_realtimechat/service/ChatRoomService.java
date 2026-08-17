@@ -72,7 +72,7 @@ public class ChatRoomService {
     @Transactional
     public ChatRoom reissueInviteCode(Long chatRoomId, Long requesterId) {
         ChatRoom chatRoom = getChatRoomById(chatRoomId);
-        requireOwner(chatRoom, requesterId);
+        chatRoom.requireOwnedBy(requesterId);
         if (!chatRoom.isPrivate()) {
             throw new CustomException(ErrorCode.ROOM_NOT_LOCKED);
         }
@@ -86,10 +86,7 @@ public class ChatRoomService {
                 .orElseThrow(()->new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
     }
 
-    /**
-     * 삭제된 방도 돌려준다. leave 전용이다 —
-     * 삭제된 방을 못 찾으면 그 방의 멤버십 행을 사용자가 영영 지울 수 없다.
-     */
+/** 삭제 여부와 무관하게 방을 돌려준다. 잠금이 필요 없는 조회용이다. */
     public ChatRoom getChatRoomByIdIncludingDeleted(Long chatRoomId){
         return chatRoomRepository.findById(chatRoomId)
                 .orElseThrow(()->new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
@@ -104,7 +101,7 @@ public class ChatRoomService {
                 .orElseThrow(()->new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
     }
 
-    /** leave 전용 잠금 조회. 삭제된 방도 찾는 이유는 getChatRoomByIdIncludingDeleted와 같다. */
+    /** leave 전용 잠금 조회. 삭제된 방을 못 찾으면 그 방의 멤버십 행을 사용자가 영영 지울 수 없다. */
     public ChatRoom getChatRoomByIdIncludingDeletedForUpdate(Long chatRoomId){
         return chatRoomRepository.findByIdForUpdate(chatRoomId)
                 .orElseThrow(()->new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
@@ -117,7 +114,7 @@ public class ChatRoomService {
     @Transactional
     public void delete(Long chatRoomId, Long requesterId) {
         ChatRoom chatRoom = getChatRoomById(chatRoomId);
-        requireOwner(chatRoom, requesterId);
+        chatRoom.requireOwnedBy(requesterId);
 
         // 커밋 후에는 조회하지 않는다. 회수 대상을 지금 걷어 이벤트에 싣는다.
         List<Long> memberIds = chatRoomMemberRepository.findMembersByChatRoomId(chatRoomId).stream()
@@ -131,7 +128,7 @@ public class ChatRoomService {
     @Transactional
     public ChatRoom setPrivate(Long chatRoomId, boolean isPrivate, Long requesterId) {
         ChatRoom chatRoom = getChatRoomById(chatRoomId);
-        requireOwner(chatRoom, requesterId);
+        chatRoom.requireOwnedBy(requesterId);
 
         if (isPrivate) {
             // 전환할 때마다 새 코드를 뽑는다. 옛 코드가 부활하면 유출된 코드가 다시 유효해진다.
@@ -148,7 +145,7 @@ public class ChatRoomService {
         // 강퇴당하는 인터리빙)을 막는 유일한 방법이다. chatrooms → chatroom_members
         // 순서를 leave/kick과 통일해 데드락을 피한다.
         ChatRoom chatRoom = getChatRoomByIdForUpdate(chatRoomId);
-        requireOwner(chatRoom, requesterId);
+        chatRoom.requireOwnedBy(requesterId);
 
         if (newOwnerId.equals(requesterId)) {
             throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
@@ -169,12 +166,5 @@ public class ChatRoomService {
             chatRoom.reissueInviteCode(nextUnusedCode());
         }
         return chatRoom;
-    }
-
-    /** 주인이 없는 방(시드 방, 주인이 탈퇴한 방)은 아무도 운영할 수 없다. */
-    private void requireOwner(ChatRoom chatRoom, Long requesterId) {
-        if (!chatRoom.isOwnedBy(requesterId)) {
-            throw new CustomException(ErrorCode.NOT_ROOM_OWNER);
-        }
     }
 }
