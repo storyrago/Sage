@@ -358,7 +358,6 @@ export function toChannel(room: BackendChatRoom): Channel {
     id: String(room.id),
     name: room.name,
     description: `${room.name} 대화방`,
-    createdBy: 'backend',
     createdAt: room.createdAt ? Date.parse(room.createdAt) : Date.now(),
     locked: room.locked,
     joined: room.joined,
