@@ -44,6 +44,19 @@ public interface ChatRoomMemberRepository extends JpaRepository<ChatRoomMember, 
     @Query("SELECT m FROM ChatRoomMember cm JOIN cm.member m WHERE cm.chatRoom.id = :roomId")
     List<Member> findMembersByChatRoomId(@Param("roomId") Long roomId);
 
+    /**
+     * 소유권 승계 후보. 멤버십 id가 곧 참여 순서라 가장 오래된 멤버가 앞에 온다.
+     * 탈퇴하는 주인은 아직 멤버십 행이 남아 있으므로 제외한다.
+     */
+    @Query("""
+        SELECT cm.member FROM ChatRoomMember cm
+        WHERE cm.chatRoom.id = :chatRoomId
+          AND cm.member.id <> :excludedMemberId
+        ORDER BY cm.id
+    """)
+    List<Member> findSuccessionCandidates(@Param("chatRoomId") Long chatRoomId,
+                                          @Param("excludedMemberId") Long excludedMemberId);
+
     @Query("SELECT cm.chatRoom.id FROM ChatRoomMember cm JOIN cm.chatRoom r WHERE cm.member.id = :memberId AND r.deletedAt IS NULL")
     List<Long> findChatRoomIdsByMemberId(@Param("memberId") Long memberId);
 

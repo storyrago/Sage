@@ -54,20 +54,61 @@ class OwnerWithdrawalTest {
     }
 
     @Test
-    void 주인이_탈퇴하면_방은_남고_코드가_회수된다() {
+    void 주인이_탈퇴하면_남은_멤버에게_승계되고_코드가_회전한다() {
         Member owner = memberService.create("w-owner2@e.com", "1234", "주인2");
         Member guest = memberService.create("w-guest2@e.com", "1234", "손님2");
         ChatRoom room = chatRoomService.create("소유방2", true, owner.getId());
-        chatRoomMemberService.join(guest.getId(), room.getId(), room.getInviteCode());
+        String oldCode = room.getInviteCode();
+        chatRoomMemberService.join(guest.getId(), room.getId(), oldCode);
 
         memberService.delete(owner.getId());
 
         ChatRoom reloaded = chatRoomRepository.findById(room.getId()).orElseThrow();
+        assertThat(reloaded.getCreatedBy().getId()).isEqualTo(guest.getId());
+        assertThat(reloaded.getDeletedAt()).isNull();
+        assertThat(reloaded.isPrivate()).isTrue();
+        assertThat(reloaded.getInviteCode()).isNotNull().isNotEqualTo(oldCode);
+    }
+
+    @Test
+    void 가장_먼저_참여한_멤버가_승계한다() {
+        Member owner = memberService.create("w-owner4@e.com", "1234", "주인4");
+        Member first = memberService.create("w-first4@e.com", "1234", "먼저4");
+        Member second = memberService.create("w-second4@e.com", "1234", "나중4");
+        ChatRoom room = chatRoomService.create("소유방4", false, owner.getId());
+        chatRoomMemberService.join(first.getId(), room.getId(), null);
+        chatRoomMemberService.join(second.getId(), room.getId(), null);
+
+        memberService.delete(owner.getId());
+
+        ChatRoom reloaded = chatRoomRepository.findById(room.getId()).orElseThrow();
+        assertThat(reloaded.getCreatedBy().getId()).isEqualTo(first.getId());
+    }
+
+    @Test
+    void 승계받은_멤버는_방장_기능을_쓸_수_있다() {
+        Member owner = memberService.create("w-owner5@e.com", "1234", "주인5");
+        Member guest = memberService.create("w-guest5@e.com", "1234", "손님5");
+        ChatRoom room = chatRoomService.create("소유방5", true, owner.getId());
+        chatRoomMemberService.join(guest.getId(), room.getId(), room.getInviteCode());
+
+        memberService.delete(owner.getId());
+
+        assertThatCode(() -> chatRoomService.reissueInviteCode(room.getId(), guest.getId()))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void 남은_멤버가_없으면_방이_닫힌다() {
+        Member owner = memberService.create("w-owner6@e.com", "1234", "주인6");
+        ChatRoom room = chatRoomService.create("소유방6", true, owner.getId());
+
+        memberService.delete(owner.getId());
+
+        ChatRoom reloaded = chatRoomRepository.findById(room.getId()).orElseThrow();
+        assertThat(reloaded.getDeletedAt()).isNotNull();
         assertThat(reloaded.getCreatedBy()).isNull();
         assertThat(reloaded.getInviteCode()).isNull();
-        assertThat(reloaded.isPrivate()).isTrue();
-        assertThat(chatRoomMemberRepository.existsByMemberIdAndChatRoomId(guest.getId(), room.getId()))
-                .isTrue();
     }
 
     @Test

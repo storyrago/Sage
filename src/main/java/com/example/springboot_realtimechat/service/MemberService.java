@@ -7,7 +7,6 @@ import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.repository.ChatRoomBanRepository;
 import com.example.springboot_realtimechat.repository.ChatRoomMemberRepository;
-import com.example.springboot_realtimechat.repository.ChatRoomRepository;
 import com.example.springboot_realtimechat.repository.MemberRepository;
 import com.example.springboot_realtimechat.repository.MessageRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,9 +22,9 @@ public class MemberService {
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
-    private final ChatRoomRepository chatRoomRepository;
     private final ChatRoomBanRepository chatRoomBanRepository;
     private final MessageRepository messageRepository;
+    private final ChatRoomService chatRoomService;
     private final ApplicationEventPublisher eventPublisher;
 
     public Member getMemberById(Long id){
@@ -83,7 +82,7 @@ public class MemberService {
         // 메시지는 남으므로 그 이미지들은 계속 참조된다. 정리 대상은 프로필 사진뿐이다.
         String profileImageUrl = member.getProfileImageUrl();
 
-        chatRoomRepository.releaseOwnedRooms(id);
+        chatRoomService.succeedOwnedRooms(id);
         chatRoomBanRepository.deleteByMemberId(id);
         chatRoomMemberRepository.deleteByMember(member);
         messageRepository.anonymizeByMember(member);

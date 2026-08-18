@@ -103,4 +103,10 @@ public class ChatRoom {
     public void transferOwnership(Member newOwner) {
         this.createdBy = newOwner;
     }
+
+    /** 승계받을 사람이 없어 닫는 방에 쓴다. 남은 코드는 회수한다. */
+    public void releaseOwnership() {
+        this.createdBy = null;
+        this.inviteCode = null;
+    }
 }
