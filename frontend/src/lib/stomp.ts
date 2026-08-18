@@ -6,7 +6,7 @@ interface StompFrame {
   body: string;
 }
 
-/** 서버가 인가 거부 사유를 개인 큐로 보낼 때의 페이로드 */
+/** 서버가 거부 사유(인가·입력 검증)를 개인 큐로 보낼 때의 페이로드 */
 export interface WsAuthzError {
   code: string;
   message: string;
@@ -20,7 +20,7 @@ interface StompClientOptions {
   onPresence?: (roomId: string, onlineMemberIds: string[]) => void;
   onTyping?: (p: { chatroomId: string; memberId: string; nickname: string; typing: boolean }) => void;
   onUnread?: (evt: { chatroomId: number; messageId: number; replyToMe: boolean }) => void;
-  /** 특정 목적지의 인가 거부. 세션은 살아있으므로 재연결하지 않는다. */
+  /** 특정 목적지의 거부(인가·입력 검증). 세션은 살아있으므로 재연결하지 않는다. */
   onAuthzError?: (err: WsAuthzError) => void;
   onDisconnect: () => void;
   /** 연결 수준 실패(ERROR 프레임·소켓 오류). 세션이 끊겼으므로 재연결 대상이다. */
