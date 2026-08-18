@@ -78,7 +78,7 @@ public class ChatRoomMemberService {
         return saved;
     }
 
-    // 코드가 없는 잠긴 방(주인이 탈퇴한 동결 상태)은 어떤 입력으로도 열리지 않는다.
+    // 코드가 없는 잠긴 방(레거시 동결 상태)은 어떤 입력으로도 열리지 않는다.
     private boolean matchesInviteCode(ChatRoom chatRoom, String inviteCode) {
         String actual = chatRoom.getInviteCode();
         if (actual == null || inviteCode == null) {
@@ -183,7 +183,7 @@ public class ChatRoomMemberService {
         cm.updateLastRead(messageRepository.findMaxIdByChatRoom(chatRoom));
     }
 
-    /** 주인이 없는 방(시드 방, 주인이 탈퇴한 방)은 아무도 운영할 수 없다. */
+    /** 주인이 없는 방(시드/레거시 데이터)은 아무도 운영할 수 없다. */
     private void requireOwner(ChatRoom chatRoom, Long requesterId) {
         if (!chatRoom.isOwnedBy(requesterId)) {
             throw new CustomException(ErrorCode.NOT_ROOM_OWNER);

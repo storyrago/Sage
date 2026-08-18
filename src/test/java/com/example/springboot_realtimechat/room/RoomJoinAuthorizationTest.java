@@ -87,7 +87,7 @@ class RoomJoinAuthorizationTest {
         Member owner = memberService.create("j-owner5@e.com", "1234", "주인5");
         Member guest = memberService.create("j-guest5@e.com", "1234", "손님5");
         ChatRoom room = chatRoomService.create("동결", true, owner.getId());
-        // 주인이 탈퇴한 방과 같은 상태를 만든다: 잠겨 있지만 코드가 없다.
+        // 레거시 동결 데이터와 같은 상태를 만든다: 잠겨 있지만 코드가 없다.
         org.springframework.test.util.ReflectionTestUtils.setField(room, "inviteCode", null);
         chatRoomRepository.save(room);
 

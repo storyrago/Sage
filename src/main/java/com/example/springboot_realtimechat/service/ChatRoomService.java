@@ -199,7 +199,7 @@ public class ChatRoomService {
         }
     }
 
-    /** 주인이 없는 방(시드 방, 주인이 탈퇴한 방)은 아무도 운영할 수 없다. */
+    /** 주인이 없는 방(시드/레거시 데이터)은 아무도 운영할 수 없다. */
     private void requireOwner(ChatRoom chatRoom, Long requesterId) {
         if (!chatRoom.isOwnedBy(requesterId)) {
             throw new CustomException(ErrorCode.NOT_ROOM_OWNER);

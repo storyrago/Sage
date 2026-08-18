@@ -25,7 +25,7 @@ public class ChatRoom {
     @CreationTimestamp
     private LocalDateTime createdAt;
 
-    // 주인 없는 방이 정상 상태다. 시드 방과 주인이 탈퇴한 방이 여기 해당한다.
+    // 주인 없는 방은 시드/레거시 데이터뿐이다. 살아있는 방은 항상 주인이 있다.
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
     private Member createdBy;
