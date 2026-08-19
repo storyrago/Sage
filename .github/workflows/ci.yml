@@ -43,6 +43,30 @@ jobs:
           chmod +x gradlew
           ./gradlew build
 
+      # 테스트는 H2 create-drop이라 V*.sql과 ddl-auto: validate가 CI에서 한 번도 실행되지 않는다.
+      # 빌드된 jar를 위 MySQL 서비스 컨테이너로 실제 기동해, 마이그레이션이 만든 스키마와
+      # 엔티티 매핑이 맞는지 배포 전에 확인한다(배포 헬스체크와 같은 readiness 경로).
+      # datasource·redis 기본값이 이미 서비스 컨테이너 주소와 같으므로 JWT_SECRET만 채운다.
+      - name: 마이그레이션·스키마 검증 (실제 MySQL 기동)
+        env:
+          JWT_SECRET: ci-startup-check-dummy-secret-0123456789abcdef
+        run: |
+          java -jar build/libs/*.jar > /tmp/startup.log 2>&1 &
+          pid=$!
+          for _ in $(seq 40); do
+            if curl -fsS http://localhost:8080/actuator/health/readiness > /dev/null; then
+              ok=1
+              break
+            fi
+            kill -0 $pid 2>/dev/null || break   # 기동 실패로 프로세스가 죽었으면 더 기다리지 않는다
+            sleep 3
+          done
+          kill $pid 2>/dev/null || true
+          if [ "$ok" != 1 ]; then
+            cat /tmp/startup.log
+            exit 1
+          fi
+
   frontend:
     runs-on: ubuntu-latest
     defaults:
