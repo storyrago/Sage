@@ -34,12 +34,15 @@ public final class ImageUploads {
         }
     }
 
+    /** 조립된 URL이 이미지 URL 컬럼(500자) 안에 들어가도록 파일명 길이를 여기서 한 번만 묶는다. */
+    private static final int MAX_FILENAME = 64;
+
     /**
      * 쓰기 경계에서 요구하는 키 문법. {@link S3Service#upload}가 실제로 만들 수 있는 형태와 정확히 같다.
-     * ".." 경로, 인코딩 우회, 소유자가 없는 평면 키가 여기서 걸린다.
+     * ".." 경로, 인코딩 우회, 소유자가 없는 평면 키, 컬럼을 넘기는 긴 파일명이 여기서 걸린다.
      */
     public static final Pattern KEY_SYNTAX =
-            Pattern.compile("^(rooms|profiles)/\\d+/[0-9a-f-]{36}_[A-Za-z0-9.-]+$");
+            Pattern.compile("^(rooms|profiles)/\\d+/[0-9a-f-]{36}_[A-Za-z0-9.-]{1," + MAX_FILENAME + "}$");
 
     private static final Set<String> ALLOWED_CONTENT_TYPES =
             Set.of("image/jpeg", "image/png", "image/gif");
@@ -104,6 +107,7 @@ public final class ImageUploads {
         if (original == null) return "image";
         // 슬래시 제거가 경로 구분자를 제거하므로 정규화된 이름은 키 접두사를 벗어날 수 없다. 남은 점은 무해하다.
         String cleaned = original.replaceAll("[^A-Za-z0-9.-]", "");
-        return cleaned.isBlank() ? "image" : cleaned;
+        if (cleaned.isBlank()) return "image";
+        return cleaned.length() > MAX_FILENAME ? cleaned.substring(0, MAX_FILENAME) : cleaned;
     }
 }
