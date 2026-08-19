@@ -1,5 +1,7 @@
 package com.example.springboot_realtimechat.service;
 
+import com.example.springboot_realtimechat.global.exception.CustomException;
+import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -33,9 +35,8 @@ public class S3Service {
     public String upload(MultipartFile file, ImageUploads.Purpose purpose, Long uploaderId) {
         String contentType = ImageUploads.verifyImage(file);
         String name = UUID.randomUUID() + "_" + ImageUploads.sanitizeFilename(file.getOriginalFilename());
-        String key = purpose == ImageUploads.Purpose.CHAT
-                ? purpose.prefix() + uploaderId + "/" + name
-                : purpose.prefix() + name;
+        // 프로필도 업로더를 키에 담는다. 소유자가 키에 있어야 쓰기 경계에서 남의 이미지 지정을 막을 수 있다.
+        String key = purpose.prefix() + uploaderId + "/" + name;
 
         PutObjectRequest request = PutObjectRequest.builder()
                 .bucket(bucket)
@@ -50,6 +51,20 @@ public class S3Service {
         }
 
         return publicUrlPrefix() + key;
+    }
+
+    /**
+     * DB에 이미지 URL을 넣기 전에 소유와 형식을 확인한다.
+     * 기대 접두사는 호출자가 목적에 맞게 명시한다 — 전역 판정 하나가 무엇을 써도 되는지 혼자 정하지 않는다.
+     * 읽기 경로와 달리 판정 실패는 통과가 아니라 거부다.
+     */
+    public void requireOwnKey(String url, String expectedPrefix) {
+        String key = extractKey(url);
+        if (key == null
+                || !key.startsWith(expectedPrefix)
+                || !ImageUploads.KEY_SYNTAX.matcher(key).matches()) {
+            throw new CustomException(ErrorCode.INVALID_IMAGE_REFERENCE);
+        }
     }
 
     // 참조가 끊긴 객체에 orphan 태그를 단다. 삭제는 버킷 수명주기 규칙이 한다.

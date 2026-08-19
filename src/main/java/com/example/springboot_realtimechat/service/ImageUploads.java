@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /** 업로드 파일 검증과 키 조립. 공개 접두사에 임의 파일이 올라가지 못하게 막는다. */
 public final class ImageUploads {
@@ -32,6 +33,13 @@ public final class ImageUploads {
             return prefix;
         }
     }
+
+    /**
+     * 쓰기 경계에서 요구하는 키 문법. {@link S3Service#upload}가 실제로 만들 수 있는 형태와 정확히 같다.
+     * ".." 경로, 인코딩 우회, 소유자가 없는 평면 키가 여기서 걸린다.
+     */
+    public static final Pattern KEY_SYNTAX =
+            Pattern.compile("^(rooms|profiles)/\\d+/[0-9a-f-]{36}_[A-Za-z0-9.-]+$");
 
     private static final Set<String> ALLOWED_CONTENT_TYPES =
             Set.of("image/jpeg", "image/png", "image/gif");
