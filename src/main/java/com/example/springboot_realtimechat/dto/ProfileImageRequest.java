@@ -10,6 +10,8 @@ import lombok.Setter;
 @Setter
 public class ProfileImageRequest {
     @NotBlank
-    @Size(max = 500)   // profile_image_url 컬럼 길이와 같게 둬 초과 값이 저장 단계까지 가지 않게 한다
+    // 컬럼 길이와 같게 둔다. 지금은 키 문법 검증이 먼저 걸러내 도달하지 않지만,
+    // 그 검증이 느슨해지면 여기가 마지막으로 막는다.
+    @Size(max = 500)
     private String imageUrl;
 }

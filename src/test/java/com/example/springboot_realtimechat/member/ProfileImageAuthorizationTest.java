@@ -73,6 +73,17 @@ class ProfileImageAuthorizationTest {
         patchProfileImage(attacker, uploadedProfileUrl(victim.getId()), 400);
     }
 
+    // 컬럼 한계를 넘는 값이 저장 단계까지 가면 400이 아닌 응답이 된다.
+    // 실제로 걸러내는 것은 키 문법(파일명 상한)이고, DTO의 @Size는 그 뒤를 받치는 이중 방어다.
+    @Test
+    void 컬럼_한계를_넘는_주소는_400이다() throws Exception {
+        Member member = memberService.create("pi-long@e.com", "1234", "긴주소");
+        String tooLong = BUCKET_PREFIX + "profiles/" + member.getId() + "/"
+                + UUID.randomUUID() + "_" + "a".repeat(600) + ".png";
+
+        patchProfileImage(member, tooLong, 400);
+    }
+
     @Test
     void 외부_URL은_400이다() throws Exception {
         Member member = memberService.create("pi-ext@e.com", "1234", "외부");
