@@ -32,7 +32,8 @@ class ImageReferenceGateTest {
 
     @MockitoBean S3Service s3Service;
 
-    private static final String URL = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/victim.png";
+    private static final String BUCKET_PREFIX = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/";
+    private static final String URL = BUCKET_PREFIX + "profiles/1/00000000-0000-0000-0000-0000000000c1_victim.png";
 
     @Test
     void 아무도_참조하지_않으면_태깅한다() {
@@ -71,7 +72,7 @@ class ImageReferenceGateTest {
         Member attacker = memberService.create("atk-attacker@e.com", "1234", "공격자");
         memberService.updateProfileImage(attacker.getId(), URL); // 남의 URL을 자기 프로필로
         memberService.updateProfileImage(attacker.getId(),
-                "https://test-bucket.s3.ap-northeast-2.amazonaws.com/other.png"); // 참조 해제 이벤트 유발
+                BUCKET_PREFIX + "profiles/1/00000000-0000-0000-0000-0000000000c2_other.png"); // 참조 해제 이벤트 유발
 
         listener.onImageDereferenced(new ImageDereferencedEvent(URL));
 

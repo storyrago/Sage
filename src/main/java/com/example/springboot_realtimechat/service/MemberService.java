@@ -27,6 +27,7 @@ public class MemberService {
     private final ChatRoomBanRepository chatRoomBanRepository;
     private final MessageRepository messageRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final S3Service s3Service;
 
     public Member getMemberById(Long id){
         return memberRepository.findById(id)
@@ -45,6 +46,10 @@ public class MemberService {
 
     @Transactional
     public Member updateProfileImage(Long memberId, String imageUrl) {
+        // 아바타로 지정할 수 있는 것은 본인이 프로필 용도로 올린 이미지뿐이다.
+        // 컨트롤러가 아니라 여기에 둬야 이 메서드를 부르는 모든 경로가 같은 검증을 거친다.
+        s3Service.requireOwnKey(imageUrl, ImageUploads.Purpose.PROFILE.prefix() + memberId + "/");
+
         Member member = getMemberById(memberId);        // 기존 메서드 재사용
         String oldUrl = member.getProfileImageUrl();
         member.updateProfileImageUrl(imageUrl);         // 엔티티에 만든 메서드

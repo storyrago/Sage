@@ -35,9 +35,10 @@ class MemberDeleteImageCleanupTest {
 
     @MockitoBean S3Service s3Service;
 
-    private static final String PROFILE = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/profile.png";
-    private static final String IMAGE_A = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/a.png";
-    private static final String IMAGE_B = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/b.png";
+    private static final String BUCKET_PREFIX = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/";
+    private static final String PROFILE = BUCKET_PREFIX + "profiles/1/00000000-0000-0000-0000-0000000000d1_profile.png";
+    private static final String IMAGE_A = BUCKET_PREFIX + "rooms/1/00000000-0000-0000-0000-0000000000d2_a.png";
+    private static final String IMAGE_B = BUCKET_PREFIX + "rooms/1/00000000-0000-0000-0000-0000000000d3_b.png";
 
     private List<String> publishedUrls() {
         return events.stream(ImageDereferencedEvent.class).map(ImageDereferencedEvent::url).toList();
