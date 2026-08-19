@@ -31,7 +31,7 @@ PR 본문은 항상 `.github/pull_request_template.md`의 섹션을 **그대로,
 ## 검증 명령
 
 - 백엔드: `./gradlew test`
-- 프론트: `cd frontend && npm run lint && npm run build` (유닛 테스트 러너 없음)
+- 프론트: `cd frontend && npm test && npm run lint && npm run build` (`npm test`는 vitest, CI도 같이 돌린다)
 
 ## 환경변수 / 배포
 

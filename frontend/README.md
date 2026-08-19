@@ -1,20 +1,23 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Sage 프론트엔드
 
-# Run and deploy your AI Studio app
+Vite + React + TypeScript로 만든 Sage 실시간 채팅 웹 클라이언트다.
+백엔드(Spring Boot)는 저장소 루트에 있고, 개발 서버는 `/api`·`/ws`를 백엔드로 프록시한다.
 
-This contains everything you need to run your app locally.
+## 로컬 실행
 
-View your app in AI Studio: https://ai.studio/apps/51a9de83-4777-48b5-9335-ec6d15d8de69
+```bash
+npm install
+npm run dev
+```
 
-## Run Locally
+백엔드 주소가 `http://localhost:8080`이 아니면 `.env.local`에 `VITE_BACKEND_URL`을 지정한다.
 
-**Prerequisites:**  Node.js
+## 검증
 
+```bash
+npm test        # vitest
+npm run lint    # tsc --noEmit
+npm run build   # vite build
+```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+배포는 `Dockerfile`이 `dist`를 빌드해 nginx 이미지로 서빙한다.

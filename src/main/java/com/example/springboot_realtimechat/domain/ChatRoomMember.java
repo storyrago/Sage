@@ -31,7 +31,7 @@ public class ChatRoomMember {
         connect(member, chatRoom);
     }
 
-    public void connect(Member member, ChatRoom chatRoom){
+    private void connect(Member member, ChatRoom chatRoom){
         this.member = member;
         this.chatRoom = chatRoom;
 

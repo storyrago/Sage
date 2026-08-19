@@ -147,8 +147,8 @@ jobs:
           code=$(curl -sS -o /dev/null -w '%{http_code}' --retry 5 --retry-delay 5 --retry-all-errors https://sagertc.duckdns.org/)
           [ "$code" = 200 ] || { echo "루트 응답 $code"; exit 1; }
           api=$(curl -sS -o /dev/null -w '%{http_code}' https://sagertc.duckdns.org/api/chatrooms)
-          # 미인증 API 호출: 현재는 302(로그인 리다이렉트). /api/**에 401 엔트리포인트를 넣으면 401이 된다.
-          [ "$api" = 302 ] || [ "$api" = 401 ] || { echo "API 응답 $api"; exit 1; }
+          # 미인증 API 호출: /api/**는 401 엔트리포인트가 응답한다.
+          [ "$api" = 401 ] || { echo "API 응답 $api"; exit 1; }
           actuator=$(curl -sS -o /dev/null -w '%{http_code}' https://sagertc.duckdns.org/actuator/health)
           [ "$actuator" = 404 ] || { echo "actuator 응답 $actuator"; exit 1; }
           echo "스모크 통과: / =$code, /api/chatrooms=$api, /actuator/health=$actuator"
