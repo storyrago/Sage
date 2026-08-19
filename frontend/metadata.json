@@ -1,6 +1,0 @@
-{
-  "name": "Real-Time Chat",
-  "description": "A feature-rich real-time chat application with channels, messages, typing indicators, threads, and emoji reactions, powered by Firebase.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

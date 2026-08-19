@@ -69,7 +69,7 @@ export interface BackendMessage {
 
 // 응답 본문에서 code·message를 뽑아 ApiError로 던진다. 401이면 등록된 처리기를 먼저 부른다.
 // 코드가 UNAUTHORIZED(또는 없음 — 프록시가 준 코드 없는 401)일 때만 처리기를 부른다.
-// INVALID_PASSWORD·SOCIAL_LOGIN_ONLY 같은 다른 401 코드는 세션을 지우면 안 된다.
+// INVALID_PASSWORD 같은 다른 401 코드는 세션을 지우면 안 된다.
 // multipart 업로드는 request()를 쓸 수 없어(Content-Type을 브라우저가 정해야 한다) 이 헬퍼를 공유한다.
 async function throwApiError(response: Response): Promise<never> {
   const text = await response.text();
@@ -238,9 +238,7 @@ export async function getMemberById(token: string, id: string) {
 }
 
 export interface BackendChatRoomMember {
-  id: number;
   memberId: number;
-  chatRoomId: number;
   nickname: string;
   profileImageUrl?: string | null;
 }
@@ -358,7 +356,6 @@ export function toChannel(room: BackendChatRoom): Channel {
     id: String(room.id),
     name: room.name,
     description: `${room.name} 대화방`,
-    createdBy: 'backend',
     createdAt: room.createdAt ? Date.parse(room.createdAt) : Date.now(),
     locked: room.locked,
     joined: room.joined,

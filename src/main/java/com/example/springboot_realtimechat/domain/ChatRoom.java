@@ -1,5 +1,7 @@
 package com.example.springboot_realtimechat.domain;
 
+import com.example.springboot_realtimechat.global.exception.CustomException;
+import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -68,6 +70,13 @@ public class ChatRoom {
         return createdBy != null
                 && createdBy.getId() != null
                 && createdBy.getId().equals(memberId);
+    }
+
+    /** 주인이 없는 방(시드·레거시 데이터)은 아무도 운영할 수 없다. 주인이 탈퇴하면 소유권이 승계된다. */
+    public void requireOwnedBy(Long memberId) {
+        if (!isOwnedBy(memberId)) {
+            throw new CustomException(ErrorCode.NOT_ROOM_OWNER);
+        }
     }
 
     /** 이미 삭제된 방을 다시 삭제해도 최초 삭제 시각을 유지한다. */

@@ -26,7 +26,6 @@ export interface Channel {
   id: string;
   name: string;
   description?: string;
-  createdBy: string;
   createdAt: number; // unix epoch ms
   locked: boolean;
   joined: boolean;
@@ -37,20 +36,7 @@ export interface Channel {
 export interface Presence {
   userId: string;
   userName: string;
-  userAvatar: string;
   isTyping: boolean;
   channelId: string;
   lastSeen: number; // unix epoch ms
-}
-
-export type WSMessageType =
-  | 'init'
-  | 'channel:create'
-  | 'message:new'
-  | 'presence:update'
-  | 'user:joined';
-
-export interface WSMessage {
-  type: WSMessageType;
-  payload: any;
 }

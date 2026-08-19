@@ -116,7 +116,7 @@ public class ChatRoomMemberService {
     public void kick(Long chatRoomId, Long targetMemberId, Long requesterId) {
         // 잠긴 조회로 시작해 transferOwnership과의 경합에서 순서를 강제한다.
         ChatRoom chatRoom = chatRoomService.getChatRoomByIdForUpdate(chatRoomId);
-        requireOwner(chatRoom, requesterId);
+        chatRoom.requireOwnedBy(requesterId);
         if (chatRoom.isOwnedBy(targetMemberId)) {
             throw new CustomException(ErrorCode.OWNER_CANNOT_LEAVE);
         }
@@ -134,14 +134,14 @@ public class ChatRoomMemberService {
     @Transactional
     public void unban(Long chatRoomId, Long targetMemberId, Long requesterId) {
         ChatRoom chatRoom = chatRoomService.getChatRoomById(chatRoomId);
-        requireOwner(chatRoom, requesterId);
+        chatRoom.requireOwnedBy(requesterId);
         // 차단돼 있지 않아도 성공으로 둔다. 해제는 멱등이다.
         chatRoomBanRepository.deleteByChatRoomIdAndMemberId(chatRoomId, targetMemberId);
     }
 
     public List<BannedMemberResponse> getBannedMembers(Long chatRoomId, Long requesterId) {
         ChatRoom chatRoom = chatRoomService.getChatRoomById(chatRoomId);
-        requireOwner(chatRoom, requesterId);
+        chatRoom.requireOwnedBy(requesterId);
 
         List<ChatRoomBan> bans = chatRoomBanRepository.findByChatRoomId(chatRoomId);
         Map<Long, Member> members = memberRepository.findAllById(
@@ -183,10 +183,4 @@ public class ChatRoomMemberService {
         cm.updateLastRead(messageRepository.findMaxIdByChatRoom(chatRoom));
     }
 
-    /** 주인이 없는 방(시드/레거시 데이터)은 아무도 운영할 수 없다. */
-    private void requireOwner(ChatRoom chatRoom, Long requesterId) {
-        if (!chatRoom.isOwnedBy(requesterId)) {
-            throw new CustomException(ErrorCode.NOT_ROOM_OWNER);
-        }
-    }
 }
