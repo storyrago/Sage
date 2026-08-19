@@ -44,10 +44,6 @@ public class Message {
     @Column(nullable = false)
     private boolean deleted = false;
 
-    public Message(String content, String imageUrl, Member member, ChatRoom chatRoom) {
-        this(content, imageUrl, member, chatRoom, null);
-    }
-
     public Message(String content, String imageUrl, Member member, ChatRoom chatRoom, Message replyTo) {
         this.content = content;
         this.imageUrl = imageUrl;

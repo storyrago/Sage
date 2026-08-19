@@ -15,7 +15,10 @@ spring:
     console:
       enabled: true
   flyway:
-    enabled: false   # 테스트는 H2 create-drop로 스키마 생성, Flyway 미개입
+    # 테스트는 H2 create-drop로 스키마 생성, Flyway 미개입.
+    # 마이그레이션 SQL과 ddl-auto: validate는 CI의 "마이그레이션·스키마 검증" 스텝에서
+    # 실제 MySQL로 기동해 확인한다(.github/workflows/ci.yml).
+    enabled: false
   security:
     oauth2:
       client:

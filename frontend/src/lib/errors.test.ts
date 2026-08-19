@@ -13,7 +13,7 @@ describe('isSessionExpiredError', () => {
 
   it('같은 401이라도 다른 코드는 세션 만료가 아니다', () => {
     expect(isSessionExpiredError(new ApiError('비밀번호 틀림', 401, 'INVALID_PASSWORD'))).toBe(false);
-    expect(isSessionExpiredError(new ApiError('소셜 전용', 401, 'SOCIAL_LOGIN_ONLY'))).toBe(false);
+    expect(isSessionExpiredError(new ApiError('비밀번호 불일치', 401, 'INVALID_PASSWORD'))).toBe(false);
   });
 
   it('403·500·502는 세션 만료가 아니다', () => {

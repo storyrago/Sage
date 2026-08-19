@@ -28,7 +28,7 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
     @Query("SELECT r FROM ChatRoom r WHERE r.id = :id AND r.deletedAt IS NULL")
     Optional<ChatRoom> findByIdAndDeletedAtIsNullForUpdate(@Param("id") Long id);
 
-    /** leave 전용 잠금 조회 — 삭제된 방도 잠가서 반환한다(getChatRoomByIdIncludingDeleted와 같은 이유). */
+    /** leave 전용 잠금 조회 — 삭제된 방도 잠가서 반환한다. 못 찾으면 멤버십 행이 영영 남는다. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT r FROM ChatRoom r WHERE r.id = :id")
     Optional<ChatRoom> findByIdForUpdate(@Param("id") Long id);

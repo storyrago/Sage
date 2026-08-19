@@ -443,7 +443,7 @@ export default function App() {
           setPresences((prev) => {
             const others = prev.filter((p) => p.userId !== memberId);
             return typing
-              ? [...others, { userId: memberId, userName: nickname, userAvatar: '', isTyping: true, channelId: chatroomId, lastSeen: Date.now() }]
+              ? [...others, { userId: memberId, userName: nickname, isTyping: true, channelId: chatroomId, lastSeen: Date.now() }]
               : others;
           });
           const timers = typingExpiryRef.current;
@@ -617,10 +617,9 @@ export default function App() {
   };
 
   const activeChannel = channels.find((channel) => channel.id === selectedChannelId) || {
-    id: selectedChannelId || 'empty',
-    name: selectedChannelId ? '채팅방' : '채팅방 없음',
-    description: selectedChannelId ? loadingMessage : '왼쪽에서 채팅방을 만들거나 백엔드에 채팅방을 생성해 주세요.',
-    createdBy: 'system',
+    id: selectedChannelId,
+    name: '채팅방',
+    description: loadingMessage,
     createdAt: Date.now(),
     // 찾지 못한 방을 대신하는 값이라 권한은 전부 닫아 둔다.
     locked: false,
