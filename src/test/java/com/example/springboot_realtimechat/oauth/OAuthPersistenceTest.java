@@ -25,6 +25,22 @@ class OAuthPersistenceTest {
         assertThat(found.getPassword()).isNull();
         assertThat(found.getProvider()).isEqualTo("GOOGLE");
         assertThat(found.getProviderId()).isEqualTo("sub-123");
+        assertThat(found.getProfileImageUrl()).isEqualTo("http://img");
+    }
+
+    // 제공자가 주는 사진 주소는 통제 밖 값이다. 컬럼(500자)을 넘거나 http(s)가 아니면 버리고 가입은 진행한다.
+    @Test
+    void 컬럼_한계를_넘는_제공자_사진은_버린다() {
+        Member m = Member.ofSocial("GOOGLE", "sub-long", "l@e.com", "긴사진", "https://" + "x".repeat(500));
+
+        assertThat(m.getProfileImageUrl()).isNull();
+    }
+
+    @Test
+    void http가_아닌_제공자_사진은_버린다() {
+        Member m = Member.ofSocial("GOOGLE", "sub-js", "j@e.com", "이상한사진", "javascript:alert(1)");
+
+        assertThat(m.getProfileImageUrl()).isNull();
     }
 
     @Test

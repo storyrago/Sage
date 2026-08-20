@@ -87,8 +87,15 @@ public class Member {
         m.email = email;
         m.password = null;
         m.nickname = nickname;
-        m.profileImageUrl = profileImageUrl;
+        m.profileImageUrl = usablePicture(profileImageUrl);
         return m;
+    }
+
+    // 제공자가 주는 사진 주소는 우리가 통제하지 않는 값이다. 컬럼 한계를 넘거나 http(s) 주소가 아니면
+    // 버리고 가입은 진행한다(아바타는 이니셜로 폴백한다).
+    private static String usablePicture(String url) {
+        if (url == null || url.length() > 500) return null;
+        return (url.startsWith("https://") || url.startsWith("http://")) ? url : null;
     }
 
     public void updateEmail(String email) {

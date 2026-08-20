@@ -45,13 +45,9 @@ public class MessageService {
             throw new CustomException(ErrorCode.NOT_JOINED_ROOM);
         }
 
-        // 우리 버킷 키인데 보내는 사람의 채팅 키가 아니면 서명 대상에서 제외한다.
-        // 외부 URL(우리 버킷이 아님)은 그대로 통과시킨다.
+        // 메시지 이미지는 보내는 사람이 이 방 용도로 올린 키만 참조할 수 있다.
         if (imageUrl != null && !imageUrl.isBlank()) {
-            String key = s3Service.extractKey(imageUrl);
-            if (key != null && !key.startsWith(ImageUploads.Purpose.CHAT.prefix() + memberId + "/")) {
-                throw new CustomException(ErrorCode.INVALID_IMAGE_REFERENCE);
-            }
+            s3Service.requireOwnKey(imageUrl, ImageUploads.Purpose.CHAT.prefix() + memberId + "/");
         }
 
         Message replyTo = replyToId != null

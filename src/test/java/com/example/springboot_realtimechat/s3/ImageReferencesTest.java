@@ -30,7 +30,8 @@ class ImageReferencesTest {
 
     @MockitoBean S3Service s3Service;   // 실제 S3를 부르지 않는다
 
-    private static final String URL = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/photo.png";
+    private static final String URL = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/"
+            + "profiles/1/00000000-0000-0000-0000-0000000000b1_photo.png";
 
     @Test
     void 프로필이_참조하면_참조된_것이다() {
