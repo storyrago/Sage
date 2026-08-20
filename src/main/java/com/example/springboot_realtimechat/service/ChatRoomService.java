@@ -167,4 +167,33 @@ public class ChatRoomService {
         }
         return chatRoom;
     }
+
+    /**
+     * 탈퇴하는 회원이 주인인 방들을 정리한다. 남은 멤버가 있으면 소유권을 넘기고,
+     * 없으면 방을 닫는다. 주인 없는 방이 남으면 아무도 초대·강퇴·삭제를 할 수 없다.
+     * 승계 대상은 가장 오래된 멤버십이다 — 참여 순서만 보면 되므로 추가 조회가 필요 없고
+     * 같은 입력에 항상 같은 사람이 뽑힌다.
+     * 방 하나라도 실패하면 탈퇴 전체가 되돌아간다(호출자 트랜잭션에 참여).
+     */
+    @Transactional
+    public void succeedOwnedRooms(Long ownerId) {
+        for (ChatRoom chatRoom : chatRoomRepository.findOwnedByMemberForUpdate(ownerId)) {
+            Member successor = chatRoom.isDeleted() ? null
+                    : chatRoomMemberRepository.findSuccessionCandidates(chatRoom.getId(), ownerId)
+                            .stream().findFirst().orElse(null);
+
+            if (successor == null) {
+                chatRoom.softDelete();
+                chatRoom.releaseOwnership();
+                continue;
+            }
+
+            chatRoom.transferOwnership(successor);
+            // transferOwnership 경로와 같은 규칙이다. 떠난 주인이 쥔 코드가 계속 유효하면 안 된다.
+            if (chatRoom.isPrivate()) {
+                chatRoom.reissueInviteCode(nextUnusedCode());
+            }
+        }
+    }
+
 }

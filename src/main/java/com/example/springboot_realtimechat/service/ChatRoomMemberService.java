@@ -78,7 +78,7 @@ public class ChatRoomMemberService {
         return saved;
     }
 
-    // 코드가 없는 잠긴 방(주인이 탈퇴한 동결 상태)은 어떤 입력으로도 열리지 않는다.
+    // 코드가 없는 잠긴 방(레거시 동결 상태)은 어떤 입력으로도 열리지 않는다.
     private boolean matchesInviteCode(ChatRoom chatRoom, String inviteCode) {
         String actual = chatRoom.getInviteCode();
         if (actual == null || inviteCode == null) {
@@ -182,4 +182,5 @@ public class ChatRoomMemberService {
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_JOINED_ROOM));
         cm.updateLastRead(messageRepository.findMaxIdByChatRoom(chatRoom));
     }
+
 }

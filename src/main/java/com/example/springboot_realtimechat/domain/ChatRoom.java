@@ -27,7 +27,7 @@ public class ChatRoom {
     @CreationTimestamp
     private LocalDateTime createdAt;
 
-    // 주인 없는 방이 정상 상태다. 시드 방과 주인이 탈퇴한 방이 여기 해당한다.
+    // 주인 없는 방은 시드/레거시 데이터뿐이다. 살아있는 방은 항상 주인이 있다.
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
     private Member createdBy;
@@ -72,7 +72,7 @@ public class ChatRoom {
                 && createdBy.getId().equals(memberId);
     }
 
-    /** 주인이 없는 방(시드 방, 주인이 탈퇴한 방)은 아무도 운영할 수 없다. */
+    /** 주인이 없는 방(시드·레거시 데이터)은 아무도 운영할 수 없다. 주인이 탈퇴하면 소유권이 승계된다. */
     public void requireOwnedBy(Long memberId) {
         if (!isOwnedBy(memberId)) {
             throw new CustomException(ErrorCode.NOT_ROOM_OWNER);
@@ -111,5 +111,11 @@ public class ChatRoom {
      */
     public void transferOwnership(Member newOwner) {
         this.createdBy = newOwner;
+    }
+
+    /** 승계받을 사람이 없어 닫는 방에 쓴다. 남은 코드는 회수한다. */
+    public void releaseOwnership() {
+        this.createdBy = null;
+        this.inviteCode = null;
     }
 }
