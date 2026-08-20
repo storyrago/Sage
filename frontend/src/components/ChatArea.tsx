@@ -788,12 +788,15 @@ export default function ChatArea({
               placeholder="메시지를 입력하세요"
               value={inputText}
               onChange={handleInputChange}
+              // 서버 길이 제약(500자)과 맞춘다. STOMP 전송은 실패해도 예외가 오지 않아
+              // 입력창을 되살릴 수 없으므로, 초과 입력 자체를 막는다.
+              maxLength={500}
               className="bg-transparent flex-1 text-text text-sm outline-none placeholder-text-faint w-full"
             />
 
             {/* Direct counter indicating limit details */}
             <span className="text-[10px] text-faint font-mono select-none pl-2 border-l border-border ml-2">
-              {inputText.length}자
+              {inputText.length}/500자
             </span>
           </div>
 
