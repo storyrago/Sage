@@ -7,7 +7,6 @@ import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.repository.ChatRoomBanRepository;
 import com.example.springboot_realtimechat.repository.ChatRoomMemberRepository;
-import com.example.springboot_realtimechat.repository.ChatRoomRepository;
 import com.example.springboot_realtimechat.repository.MemberRepository;
 import com.example.springboot_realtimechat.repository.MessageRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,10 +22,11 @@ public class MemberService {
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
-    private final ChatRoomRepository chatRoomRepository;
     private final ChatRoomBanRepository chatRoomBanRepository;
     private final MessageRepository messageRepository;
+    private final ChatRoomService chatRoomService;
     private final ApplicationEventPublisher eventPublisher;
+    private final S3Service s3Service;
 
     public Member getMemberById(Long id){
         return memberRepository.findById(id)
@@ -45,6 +45,10 @@ public class MemberService {
 
     @Transactional
     public Member updateProfileImage(Long memberId, String imageUrl) {
+        // 아바타로 지정할 수 있는 것은 본인이 프로필 용도로 올린 이미지뿐이다.
+        // 컨트롤러가 아니라 여기에 둬야 이 메서드를 부르는 모든 경로가 같은 검증을 거친다.
+        s3Service.requireOwnKey(imageUrl, ImageUploads.Purpose.PROFILE.prefix() + memberId + "/");
+
         Member member = getMemberById(memberId);        // 기존 메서드 재사용
         String oldUrl = member.getProfileImageUrl();
         member.updateProfileImageUrl(imageUrl);         // 엔티티에 만든 메서드
@@ -83,7 +87,7 @@ public class MemberService {
         // 메시지는 남으므로 그 이미지들은 계속 참조된다. 정리 대상은 프로필 사진뿐이다.
         String profileImageUrl = member.getProfileImageUrl();
 
-        chatRoomRepository.releaseOwnedRooms(id);
+        chatRoomService.succeedOwnedRooms(id);
         chatRoomBanRepository.deleteByMemberId(id);
         chatRoomMemberRepository.deleteByMember(member);
         messageRepository.anonymizeByMember(member);

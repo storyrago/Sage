@@ -443,7 +443,7 @@ export default function App() {
           setPresences((prev) => {
             const others = prev.filter((p) => p.userId !== memberId);
             return typing
-              ? [...others, { userId: memberId, userName: nickname, userAvatar: '', isTyping: true, channelId: chatroomId, lastSeen: Date.now() }]
+              ? [...others, { userId: memberId, userName: nickname, isTyping: true, channelId: chatroomId, lastSeen: Date.now() }]
               : others;
           });
           const timers = typingExpiryRef.current;
@@ -467,6 +467,11 @@ export default function App() {
           });
         },
         onAuthzError: ({ code, message, destination }) => {
+          // 입력 거부는 방 접근 문제가 아니므로 구독·선택 상태를 건드리지 않는다.
+          if (code === 'INVALID_INPUT_VALUE') {
+            notify(message || '메시지를 보내지 못했어요.');
+            return;
+          }
           // 세션은 살아있고 특정 목적지만 거부된 것이므로 재연결하지 않는다.
           // 회수는 본인이 방을 나간 결과이므로 오류로 알리지 않는다.
           if (code !== 'ROOM_MEMBERSHIP_REVOKED') {
@@ -612,10 +617,9 @@ export default function App() {
   };
 
   const activeChannel = channels.find((channel) => channel.id === selectedChannelId) || {
-    id: selectedChannelId || 'empty',
-    name: selectedChannelId ? '채팅방' : '채팅방 없음',
-    description: selectedChannelId ? loadingMessage : '왼쪽에서 채팅방을 만들거나 백엔드에 채팅방을 생성해 주세요.',
-    createdBy: 'system',
+    id: selectedChannelId,
+    name: '채팅방',
+    description: loadingMessage,
     createdAt: Date.now(),
     // 찾지 못한 방을 대신하는 값이라 권한은 전부 닫아 둔다.
     locked: false,

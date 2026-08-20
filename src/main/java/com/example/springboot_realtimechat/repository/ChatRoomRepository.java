@@ -5,7 +5,6 @@ import com.example.springboot_realtimechat.domain.ChatRoom;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -28,17 +27,18 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
     @Query("SELECT r FROM ChatRoom r WHERE r.id = :id AND r.deletedAt IS NULL")
     Optional<ChatRoom> findByIdAndDeletedAtIsNullForUpdate(@Param("id") Long id);
 
-    /** leave 전용 잠금 조회 — 삭제된 방도 잠가서 반환한다(getChatRoomByIdIncludingDeleted와 같은 이유). */
+    /** leave 전용 잠금 조회 — 삭제된 방도 잠가서 반환한다. 못 찾으면 멤버십 행이 영영 남는다. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT r FROM ChatRoom r WHERE r.id = :id")
     Optional<ChatRoom> findByIdForUpdate(@Param("id") Long id);
 
     /**
-     * 주인을 지우고 초대 코드를 회수한다. 잠금은 유지한다 —
-     * 코드만 지우면 잠긴 방이 공개방이 되어 아무나 들어온다.
-     * 결과는 아무도 새로 들어올 수 없는 동결 상태다.
+     * 탈퇴 처리 전용. 그 회원이 주인인 방을 전부 잠가서 가져온다.
+     * 위임·나가기·강퇴와 같은 chatrooms → chatroom_members 순서를 지키기 위한 시작점이다.
+     * 삭제된 방도 포함한다 — created_by가 남아 있으면 회원 행을 지울 수 없다.
+     * id 순으로 잠가 동시 탈퇴끼리도 순서가 엇갈리지 않게 한다.
      */
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("UPDATE ChatRoom r SET r.createdBy = null, r.inviteCode = null WHERE r.createdBy.id = :memberId")
-    int releaseOwnedRooms(@Param("memberId") Long memberId);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM ChatRoom r WHERE r.createdBy.id = :memberId ORDER BY r.id")
+    List<ChatRoom> findOwnedByMemberForUpdate(@Param("memberId") Long memberId);
 }

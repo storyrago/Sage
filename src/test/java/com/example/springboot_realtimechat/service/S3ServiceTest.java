@@ -1,5 +1,7 @@
 package com.example.springboot_realtimechat.service;
 
+import com.example.springboot_realtimechat.global.exception.CustomException;
+import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -18,6 +20,8 @@ import java.net.URL;
 import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -60,13 +64,60 @@ class S3ServiceTest {
         assertThat(captor.getValue().key()).startsWith("rooms/42/");
     }
 
+    // 공개 버킷 정책(profiles/*)과 무서명 판정은 접두사만 보므로 업로더를 넣어도 그대로 매칭된다.
     @Test
-    void 프로필_업로드_키는_업로더_id를_담지_않는다() throws Exception {
+    void 프로필_업로드_키도_업로더_id를_담는다() throws Exception {
         s3Service.upload(pngFile(), ImageUploads.Purpose.PROFILE, 42L);
 
         ArgumentCaptor<PutObjectRequest> captor = ArgumentCaptor.forClass(PutObjectRequest.class);
         verify(s3Client).putObject(captor.capture(), any(software.amazon.awssdk.core.sync.RequestBody.class));
-        assertThat(captor.getValue().key()).startsWith("profiles/");
+        assertThat(captor.getValue().key()).startsWith("profiles/42/");
+        assertThat(ImageUploads.KEY_SYNTAX.matcher(captor.getValue().key()).matches()).isTrue();
+    }
+
+    private static final String OWN_KEY = "rooms/7/0e3d4f2a-1b6c-4d8e-9a0b-1c2d3e4f5a6b_a.png";
+
+    @Test
+    void 자신의_접두사로_시작하는_업로드_키는_통과한다() {
+        assertThatCode(() -> s3Service.requireOwnKey(PREFIX + OWN_KEY, "rooms/7/"))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void 기대_접두사가_다르면_거부한다() {
+        assertRejected(PREFIX + OWN_KEY, "profiles/7/");
+    }
+
+    @Test
+    void 우리_버킷이_아닌_URL은_거부한다() {
+        assertRejected("https://example.com/somewhere/a.png", "rooms/7/");
+    }
+
+    @Test
+    void 경로형_URL은_거부한다() {
+        assertRejected("https://s3.ap-northeast-2.amazonaws.com/test-bucket/" + OWN_KEY, "rooms/7/");
+    }
+
+    @Test
+    void 접두사_안의_dot_dot_경로는_거부한다() {
+        assertRejected(PREFIX + "rooms/7/../6/secret.png", "rooms/7/");
+    }
+
+    @Test
+    void 소유자가_없는_평면_키는_거부한다() {
+        assertRejected(PREFIX + "abc_photo.png", "rooms/7/");
+    }
+
+    @Test
+    void null과_빈_문자열은_거부한다() {
+        assertRejected(null, "rooms/7/");
+        assertRejected("", "rooms/7/");
+    }
+
+    private void assertRejected(String url, String expectedPrefix) {
+        assertThatThrownBy(() -> s3Service.requireOwnKey(url, expectedPrefix))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_IMAGE_REFERENCE);
     }
 
     @Test

@@ -101,6 +101,27 @@ class ImageUploadsTest {
         assertThat(ImageUploads.sanitizeFilename("photo..jpg")).isEqualTo("photo..jpg");
     }
 
+    // 조립된 URL이 image_url·profile_image_url 컬럼(500자)을 넘으면 저장 시점에 500이 된다.
+    @Test
+    void 긴_파일명은_잘라낸다() {
+        assertThat(ImageUploads.sanitizeFilename("a".repeat(400) + ".png")).hasSize(64);
+    }
+
+    @Test
+    void 긴_파일명을_담은_키는_문법_검증에서_걸린다() {
+        String uuid = "0e3d4f2a-1b6c-4d8e-9a0b-1c2d3e4f5a6b";
+        assertThat(ImageUploads.KEY_SYNTAX.matcher("rooms/7/" + uuid + "_" + "a".repeat(64)).matches()).isTrue();
+        assertThat(ImageUploads.KEY_SYNTAX.matcher("rooms/7/" + uuid + "_" + "a".repeat(65)).matches()).isFalse();
+    }
+
+    // 업로드가 만든 키는 언제나 쓰기 경계를 통과해야 한다.
+    @Test
+    void 잘라낸_파일명으로_조립한_키는_문법_검증을_통과한다() {
+        String key = "rooms/7/0e3d4f2a-1b6c-4d8e-9a0b-1c2d3e4f5a6b_"
+                + ImageUploads.sanitizeFilename("a".repeat(400) + ".png");
+        assertThat(ImageUploads.KEY_SYNTAX.matcher(key).matches()).isTrue();
+    }
+
     // 실제로 거대 이미지를 디코딩하면 테스트 JVM이 OOM 나므로, 한계값 자체는 숫자로만 검증한다.
     @Test
     void 천육백만_픽셀_이하는_통과한다() {

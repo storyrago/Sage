@@ -20,7 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 // 참조가 끊긴 경우에만 이벤트가 나가야 한다. 같은 URL로 다시 저장하는 경로에서
 // 이벤트가 나가면 살아있는 사진에 만료 태그가 붙는다.
@@ -37,8 +39,9 @@ class ImageDereferenceEventTest {
 
     @MockitoBean S3Service s3Service;   // 커밋 전에는 호출되지 않아야 한다
 
-    private static final String OLD = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/old_photo.png";
-    private static final String NEW = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/new_photo.png";
+    private static final String BUCKET_PREFIX = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/";
+    private static final String OLD = BUCKET_PREFIX + "profiles/1/00000000-0000-0000-0000-0000000000a1_old.png";
+    private static final String NEW = BUCKET_PREFIX + "profiles/1/00000000-0000-0000-0000-0000000000a2_new.png";
 
     private List<String> publishedUrls() {
         return events.stream(ImageDereferencedEvent.class).map(ImageDereferencedEvent::url).toList();
@@ -95,8 +98,8 @@ class ImageDereferenceEventTest {
 
         memberService.updateProfileImage(member.getId(), NEW);
 
-        assertThat(publishedUrls()).containsExactly(OLD);   // 이벤트는 발행됐지만
-        verifyNoInteractions(s3Service);                    // 커밋 전이므로 태깅은 없다
+        assertThat(publishedUrls()).containsExactly(OLD);      // 이벤트는 발행됐지만
+        verify(s3Service, never()).tagAsOrphan(anyString());   // 커밋 전이므로 태깅은 없다
     }
 
     @Test
