@@ -96,50 +96,50 @@ erDiagram
     messages ||--o{ messages : "답장한다"
 
     members {
-        bigint id PK "NOT NULL · AUTO_INCREMENT · 회원 번호"
-        varchar(255) email UK "NULL 허용 · 이메일 · 소셜은 없을 수 있음"
-        varchar(255) password "NULL 허용 · 비밀번호 · 소셜은 없음"
-        varchar(20) nickname "NULL 허용 · 닉네임"
-        varchar(500) profile_image_url "NULL 허용 · 프로필 사진 주소"
-        datetime(6) created_at "NOT NULL · 가입 일시"
-        varchar(20) provider "NOT NULL · DEFAULT LOCAL · 인증 제공자"
-        varchar(255) provider_id "NULL 허용 · 제공자 측 식별자"
-        datetime(6) onboarded_at "NULL 허용 · 온보딩 완료 일시"
+        BIGINT id PK "NOT NULL · AUTO_INCREMENT · 회원 번호"
+        VARCHAR(255) email UK "NULL 허용 · 이메일 · 소셜은 없을 수 있음"
+        VARCHAR(255) password "NULL 허용 · 비밀번호 · 소셜은 없음"
+        VARCHAR(20) nickname "NULL 허용 · 닉네임"
+        VARCHAR(500) profile_image_url "NULL 허용 · 프로필 사진 주소"
+        DATETIME(6) created_at "NOT NULL · 가입 일시"
+        VARCHAR(20) provider UK "NOT NULL · DEFAULT LOCAL · 인증 제공자 · 복합 UK"
+        VARCHAR(255) provider_id UK "NULL 허용 · 제공자 측 식별자 · 복합 UK"
+        DATETIME(6) onboarded_at "NULL 허용 · 온보딩 완료 일시"
     }
 
     chatrooms {
-        bigint id PK "NOT NULL · AUTO_INCREMENT · 채팅방 번호"
-        varchar(100) name "NOT NULL · 방 이름"
-        datetime(6) created_at "NOT NULL · 개설 일시"
-        bigint owner_id FK "NULL 허용 · 현재 방장 · NULL이면 주인 없는 방"
-        tinyint(1) is_private "NOT NULL · DEFAULT 0 · 비공개 여부"
-        varchar(12) invite_code UK "NULL 허용 · 초대 코드"
-        datetime(6) deleted_at "NULL 허용 · 소프트 삭제 시각"
+        BIGINT id PK "NOT NULL · AUTO_INCREMENT · 채팅방 번호"
+        VARCHAR(100) name "NOT NULL · 방 이름"
+        DATETIME(6) created_at "NOT NULL · 개설 일시"
+        BIGINT owner_id FK "NULL 허용 · 현재 방장 · NULL이면 주인 없는 방"
+        TINYINT(1) is_private "NOT NULL · DEFAULT 0 · 비공개 여부"
+        VARCHAR(12) invite_code UK "NULL 허용 · 초대 코드"
+        DATETIME(6) deleted_at "NULL 허용 · 소프트 삭제 시각"
     }
 
     messages {
-        bigint id PK "NOT NULL · AUTO_INCREMENT · 메시지 번호"
-        varchar(500) content "NOT NULL · 본문"
-        varchar(500) image_url "NULL 허용 · 이미지 주소"
-        bigint member_id FK "NULL 허용 · 보낸 사람 · 탈퇴하면 NULL"
-        bigint chatroom_id FK "NULL 허용 · 소속 채팅방"
-        datetime(6) created_at "NOT NULL · 보낸 일시"
-        bigint reply_to_id FK "NULL 허용 · 답장 대상 · 자기참조"
-        datetime(6) edited_at "NULL 허용 · 수정 시각"
-        datetime(6) deleted_at "NULL 허용 · 소프트 삭제 시각"
+        BIGINT id PK "NOT NULL · AUTO_INCREMENT · 메시지 번호"
+        VARCHAR(500) content "NOT NULL · 본문"
+        VARCHAR(500) image_url "NULL 허용 · 이미지 주소"
+        BIGINT member_id FK "NULL 허용 · 보낸 사람 · 탈퇴하면 NULL"
+        BIGINT chatroom_id FK "NULL 허용 · 소속 채팅방"
+        DATETIME(6) created_at "NOT NULL · 보낸 일시"
+        BIGINT reply_to_id FK "NULL 허용 · 답장 대상 · 자기참조"
+        DATETIME(6) edited_at "NULL 허용 · 수정 시각"
+        DATETIME(6) deleted_at "NULL 허용 · 소프트 삭제 시각"
     }
 
     chatroom_members {
-        bigint id PK "NOT NULL · AUTO_INCREMENT · 참여 번호"
-        bigint member_id FK "NULL 허용 · 참여 회원"
-        bigint chatroom_id FK "NULL 허용 · 참여 채팅방"
-        bigint last_read_message_id "NULL 허용 · 마지막으로 읽은 메시지 · FK 아님"
+        BIGINT id PK "NOT NULL · AUTO_INCREMENT · 참여 번호"
+        BIGINT member_id FK,UK "NULL 허용 · 참여 회원 · 복합 UK"
+        BIGINT chatroom_id FK,UK "NULL 허용 · 참여 채팅방 · 복합 UK"
+        BIGINT last_read_message_id "NULL 허용 · 마지막으로 읽은 메시지 · FK 아님"
     }
 
     chatroom_bans {
-        bigint chatroom_id PK,FK "NOT NULL · 채팅방"
-        bigint member_id PK,FK "NOT NULL · 강퇴된 회원"
-        datetime(6) banned_at "NOT NULL · 강퇴 일시"
+        BIGINT chatroom_id PK,FK "NOT NULL · 채팅방"
+        BIGINT member_id PK,FK "NOT NULL · 강퇴된 회원"
+        DATETIME(6) banned_at "NOT NULL · 강퇴 시각"
     }
 ```
 
@@ -150,6 +150,7 @@ erDiagram
 - `members`: `UNIQUE(provider, provider_id)` — 소셜 신원의 실제 키
 - `chatroom_members`: `UNIQUE(member_id, chatroom_id)` — 중복 참여 방지
 - `chatroom_bans`: `PRIMARY KEY(chatroom_id, member_id)`
+- `provider`·`provider_id`, `member_id`·`chatroom_id`의 `UK`는 **복합 UNIQUE의 구성 컬럼**이라는 표시입니다. 각 컬럼이 단독으로 유일한 것이 아닙니다.
 - `is_private`은 마이그레이션에 `BOOLEAN`으로 썼지만 MySQL에서 `BOOLEAN`은 `TINYINT(1)`의 별칭이라 실제 컬럼 타입은 `tinyint(1)`입니다.
 - `chatroom_members.last_read_message_id`는 **FK가 아닙니다**(V2에서 컬럼만 추가). 참조 무결성은 애플리케이션이 책임집니다.
 
