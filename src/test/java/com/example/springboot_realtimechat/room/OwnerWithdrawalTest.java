@@ -64,7 +64,7 @@ class OwnerWithdrawalTest {
         memberService.delete(owner.getId());
 
         ChatRoom reloaded = chatRoomRepository.findById(room.getId()).orElseThrow();
-        assertThat(reloaded.getCreatedBy().getId()).isEqualTo(guest.getId());
+        assertThat(reloaded.getOwner().getId()).isEqualTo(guest.getId());
         assertThat(reloaded.getDeletedAt()).isNull();
         assertThat(reloaded.isPrivate()).isTrue();
         assertThat(reloaded.getInviteCode()).isNotNull().isNotEqualTo(oldCode);
@@ -82,7 +82,7 @@ class OwnerWithdrawalTest {
         memberService.delete(owner.getId());
 
         ChatRoom reloaded = chatRoomRepository.findById(room.getId()).orElseThrow();
-        assertThat(reloaded.getCreatedBy().getId()).isEqualTo(first.getId());
+        assertThat(reloaded.getOwner().getId()).isEqualTo(first.getId());
     }
 
     @Test
@@ -107,7 +107,7 @@ class OwnerWithdrawalTest {
 
         ChatRoom reloaded = chatRoomRepository.findById(room.getId()).orElseThrow();
         assertThat(reloaded.getDeletedAt()).isNotNull();
-        assertThat(reloaded.getCreatedBy()).isNull();
+        assertThat(reloaded.getOwner()).isNull();
         assertThat(reloaded.getInviteCode()).isNull();
     }
 

@@ -35,10 +35,10 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
     /**
      * 탈퇴 처리 전용. 그 회원이 주인인 방을 전부 잠가서 가져온다.
      * 위임·나가기·강퇴와 같은 chatrooms → chatroom_members 순서를 지키기 위한 시작점이다.
-     * 삭제된 방도 포함한다 — created_by가 남아 있으면 회원 행을 지울 수 없다.
+     * 삭제된 방도 포함한다 — owner_id가 남아 있으면 회원 행을 지울 수 없다.
      * id 순으로 잠가 동시 탈퇴끼리도 순서가 엇갈리지 않게 한다.
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT r FROM ChatRoom r WHERE r.createdBy.id = :memberId ORDER BY r.id")
+    @Query("SELECT r FROM ChatRoom r WHERE r.owner.id = :memberId ORDER BY r.id")
     List<ChatRoom> findOwnedByMemberForUpdate(@Param("memberId") Long memberId);
 }

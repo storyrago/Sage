@@ -39,7 +39,7 @@ class RoomCreationTest {
 
         ChatRoom room = chatRoomService.create("새방", false, owner.getId());
 
-        assertThat(room.getCreatedBy().getId()).isEqualTo(owner.getId());
+        assertThat(room.getOwner().getId()).isEqualTo(owner.getId());
         assertThat(chatRoomMemberRepository.existsByMemberIdAndChatRoomId(owner.getId(), room.getId()))
                 .isTrue();
     }

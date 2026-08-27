@@ -41,8 +41,8 @@ public class Message {
     @Column(name = "edited_at")
     private LocalDateTime editedAt;
 
-    @Column(nullable = false)
-    private boolean deleted = false;
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 
     public Message(String content, String imageUrl, Member member, ChatRoom chatRoom, Message replyTo) {
         this.content = content;
@@ -66,8 +66,12 @@ public class Message {
     }
 
     public void softDelete() {
-        this.deleted = true;
+        this.deletedAt = LocalDateTime.now();
         this.content = "";
         this.imageUrl = null;
+    }
+
+    public boolean isDeleted() {
+        return deletedAt != null;
     }
 }

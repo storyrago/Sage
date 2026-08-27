@@ -6,41 +6,81 @@
 
 </div>
 
-<!-- ════════════════ 🎬 데모 영상 자리 ════════════════
-     넣는 법
-       1. GitHub 웹에서 이 파일을 편집(연필 아이콘)한다
-       2. 영상 파일(mp4 권장, 10MB 이하)을 편집창에 끌어다 놓으면
-          https://github.com/user-attachments/assets/... URL이 자동으로 삽입된다
-       3. 이 주석 블록을 통째로 지우고, 그 자리에 아래 두 줄을 넣는다
-             ## 🎬 데모
-             (2번에서 받은 URL 한 줄)
-          GitHub은 영상 URL 한 줄만 있으면 플레이어로 렌더링한다
-       4. 위 Table of Contents에 "- [데모](#-데모)" 한 줄을 추가한다
-
-     담으면 좋은 흐름 (30~60초)
-       로그인 → 우표 랜딩에서 방 선택 → 창 두 개로 실시간 송수신
-       → 입력 중 표시와 안읽음 배지 → 비공개방 초대 코드 입장 → 강퇴
-       → 이미지 전송
-     ═══════════════════════════════════════════════════ -->
-
 ---
 
 ## Table of Contents
 
-- [서비스 소개](#-서비스-소개)
-- [시스템 아키텍처](#️-시스템-아키텍처)
-- [ERD](#️-erd)
-- [기술 스택](#️-기술-스택)
-- [API 문서](#-api-문서)
-- [실행 방법](#-실행-방법)
-- [트러블슈팅](#-트러블슈팅)
+- [Demo](#demo)
+- [System Architecture](#system-architecture)
+- [ERD](#erd)
+- [Tech Stack](#tech-stack)
+- [API](#api)
+- [Getting Started](#getting-started)
+- [Troubleshooting](#troubleshooting)
 
 ---
 
-## 💬 서비스 소개
+## Demo
 
-실시간으로 대화하고, 이미지를 주고받는 채팅 서비스입니다.
-단순히 "채팅이 되는 것"에 그치지 않고, **서버가 여러 대여도 메시지가 전달되는 구조**와 **자동으로 빌드·테스트·배포되는 파이프라인**까지 직접 구축했습니다.
+**🔗 라이브 — [sagertc.duckdns.org](https://sagertc.duckdns.org)**
+
+### 로그인 · 온보딩
+
+이메일 / Google / Kakao 로그인과, 소셜 첫 진입에서 닉네임을 정하는 흐름
+
+<!-- 1. 여기에 GIF/이미지를 넣으세요.
+     GitHub 웹에서 이 파일을 편집(연필 아이콘) → 파일을 편집창에 끌어다 놓으면
+     ![...](https://github.com/user-attachments/assets/...) 가 자동 삽입됩니다.
+     이 주석은 지우고 그 줄만 남기면 됩니다. -->
+
+### 실시간 채팅
+
+창 두 개로 주고받는 메시지, 접속자 표시, 입력 중 표시
+
+<!-- 2. 여기에 GIF/이미지를 넣으세요.
+     GitHub 웹에서 이 파일을 편집(연필 아이콘) → 파일을 편집창에 끌어다 놓으면
+     ![...](https://github.com/user-attachments/assets/...) 가 자동 삽입됩니다.
+     이 주석은 지우고 그 줄만 남기면 됩니다. -->
+
+### 안읽음 · 답장
+
+안읽음 배지와 "여기부터 안 읽음" 구분선, 답장과 나에게 온 답장
+
+<!-- 3. 여기에 GIF/이미지를 넣으세요.
+     GitHub 웹에서 이 파일을 편집(연필 아이콘) → 파일을 편집창에 끌어다 놓으면
+     ![...](https://github.com/user-attachments/assets/...) 가 자동 삽입됩니다.
+     이 주석은 지우고 그 줄만 남기면 됩니다. -->
+
+### 비공개방 · 초대 코드
+
+초대 코드로 입장, 공개↔비공개 전환
+
+<!-- 4. 여기에 GIF/이미지를 넣으세요.
+     GitHub 웹에서 이 파일을 편집(연필 아이콘) → 파일을 편집창에 끌어다 놓으면
+     ![...](https://github.com/user-attachments/assets/...) 가 자동 삽입됩니다.
+     이 주석은 지우고 그 줄만 남기면 됩니다. -->
+
+### 방장 운영
+
+강퇴 · 차단 · 방장 위임 · 초대 코드 재발급
+
+<!-- 5. 여기에 GIF/이미지를 넣으세요.
+     GitHub 웹에서 이 파일을 편집(연필 아이콘) → 파일을 편집창에 끌어다 놓으면
+     ![...](https://github.com/user-attachments/assets/...) 가 자동 삽입됩니다.
+     이 주석은 지우고 그 줄만 남기면 됩니다. -->
+
+### 이미지 전송
+
+이미지 업로드와 프리사인드 URL로 열람
+
+<!-- 6. 여기에 GIF/이미지를 넣으세요.
+     GitHub 웹에서 이 파일을 편집(연필 아이콘) → 파일을 편집창에 끌어다 놓으면
+     ![...](https://github.com/user-attachments/assets/...) 가 자동 삽입됩니다.
+     이 주석은 지우고 그 줄만 남기면 됩니다. -->
+
+---
+
+### 기능 요약
 
 | 주요 기능 | 설명 |
 |---|---|
@@ -55,7 +95,7 @@
 
 ---
 
-## 🏗️ 시스템 아키텍처
+## System Architecture
 
 ```mermaid
 flowchart LR
@@ -80,25 +120,88 @@ flowchart LR
 
 ---
 
-## 🗂️ ERD
+## ERD
 
-<img width="1430" height="392" alt="realtimechatERD" src="https://github.com/user-attachments/assets/25cf8a59-a502-4af0-99a1-8006b25b66ed" />
+스키마는 **Flyway**(`src/main/resources/db/migration/V1~V9`)로만 바뀝니다. 현재 구성은 다음과 같습니다.
 
-스키마는 **Flyway**(`src/main/resources/db/migration/V1~V8`)로만 바뀝니다. 현재 컬럼 구성은 다음과 같습니다.
+```mermaid
+erDiagram
+    members  |o..o{ messages          : "작성한다"
+    members  |o..o{ chatroom_members  : "참여한다"
+    members  |o..o{ chatrooms         : "소유한다"
+    members  ||--o{ chatroom_bans     : "강퇴당한다"
+    chatrooms |o..o{ messages         : "담는다"
+    chatrooms |o..o{ chatroom_members : "참여자를 가진다"
+    chatrooms ||--o{ chatroom_bans    : "강퇴를 기록한다"
+    messages |o..o{ messages          : "답장한다"
 
-| 테이블 | 컬럼 | 비고 |
-|---|---|---|
-| `members` | `id` · `email` · `password` · `nickname(20)` · `profile_image_url` · `created_at` · `provider` · `provider_id` · `onboarded_at` | 소셜 계정은 `email`·`password`가 없을 수 있어 둘 다 nullable. 신원은 `UNIQUE(provider, provider_id)` |
-| `chatrooms` | `id` · `name` · `created_at` · `created_by` · `is_private` · `invite_code` · `deleted_at` | `invite_code` UNIQUE. `created_by`가 NULL이면 주인 없는 방, `deleted_at`은 소프트 삭제 |
-| `messages` | `id` · `content` · `image_url` · `member_id` · `chatroom_id` · `created_at` · `reply_to_id` · `edited_at` · `deleted` | `reply_to_id`는 **자기참조 FK**. 탈퇴 회원의 메시지는 `member_id`만 NULL로 끊고 대화는 남긴다 |
-| `chatroom_members` | `id` · `member_id` · `chatroom_id` · `last_read_message_id` | `UNIQUE(member_id, chatroom_id)`로 중복 참여 방지. 안읽음·구분선이 `last_read_message_id` 하나에서 파생된다 |
-| `chatroom_bans` | `chatroom_id` · `member_id` · `banned_at` | PK가 `(chatroom_id, member_id)`. 멤버십만 지우면 재입장으로 복구되므로 강퇴를 따로 기록한다 |
+    members {
+        BIGINT id PK "NOT NULL · AUTO_INCREMENT · 회원 번호"
+        VARCHAR(255) email UK "NULL 허용 · 이메일 · 소셜은 없을 수 있음"
+        VARCHAR(255) password "NULL 허용 · 비밀번호 · 소셜은 없음"
+        VARCHAR(20) nickname "NULL 허용 · 닉네임"
+        VARCHAR(500) profile_image_url "NULL 허용 · 프로필 사진 주소"
+        DATETIME(6) created_at "NOT NULL · 가입 일시"
+        VARCHAR(20) provider UK "NOT NULL · DEFAULT LOCAL · 인증 제공자 · 복합 UK"
+        VARCHAR(255) provider_id UK "NULL 허용 · 제공자 측 식별자 · 복합 UK"
+        DATETIME(6) onboarded_at "NULL 허용 · 온보딩 완료 일시"
+    }
 
-- 연관관계 주인은 FK를 가진 `Message` / `ChatRoomMember` 쪽이고, 모든 `@ManyToOne`은 `LAZY`입니다.
+    chatrooms {
+        BIGINT id PK "NOT NULL · AUTO_INCREMENT · 채팅방 번호"
+        VARCHAR(100) name "NOT NULL · 방 이름"
+        DATETIME(6) created_at "NOT NULL · 개설 일시"
+        BIGINT owner_id FK "NULL 허용 · 현재 방장 · NULL이면 주인 없는 방"
+        TINYINT(1) is_private "NOT NULL · DEFAULT 0 · 비공개 여부"
+        VARCHAR(12) invite_code UK "NULL 허용 · 초대 코드"
+        DATETIME(6) deleted_at "NULL 허용 · 소프트 삭제 시각"
+    }
+
+    messages {
+        BIGINT id PK "NOT NULL · AUTO_INCREMENT · 메시지 번호"
+        VARCHAR(500) content "NOT NULL · 본문"
+        VARCHAR(500) image_url "NULL 허용 · 이미지 주소"
+        BIGINT member_id FK "NULL 허용 · 보낸 사람 · 탈퇴하면 NULL"
+        BIGINT chatroom_id FK "NULL 허용 · 소속 채팅방"
+        DATETIME(6) created_at "NOT NULL · 보낸 일시"
+        BIGINT reply_to_id FK "NULL 허용 · 답장 대상 · 자기참조"
+        DATETIME(6) edited_at "NULL 허용 · 수정 시각"
+        DATETIME(6) deleted_at "NULL 허용 · 소프트 삭제 시각"
+    }
+
+    chatroom_members {
+        BIGINT id PK "NOT NULL · AUTO_INCREMENT · 참여 번호"
+        BIGINT member_id FK "NULL 허용 · 참여 회원 · 복합 UK 구성"
+        BIGINT chatroom_id FK "NULL 허용 · 참여 채팅방 · 복합 UK 구성"
+        BIGINT last_read_message_id "NULL 허용 · 마지막으로 읽은 메시지 · FK 아님"
+    }
+
+    chatroom_bans {
+        BIGINT chatroom_id PK "NOT NULL · 채팅방 · 부모에서 온 식별 FK"
+        BIGINT member_id PK "NOT NULL · 강퇴된 회원 · 부모에서 온 식별 FK"
+        DATETIME(6) banned_at "NOT NULL · 강퇴 시각"
+    }
+```
+
+**테이블 이름** — `members` 회원 · `chatrooms` 채팅방 · `messages` 메시지 · `chatroom_members` 방 참여 · `chatroom_bans` 강퇴 기록
+
+복합 제약은 다이어그램 문법으로 표현되지 않아 따로 적습니다.
+
+- `members`: `UNIQUE(provider, provider_id)` — 소셜 신원의 실제 키
+- `chatroom_members`: `UNIQUE(member_id, chatroom_id)` — 중복 참여 방지
+- `chatroom_bans`: `PRIMARY KEY(chatroom_id, member_id)`
+- 키 표기는 ERDCloud 규칙을 따릅니다 — **PK이면서 FK인 컬럼은 `PK`로만 표시하고, FK라는 사실은 실선(식별관계)이 나타냅니다.** `chatroom_members`의 두 FK도 복합 UNIQUE의 구성 컬럼이지만 `FK`로만 표시합니다.
+- **실선은 식별관계, 점선은 비식별관계입니다.** `chatroom_bans`만 식별관계입니다 — 복합 PK `(chatroom_id, member_id)`가 두 부모의 FK로만 이뤄져 있어, 부모 없이는 행을 식별할 수 없습니다. 나머지는 대리키 `id`를 따로 가지므로 비식별관계입니다.
+- 부모 쪽 `|o`는 FK가 NULL을 허용한다는 뜻입니다(탈퇴한 회원의 메시지, 주인 없는 방, 답장이 아닌 메시지). `||`는 NOT NULL입니다.
+- `provider`·`provider_id`의 `UK`는 **복합 UNIQUE `(provider, provider_id)`의 구성 컬럼**이라는 표시입니다. 각 컬럼이 단독으로 유일한 것이 아닙니다.
+- `is_private`은 마이그레이션에 `BOOLEAN`으로 썼지만 MySQL에서 `BOOLEAN`은 `TINYINT(1)`의 별칭이라 실제 컬럼 타입은 `tinyint(1)`입니다.
+- `chatroom_members.last_read_message_id`는 **FK가 아닙니다**(V2에서 컬럼만 추가). 참조 무결성은 애플리케이션이 책임집니다.
+
+연관관계 주인은 FK를 가진 `Message` / `ChatRoomMember` 쪽이고, 모든 `@ManyToOne`은 `LAZY`입니다.
 
 ---
 
-## 🛠️ 기술 스택
+## Tech Stack
 
 | Category | Technology |
 |---|---|
@@ -115,7 +218,7 @@ flowchart LR
 
 ---
 
-## 📡 API 문서
+## API
 
 > Swagger UI (로컬/개발): `http://localhost:8080/swagger-ui/index.html`
 > — 운영에선 app(8080)이 **nginx 뒤 내부 전용**이라 외부로 노출하지 않습니다.
@@ -201,7 +304,7 @@ flowchart LR
 
 ---
 
-## 🚀 실행 방법
+## Getting Started
 
 ### 1. 클론
 
@@ -268,7 +371,7 @@ export JWT_SECRET=$(openssl rand -base64 32)
 
 ---
 
-## 🧩 트러블슈팅
+## Troubleshooting
 
 프로젝트를 진행하며 실제로 겪고 해결한 문제들입니다.
 
