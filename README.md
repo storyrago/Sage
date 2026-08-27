@@ -86,14 +86,14 @@ flowchart LR
 
 ```mermaid
 erDiagram
-    members ||--o{ messages : "작성한다"
-    members ||--o{ chatroom_members : "참여한다"
-    members ||--o{ chatrooms : "소유한다"
-    members ||--o{ chatroom_bans : "강퇴당한다"
-    chatrooms ||--o{ messages : "담는다"
-    chatrooms ||--o{ chatroom_members : "참여자를 가진다"
-    chatrooms ||--o{ chatroom_bans : "강퇴를 기록한다"
-    messages ||--o{ messages : "답장한다"
+    members  |o..o{ messages          : "작성한다"
+    members  |o..o{ chatroom_members  : "참여한다"
+    members  |o..o{ chatrooms         : "소유한다"
+    members  ||--o{ chatroom_bans     : "강퇴당한다"
+    chatrooms |o..o{ messages         : "담는다"
+    chatrooms |o..o{ chatroom_members : "참여자를 가진다"
+    chatrooms ||--o{ chatroom_bans    : "강퇴를 기록한다"
+    messages |o..o{ messages          : "답장한다"
 
     members {
         BIGINT id PK "NOT NULL · AUTO_INCREMENT · 회원 번호"
@@ -150,6 +150,8 @@ erDiagram
 - `members`: `UNIQUE(provider, provider_id)` — 소셜 신원의 실제 키
 - `chatroom_members`: `UNIQUE(member_id, chatroom_id)` — 중복 참여 방지
 - `chatroom_bans`: `PRIMARY KEY(chatroom_id, member_id)`
+- **실선은 식별관계, 점선은 비식별관계입니다.** `chatroom_bans`만 식별관계입니다 — 복합 PK `(chatroom_id, member_id)`가 두 부모의 FK로만 이뤄져 있어, 부모 없이는 행을 식별할 수 없습니다. 나머지는 대리키 `id`를 따로 가지므로 비식별관계입니다.
+- 부모 쪽 `|o`는 FK가 NULL을 허용한다는 뜻입니다(탈퇴한 회원의 메시지, 주인 없는 방, 답장이 아닌 메시지). `||`는 NOT NULL입니다.
 - `provider`·`provider_id`, `member_id`·`chatroom_id`의 `UK`는 **복합 UNIQUE의 구성 컬럼**이라는 표시입니다. 각 컬럼이 단독으로 유일한 것이 아닙니다.
 - `is_private`은 마이그레이션에 `BOOLEAN`으로 썼지만 MySQL에서 `BOOLEAN`은 `TINYINT(1)`의 별칭이라 실제 컬럼 타입은 `tinyint(1)`입니다.
 - `chatroom_members.last_read_message_id`는 **FK가 아닙니다**(V2에서 컬럼만 추가). 참조 무결성은 애플리케이션이 책임집니다.
