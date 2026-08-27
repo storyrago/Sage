@@ -137,8 +137,8 @@ erDiagram
     }
 
     chatroom_bans {
-        bigint chatroom_id PK "NOT NULL · FK · 채팅방"
-        bigint member_id PK "NOT NULL · FK · 강퇴된 회원"
+        bigint chatroom_id PK,FK "NOT NULL · 채팅방"
+        bigint member_id PK,FK "NOT NULL · 강퇴된 회원"
         datetime(6) banned_at "NOT NULL · 강퇴 일시"
     }
 ```
