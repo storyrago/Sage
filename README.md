@@ -14,7 +14,6 @@
 - [System Architecture](#system-architecture)
 - [ERD](#erd)
 - [Tech Stack](#tech-stack)
-- [Monitoring](#monitoring)
 - [API](#api)
 - [Getting Started](#getting-started)
 - [Troubleshooting](#troubleshooting)
@@ -23,18 +22,65 @@
 
 ## Demo
 
-<!-- 데모 영상 넣는 법
-       1. GitHub 웹에서 이 파일을 편집(연필 아이콘)한다
-       2. 영상 파일(mp4 권장, 10MB 이하)을 편집창에 끌어다 놓으면
-          https://github.com/user-attachments/assets/... URL이 자동 삽입된다
-       3. 이 주석을 지우고 그 자리에 URL 한 줄만 남긴다 (GitHub이 플레이어로 렌더링한다)
+**🔗 라이브 — [sagertc.duckdns.org](https://sagertc.duckdns.org)**
 
-     담으면 좋은 흐름 (30~60초)
-       로그인 → 랜딩에서 방 선택 → 창 두 개로 실시간 송수신
-       → 입력 중 표시와 안읽음 배지 → 비공개방 초대 코드 입장 → 강퇴 → 이미지 전송 -->
+### 로그인 · 온보딩
 
-실시간으로 대화하고, 이미지를 주고받는 채팅 서비스입니다.
-단순히 "채팅이 되는 것"에 그치지 않고, **서버가 여러 대여도 메시지가 전달되는 구조**와 **자동으로 빌드·테스트·배포되는 파이프라인**까지 직접 구축했습니다.
+이메일 / Google / Kakao 로그인과, 소셜 첫 진입에서 닉네임을 정하는 흐름
+
+<!-- 1. 여기에 GIF/이미지를 넣으세요.
+     GitHub 웹에서 이 파일을 편집(연필 아이콘) → 파일을 편집창에 끌어다 놓으면
+     ![...](https://github.com/user-attachments/assets/...) 가 자동 삽입됩니다.
+     이 주석은 지우고 그 줄만 남기면 됩니다. -->
+
+### 실시간 채팅
+
+창 두 개로 주고받는 메시지, 접속자 표시, 입력 중 표시
+
+<!-- 2. 여기에 GIF/이미지를 넣으세요.
+     GitHub 웹에서 이 파일을 편집(연필 아이콘) → 파일을 편집창에 끌어다 놓으면
+     ![...](https://github.com/user-attachments/assets/...) 가 자동 삽입됩니다.
+     이 주석은 지우고 그 줄만 남기면 됩니다. -->
+
+### 안읽음 · 답장
+
+안읽음 배지와 "여기부터 안 읽음" 구분선, 답장과 나에게 온 답장
+
+<!-- 3. 여기에 GIF/이미지를 넣으세요.
+     GitHub 웹에서 이 파일을 편집(연필 아이콘) → 파일을 편집창에 끌어다 놓으면
+     ![...](https://github.com/user-attachments/assets/...) 가 자동 삽입됩니다.
+     이 주석은 지우고 그 줄만 남기면 됩니다. -->
+
+### 비공개방 · 초대 코드
+
+초대 코드로 입장, 공개↔비공개 전환
+
+<!-- 4. 여기에 GIF/이미지를 넣으세요.
+     GitHub 웹에서 이 파일을 편집(연필 아이콘) → 파일을 편집창에 끌어다 놓으면
+     ![...](https://github.com/user-attachments/assets/...) 가 자동 삽입됩니다.
+     이 주석은 지우고 그 줄만 남기면 됩니다. -->
+
+### 방장 운영
+
+강퇴 · 차단 · 방장 위임 · 초대 코드 재발급
+
+<!-- 5. 여기에 GIF/이미지를 넣으세요.
+     GitHub 웹에서 이 파일을 편집(연필 아이콘) → 파일을 편집창에 끌어다 놓으면
+     ![...](https://github.com/user-attachments/assets/...) 가 자동 삽입됩니다.
+     이 주석은 지우고 그 줄만 남기면 됩니다. -->
+
+### 이미지 전송
+
+이미지 업로드와 프리사인드 URL로 열람
+
+<!-- 6. 여기에 GIF/이미지를 넣으세요.
+     GitHub 웹에서 이 파일을 편집(연필 아이콘) → 파일을 편집창에 끌어다 놓으면
+     ![...](https://github.com/user-attachments/assets/...) 가 자동 삽입됩니다.
+     이 주석은 지우고 그 줄만 남기면 됩니다. -->
+
+---
+
+### 기능 요약
 
 | 주요 기능 | 설명 |
 |---|---|
@@ -169,25 +215,6 @@ erDiagram
 | **Infrastructure** | ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white) ![Nginx](https://img.shields.io/badge/Nginx-009639?style=for-the-badge&logo=nginx&logoColor=white) ![EC2](https://img.shields.io/badge/AWS%20EC2-FF9900?style=for-the-badge&logo=amazonec2&logoColor=white) ![RDS](https://img.shields.io/badge/AWS%20RDS-527FFF?style=for-the-badge&logo=amazonrds&logoColor=white) ![S3](https://img.shields.io/badge/AWS%20S3-569A31?style=for-the-badge&logo=amazons3&logoColor=white) ![Let's Encrypt](https://img.shields.io/badge/Let's%20Encrypt-003A70?style=for-the-badge&logo=letsencrypt&logoColor=white) |
 | **CI / CD** | ![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white) ![GHCR](https://img.shields.io/badge/GHCR-222222?style=for-the-badge&logo=github&logoColor=white) |
 | **Docs** | ![Swagger](https://img.shields.io/badge/Swagger-85EA2D?style=for-the-badge&logo=swagger&logoColor=black) |
-
----
-
-## Monitoring
-
-로그·메트릭·추적 ID를 배선해 두었습니다.
-
-| 구분 | 운영(EC2) | 로컬 |
-|---|---|---|
-| **메트릭** | Micrometer **OTLP push** → Grafana Cloud (60초 주기) | `/actuator/prometheus`를 Prometheus가 **pull** |
-| **로그** | Docker `awslogs` 드라이버 → **CloudWatch Logs** (`/sage/app`) | 표준 출력 |
-| **헬스** | `/actuator/health` — 배포 게이트는 `readiness` 그룹 | 동일 |
-
-- 메트릭에는 공통 태그 `application`·`environment`가 붙어 Grafana에서 서비스·환경별로 시리즈가 갈립니다.
-- **`readiness` 그룹에서 Redis는 일부러 제외**했습니다. Redis는 fail-open이라 죽어도 API는 응답하고 실시간 배달·프레즌스만 멈추는데, 이것으로 배포를 막으면 정작 그 문제를 고치는 배포조차 나가지 못합니다. `db`·`diskSpace`는 게이트에 남겼습니다.
-- 운영에서는 actuator 엔드포인트를 외부로 노출하지 않습니다(`application-prod.yaml`).
-- **OTLP 내보내기는 기본 꺼져 있습니다**(`OTLP_METRICS_ENABLED=false`). Grafana Cloud 토큰을 발급해 EC2 `.env`에 채우면 켜집니다.
-
-<!-- Grafana 대시보드 캡처 자리 — 메트릭을 켠 뒤 스크린샷을 넣으면 됩니다 -->
 
 ---
 
