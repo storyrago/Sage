@@ -131,14 +131,14 @@ erDiagram
 
     chatroom_members {
         BIGINT id PK "NOT NULL · AUTO_INCREMENT · 참여 번호"
-        BIGINT member_id FK,UK "NULL 허용 · 참여 회원 · 복합 UK"
-        BIGINT chatroom_id FK,UK "NULL 허용 · 참여 채팅방 · 복합 UK"
+        BIGINT member_id FK "NULL 허용 · 참여 회원 · 복합 UK 구성"
+        BIGINT chatroom_id FK "NULL 허용 · 참여 채팅방 · 복합 UK 구성"
         BIGINT last_read_message_id "NULL 허용 · 마지막으로 읽은 메시지 · FK 아님"
     }
 
     chatroom_bans {
-        BIGINT chatroom_id PK,FK "NOT NULL · 채팅방"
-        BIGINT member_id PK,FK "NOT NULL · 강퇴된 회원"
+        BIGINT chatroom_id PK "NOT NULL · 채팅방 · 부모에서 온 식별 FK"
+        BIGINT member_id PK "NOT NULL · 강퇴된 회원 · 부모에서 온 식별 FK"
         DATETIME(6) banned_at "NOT NULL · 강퇴 시각"
     }
 ```
@@ -150,9 +150,10 @@ erDiagram
 - `members`: `UNIQUE(provider, provider_id)` — 소셜 신원의 실제 키
 - `chatroom_members`: `UNIQUE(member_id, chatroom_id)` — 중복 참여 방지
 - `chatroom_bans`: `PRIMARY KEY(chatroom_id, member_id)`
+- 키 표기는 ERDCloud 규칙을 따릅니다 — **PK이면서 FK인 컬럼은 `PK`로만 표시하고, FK라는 사실은 실선(식별관계)이 나타냅니다.** `chatroom_members`의 두 FK도 복합 UNIQUE의 구성 컬럼이지만 `FK`로만 표시합니다.
 - **실선은 식별관계, 점선은 비식별관계입니다.** `chatroom_bans`만 식별관계입니다 — 복합 PK `(chatroom_id, member_id)`가 두 부모의 FK로만 이뤄져 있어, 부모 없이는 행을 식별할 수 없습니다. 나머지는 대리키 `id`를 따로 가지므로 비식별관계입니다.
 - 부모 쪽 `|o`는 FK가 NULL을 허용한다는 뜻입니다(탈퇴한 회원의 메시지, 주인 없는 방, 답장이 아닌 메시지). `||`는 NOT NULL입니다.
-- `provider`·`provider_id`, `member_id`·`chatroom_id`의 `UK`는 **복합 UNIQUE의 구성 컬럼**이라는 표시입니다. 각 컬럼이 단독으로 유일한 것이 아닙니다.
+- `provider`·`provider_id`의 `UK`는 **복합 UNIQUE `(provider, provider_id)`의 구성 컬럼**이라는 표시입니다. 각 컬럼이 단독으로 유일한 것이 아닙니다.
 - `is_private`은 마이그레이션에 `BOOLEAN`으로 썼지만 MySQL에서 `BOOLEAN`은 `TINYINT(1)`의 별칭이라 실제 컬럼 타입은 `tinyint(1)`입니다.
 - `chatroom_members.last_read_message_id`는 **FK가 아닙니다**(V2에서 컬럼만 추가). 참조 무결성은 애플리케이션이 책임집니다.
 
