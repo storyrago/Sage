@@ -82,19 +82,77 @@ flowchart LR
 
 ## 🗂️ ERD
 
-<img width="1430" height="392" alt="realtimechatERD" src="https://github.com/user-attachments/assets/25cf8a59-a502-4af0-99a1-8006b25b66ed" />
+스키마는 **Flyway**(`src/main/resources/db/migration/V1~V8`)로만 바뀝니다. 현재 구성은 다음과 같습니다.
 
-스키마는 **Flyway**(`src/main/resources/db/migration/V1~V8`)로만 바뀝니다. 현재 컬럼 구성은 다음과 같습니다.
+```mermaid
+erDiagram
+    members ||--o{ messages : "작성한다"
+    members ||--o{ chatroom_members : "참여한다"
+    members ||--o{ chatrooms : "개설한다"
+    members ||--o{ chatroom_bans : "강퇴당한다"
+    chatrooms ||--o{ messages : "담는다"
+    chatrooms ||--o{ chatroom_members : "참여자를 가진다"
+    chatrooms ||--o{ chatroom_bans : "강퇴를 기록한다"
+    messages ||--o{ messages : "답장한다"
 
-| 테이블 | 컬럼 | 비고 |
-|---|---|---|
-| `members` | `id` · `email` · `password` · `nickname(20)` · `profile_image_url` · `created_at` · `provider` · `provider_id` · `onboarded_at` | 소셜 계정은 `email`·`password`가 없을 수 있어 둘 다 nullable. 신원은 `UNIQUE(provider, provider_id)` |
-| `chatrooms` | `id` · `name` · `created_at` · `created_by` · `is_private` · `invite_code` · `deleted_at` | `invite_code` UNIQUE. `created_by`가 NULL이면 주인 없는 방, `deleted_at`은 소프트 삭제 |
-| `messages` | `id` · `content` · `image_url` · `member_id` · `chatroom_id` · `created_at` · `reply_to_id` · `edited_at` · `deleted` | `reply_to_id`는 **자기참조 FK**. 탈퇴 회원의 메시지는 `member_id`만 NULL로 끊고 대화는 남긴다 |
-| `chatroom_members` | `id` · `member_id` · `chatroom_id` · `last_read_message_id` | `UNIQUE(member_id, chatroom_id)`로 중복 참여 방지. 안읽음·구분선이 `last_read_message_id` 하나에서 파생된다 |
-| `chatroom_bans` | `chatroom_id` · `member_id` · `banned_at` | PK가 `(chatroom_id, member_id)`. 멤버십만 지우면 재입장으로 복구되므로 강퇴를 따로 기록한다 |
+    members {
+        bigint id PK "NOT NULL · AUTO_INCREMENT · 회원 번호"
+        varchar(255) email UK "NULL 허용 · 이메일 · 소셜은 없을 수 있음"
+        varchar(255) password "NULL 허용 · 비밀번호 · 소셜은 없음"
+        varchar(20) nickname "NULL 허용 · 닉네임"
+        varchar(500) profile_image_url "NULL 허용 · 프로필 사진 주소"
+        datetime(6) created_at "NOT NULL · 가입 일시"
+        varchar(20) provider "NOT NULL · DEFAULT LOCAL · 인증 제공자"
+        varchar(255) provider_id "NULL 허용 · 제공자 측 식별자"
+        datetime(6) onboarded_at "NULL 허용 · 온보딩 완료 일시"
+    }
 
-- 연관관계 주인은 FK를 가진 `Message` / `ChatRoomMember` 쪽이고, 모든 `@ManyToOne`은 `LAZY`입니다.
+    chatrooms {
+        bigint id PK "NOT NULL · AUTO_INCREMENT · 채팅방 번호"
+        varchar(100) name "NOT NULL · 방 이름"
+        datetime(6) created_at "NOT NULL · 개설 일시"
+        bigint created_by FK "NULL 허용 · 방장 · NULL이면 주인 없는 방"
+        boolean is_private "NOT NULL · DEFAULT FALSE · 비공개 여부"
+        varchar(12) invite_code UK "NULL 허용 · 초대 코드"
+        datetime(6) deleted_at "NULL 허용 · 소프트 삭제 일시"
+    }
+
+    messages {
+        bigint id PK "NOT NULL · AUTO_INCREMENT · 메시지 번호"
+        varchar(500) content "NOT NULL · 본문"
+        varchar(500) image_url "NULL 허용 · 이미지 주소"
+        bigint member_id FK "NULL 허용 · 보낸 사람 · 탈퇴하면 NULL"
+        bigint chatroom_id FK "NULL 허용 · 소속 채팅방"
+        datetime(6) created_at "NOT NULL · 보낸 일시"
+        bigint reply_to_id FK "NULL 허용 · 답장 대상 · 자기참조"
+        datetime(6) edited_at "NULL 허용 · 수정 일시"
+        bit deleted "NOT NULL · DEFAULT 0 · 삭제 여부"
+    }
+
+    chatroom_members {
+        bigint id PK "NOT NULL · AUTO_INCREMENT · 참여 번호"
+        bigint member_id FK "NULL 허용 · 참여 회원"
+        bigint chatroom_id FK "NULL 허용 · 참여 채팅방"
+        bigint last_read_message_id "NULL 허용 · 마지막으로 읽은 메시지 · FK 아님"
+    }
+
+    chatroom_bans {
+        bigint chatroom_id PK "NOT NULL · FK · 채팅방"
+        bigint member_id PK "NOT NULL · FK · 강퇴된 회원"
+        datetime(6) banned_at "NOT NULL · 강퇴 일시"
+    }
+```
+
+**테이블 이름** — `members` 회원 · `chatrooms` 채팅방 · `messages` 메시지 · `chatroom_members` 방 참여 · `chatroom_bans` 강퇴 기록
+
+복합 제약은 다이어그램 문법으로 표현되지 않아 따로 적습니다.
+
+- `members`: `UNIQUE(provider, provider_id)` — 소셜 신원의 실제 키
+- `chatroom_members`: `UNIQUE(member_id, chatroom_id)` — 중복 참여 방지
+- `chatroom_bans`: `PRIMARY KEY(chatroom_id, member_id)`
+- `chatroom_members.last_read_message_id`는 **FK가 아닙니다**(V2에서 컬럼만 추가). 참조 무결성은 애플리케이션이 책임집니다.
+
+연관관계 주인은 FK를 가진 `Message` / `ChatRoomMember` 쪽이고, 모든 `@ManyToOne`은 `LAZY`입니다.
 
 ---
 
