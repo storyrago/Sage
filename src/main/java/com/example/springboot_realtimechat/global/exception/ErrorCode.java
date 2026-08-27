@@ -1,5 +1,10 @@
 package com.example.springboot_realtimechat.global.exception;
 
+import com.example.springboot_realtimechat.domain.chatroom.entity.ChatRoom;
+import com.example.springboot_realtimechat.domain.chatroom.entity.ChatRoomMember;
+import com.example.springboot_realtimechat.domain.member.entity.Member;
+import com.example.springboot_realtimechat.domain.message.entity.Message;
+
 import lombok.Getter;
 
 @Getter

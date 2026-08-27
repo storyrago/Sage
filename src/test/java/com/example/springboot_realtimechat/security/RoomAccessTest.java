@@ -1,11 +1,13 @@
 package com.example.springboot_realtimechat.security;
 
-import com.example.springboot_realtimechat.domain.ChatRoom;
-import com.example.springboot_realtimechat.domain.ChatRoomMember;
-import com.example.springboot_realtimechat.domain.Member;
-import com.example.springboot_realtimechat.repository.ChatRoomMemberRepository;
-import com.example.springboot_realtimechat.repository.ChatRoomRepository;
-import com.example.springboot_realtimechat.repository.MemberRepository;
+import com.example.springboot_realtimechat.domain.chatroom.entity.ChatRoom;
+import com.example.springboot_realtimechat.domain.chatroom.entity.ChatRoomMember;
+import com.example.springboot_realtimechat.domain.chatroom.repository.ChatRoomMemberRepository;
+import com.example.springboot_realtimechat.domain.chatroom.repository.ChatRoomRepository;
+import com.example.springboot_realtimechat.domain.chatroom.service.RoomAccess;
+import com.example.springboot_realtimechat.domain.member.entity.Member;
+import com.example.springboot_realtimechat.domain.member.repository.MemberRepository;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;

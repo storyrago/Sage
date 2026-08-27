@@ -1,8 +1,9 @@
 package com.example.springboot_realtimechat.ws;
 
-import com.example.springboot_realtimechat.security.JwtAuthChannelInterceptor;
-import com.example.springboot_realtimechat.security.JwtTokenProvider;
-import com.example.springboot_realtimechat.security.TokenDenylist;
+import com.example.springboot_realtimechat.global.jwt.JwtAuthChannelInterceptor;
+import com.example.springboot_realtimechat.global.jwt.JwtTokenProvider;
+import com.example.springboot_realtimechat.global.jwt.TokenDenylist;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.messaging.Message;

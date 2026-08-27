@@ -1,7 +1,11 @@
 package com.example.springboot_realtimechat.service;
 
+import com.example.springboot_realtimechat.domain.image.service.ImageUploads;
+import com.example.springboot_realtimechat.domain.image.service.S3Service;
+import com.example.springboot_realtimechat.domain.message.service.MessageService;
 import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;

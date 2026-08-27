@@ -1,7 +1,10 @@
 package com.example.springboot_realtimechat.security;
 
-import com.example.springboot_realtimechat.domain.Member;
-import com.example.springboot_realtimechat.repository.MemberRepository;
+import com.example.springboot_realtimechat.domain.auth.service.OAuthCodeStore;
+import com.example.springboot_realtimechat.domain.member.entity.Member;
+import com.example.springboot_realtimechat.domain.member.repository.MemberRepository;
+import com.example.springboot_realtimechat.global.auth.OAuth2SuccessHandler;
+
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;

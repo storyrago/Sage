@@ -1,9 +1,11 @@
 package com.example.springboot_realtimechat.redis;
 
-import com.example.springboot_realtimechat.domain.Member;
-import com.example.springboot_realtimechat.dto.UnreadEvent;
-import com.example.springboot_realtimechat.repository.ChatRoomMemberRepository;
-import com.example.springboot_realtimechat.repository.MessageRepository;
+import com.example.springboot_realtimechat.domain.chatroom.dto.UnreadEvent;
+import com.example.springboot_realtimechat.domain.chatroom.repository.ChatRoomMemberRepository;
+import com.example.springboot_realtimechat.domain.member.entity.Member;
+import com.example.springboot_realtimechat.domain.message.repository.MessageRepository;
+import com.example.springboot_realtimechat.global.redis.RedisSubscriber;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;

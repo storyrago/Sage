@@ -1,7 +1,9 @@
 package com.example.springboot_realtimechat.service;
 
+import com.example.springboot_realtimechat.domain.image.service.ImageUploads;
 import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
 

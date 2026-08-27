@@ -1,15 +1,16 @@
 package com.example.springboot_realtimechat.ws;
 
-import com.example.springboot_realtimechat.domain.ChatRoom;
-import com.example.springboot_realtimechat.domain.Member;
-import com.example.springboot_realtimechat.dto.MessageResponse;
-import com.example.springboot_realtimechat.dto.WsErrorResponse;
-import com.example.springboot_realtimechat.redis.RedisPublisher;
-import com.example.springboot_realtimechat.security.CustomUserDetails;
-import com.example.springboot_realtimechat.service.ChatRoomMemberService;
-import com.example.springboot_realtimechat.service.ChatRoomService;
-import com.example.springboot_realtimechat.service.MemberService;
-import com.example.springboot_realtimechat.service.S3Service;
+import com.example.springboot_realtimechat.domain.chatroom.entity.ChatRoom;
+import com.example.springboot_realtimechat.domain.chatroom.service.ChatRoomMemberService;
+import com.example.springboot_realtimechat.domain.chatroom.service.ChatRoomService;
+import com.example.springboot_realtimechat.domain.image.service.S3Service;
+import com.example.springboot_realtimechat.domain.member.entity.Member;
+import com.example.springboot_realtimechat.domain.member.service.MemberService;
+import com.example.springboot_realtimechat.domain.message.dto.MessageResponse;
+import com.example.springboot_realtimechat.global.auth.CustomUserDetails;
+import com.example.springboot_realtimechat.global.redis.RedisPublisher;
+import com.example.springboot_realtimechat.global.websocket.WsErrorResponse;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;

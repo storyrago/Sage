@@ -1,8 +1,9 @@
 package com.example.springboot_realtimechat.ws;
 
-import com.example.springboot_realtimechat.config.WebSocketAuthorizationConfig;
-import com.example.springboot_realtimechat.security.CustomUserDetails;
-import com.example.springboot_realtimechat.security.RoomAccess;
+import com.example.springboot_realtimechat.domain.chatroom.service.RoomAccess;
+import com.example.springboot_realtimechat.global.auth.CustomUserDetails;
+import com.example.springboot_realtimechat.global.websocket.WebSocketAuthorizationConfig;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.messaging.Message;

@@ -1,8 +1,9 @@
 package com.example.springboot_realtimechat.ws;
 
-import com.example.springboot_realtimechat.dto.WsErrorResponse;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
-import com.example.springboot_realtimechat.security.RoomSubscriptionRevoker;
+import com.example.springboot_realtimechat.global.websocket.RoomSubscriptionRevoker;
+import com.example.springboot_realtimechat.global.websocket.WsErrorResponse;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;

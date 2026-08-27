@@ -1,9 +1,10 @@
 package com.example.springboot_realtimechat.s3;
 
-import com.example.springboot_realtimechat.event.ImageCleanupListener;
-import com.example.springboot_realtimechat.event.ImageDereferencedEvent;
-import com.example.springboot_realtimechat.service.ImageReferences;
-import com.example.springboot_realtimechat.service.S3Service;
+import com.example.springboot_realtimechat.domain.image.event.ImageCleanupListener;
+import com.example.springboot_realtimechat.domain.image.event.ImageDereferencedEvent;
+import com.example.springboot_realtimechat.domain.image.service.ImageReferences;
+import com.example.springboot_realtimechat.domain.image.service.S3Service;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

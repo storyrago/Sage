@@ -1,7 +1,10 @@
 package com.example.springboot_realtimechat.security;
 
-import com.example.springboot_realtimechat.domain.Member;
-import com.example.springboot_realtimechat.service.MemberService;
+import com.example.springboot_realtimechat.domain.auth.service.OAuthCodeStore;
+import com.example.springboot_realtimechat.domain.member.entity.Member;
+import com.example.springboot_realtimechat.domain.member.service.MemberService;
+import com.example.springboot_realtimechat.global.jwt.TokenDenylist;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

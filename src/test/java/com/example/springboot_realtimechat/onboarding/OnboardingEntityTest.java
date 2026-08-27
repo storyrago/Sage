@@ -1,8 +1,9 @@
 package com.example.springboot_realtimechat.onboarding;
 
-import com.example.springboot_realtimechat.domain.Member;
-import com.example.springboot_realtimechat.dto.MemberResponse;
-import com.example.springboot_realtimechat.repository.MemberRepository;
+import com.example.springboot_realtimechat.domain.member.dto.MemberResponse;
+import com.example.springboot_realtimechat.domain.member.entity.Member;
+import com.example.springboot_realtimechat.domain.member.repository.MemberRepository;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

@@ -1,5 +1,7 @@
 package com.example.springboot_realtimechat.presence;
 
+import com.example.springboot_realtimechat.domain.presence.service.PresenceRegistry;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

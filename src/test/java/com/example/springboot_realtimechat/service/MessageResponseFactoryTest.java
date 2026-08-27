@@ -1,9 +1,12 @@
 package com.example.springboot_realtimechat.service;
 
-import com.example.springboot_realtimechat.domain.ChatRoom;
-import com.example.springboot_realtimechat.domain.Member;
-import com.example.springboot_realtimechat.domain.Message;
-import com.example.springboot_realtimechat.dto.MessageResponse;
+import com.example.springboot_realtimechat.domain.chatroom.entity.ChatRoom;
+import com.example.springboot_realtimechat.domain.image.service.S3Service;
+import com.example.springboot_realtimechat.domain.member.entity.Member;
+import com.example.springboot_realtimechat.domain.message.dto.MessageResponse;
+import com.example.springboot_realtimechat.domain.message.entity.Message;
+import com.example.springboot_realtimechat.domain.message.service.MessageResponseFactory;
+
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
