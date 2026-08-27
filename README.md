@@ -6,38 +6,32 @@
 
 </div>
 
-<!-- ════════════════ 🎬 데모 영상 자리 ════════════════
-     넣는 법
-       1. GitHub 웹에서 이 파일을 편집(연필 아이콘)한다
-       2. 영상 파일(mp4 권장, 10MB 이하)을 편집창에 끌어다 놓으면
-          https://github.com/user-attachments/assets/... URL이 자동으로 삽입된다
-       3. 이 주석 블록을 통째로 지우고, 그 자리에 아래 두 줄을 넣는다
-             ## 🎬 데모
-             (2번에서 받은 URL 한 줄)
-          GitHub은 영상 URL 한 줄만 있으면 플레이어로 렌더링한다
-       4. 위 Table of Contents에 "- [데모](#-데모)" 한 줄을 추가한다
-
-     담으면 좋은 흐름 (30~60초)
-       로그인 → 우표 랜딩에서 방 선택 → 창 두 개로 실시간 송수신
-       → 입력 중 표시와 안읽음 배지 → 비공개방 초대 코드 입장 → 강퇴
-       → 이미지 전송
-     ═══════════════════════════════════════════════════ -->
-
 ---
 
 ## Table of Contents
 
-- [서비스 소개](#-서비스-소개)
-- [시스템 아키텍처](#️-시스템-아키텍처)
-- [ERD](#️-erd)
-- [기술 스택](#️-기술-스택)
-- [API 문서](#-api-문서)
-- [실행 방법](#-실행-방법)
-- [트러블슈팅](#-트러블슈팅)
+- [Demo](#demo)
+- [System Architecture](#system-architecture)
+- [ERD](#erd)
+- [Tech Stack](#tech-stack)
+- [Monitoring](#monitoring)
+- [API](#api)
+- [Getting Started](#getting-started)
+- [Troubleshooting](#troubleshooting)
 
 ---
 
-## 💬 서비스 소개
+## Demo
+
+<!-- 데모 영상 넣는 법
+       1. GitHub 웹에서 이 파일을 편집(연필 아이콘)한다
+       2. 영상 파일(mp4 권장, 10MB 이하)을 편집창에 끌어다 놓으면
+          https://github.com/user-attachments/assets/... URL이 자동 삽입된다
+       3. 이 주석을 지우고 그 자리에 URL 한 줄만 남긴다 (GitHub이 플레이어로 렌더링한다)
+
+     담으면 좋은 흐름 (30~60초)
+       로그인 → 랜딩에서 방 선택 → 창 두 개로 실시간 송수신
+       → 입력 중 표시와 안읽음 배지 → 비공개방 초대 코드 입장 → 강퇴 → 이미지 전송 -->
 
 실시간으로 대화하고, 이미지를 주고받는 채팅 서비스입니다.
 단순히 "채팅이 되는 것"에 그치지 않고, **서버가 여러 대여도 메시지가 전달되는 구조**와 **자동으로 빌드·테스트·배포되는 파이프라인**까지 직접 구축했습니다.
@@ -55,7 +49,7 @@
 
 ---
 
-## 🏗️ 시스템 아키텍처
+## System Architecture
 
 ```mermaid
 flowchart LR
@@ -80,7 +74,7 @@ flowchart LR
 
 ---
 
-## 🗂️ ERD
+## ERD
 
 스키마는 **Flyway**(`src/main/resources/db/migration/V1~V9`)로만 바뀝니다. 현재 구성은 다음과 같습니다.
 
@@ -161,7 +155,7 @@ erDiagram
 
 ---
 
-## 🛠️ 기술 스택
+## Tech Stack
 
 | Category | Technology |
 |---|---|
@@ -178,7 +172,26 @@ erDiagram
 
 ---
 
-## 📡 API 문서
+## Monitoring
+
+로그·메트릭·추적 ID를 배선해 두었습니다.
+
+| 구분 | 운영(EC2) | 로컬 |
+|---|---|---|
+| **메트릭** | Micrometer **OTLP push** → Grafana Cloud (60초 주기) | `/actuator/prometheus`를 Prometheus가 **pull** |
+| **로그** | Docker `awslogs` 드라이버 → **CloudWatch Logs** (`/sage/app`) | 표준 출력 |
+| **헬스** | `/actuator/health` — 배포 게이트는 `readiness` 그룹 | 동일 |
+
+- 메트릭에는 공통 태그 `application`·`environment`가 붙어 Grafana에서 서비스·환경별로 시리즈가 갈립니다.
+- **`readiness` 그룹에서 Redis는 일부러 제외**했습니다. Redis는 fail-open이라 죽어도 API는 응답하고 실시간 배달·프레즌스만 멈추는데, 이것으로 배포를 막으면 정작 그 문제를 고치는 배포조차 나가지 못합니다. `db`·`diskSpace`는 게이트에 남겼습니다.
+- 운영에서는 actuator 엔드포인트를 외부로 노출하지 않습니다(`application-prod.yaml`).
+- **OTLP 내보내기는 기본 꺼져 있습니다**(`OTLP_METRICS_ENABLED=false`). Grafana Cloud 토큰을 발급해 EC2 `.env`에 채우면 켜집니다.
+
+<!-- Grafana 대시보드 캡처 자리 — 메트릭을 켠 뒤 스크린샷을 넣으면 됩니다 -->
+
+---
+
+## API
 
 > Swagger UI (로컬/개발): `http://localhost:8080/swagger-ui/index.html`
 > — 운영에선 app(8080)이 **nginx 뒤 내부 전용**이라 외부로 노출하지 않습니다.
@@ -264,7 +277,7 @@ erDiagram
 
 ---
 
-## 🚀 실행 방법
+## Getting Started
 
 ### 1. 클론
 
@@ -331,7 +344,7 @@ export JWT_SECRET=$(openssl rand -base64 32)
 
 ---
 
-## 🧩 트러블슈팅
+## Troubleshooting
 
 프로젝트를 진행하며 실제로 겪고 해결한 문제들입니다.
 
