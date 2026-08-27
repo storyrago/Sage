@@ -21,7 +21,7 @@ class ChatRoomEntityTest {
 
         assertThat(room.isPrivate()).isFalse();
         assertThat(room.getInviteCode()).isNull();
-        assertThat(room.getCreatedBy()).isNull();
+        assertThat(room.getOwner()).isNull();
         assertThat(room.getDeletedAt()).isNull();
     }
 
