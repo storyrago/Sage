@@ -1,8 +1,11 @@
 package com.example.springboot_realtimechat.service;
 
-import com.example.springboot_realtimechat.dto.LoginRequest;
+import com.example.springboot_realtimechat.domain.auth.dto.LoginRequest;
+import com.example.springboot_realtimechat.domain.auth.service.AuthService;
+import com.example.springboot_realtimechat.domain.member.service.MemberService;
 import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

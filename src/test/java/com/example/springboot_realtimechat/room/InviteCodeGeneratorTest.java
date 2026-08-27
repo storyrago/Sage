@@ -1,6 +1,7 @@
 package com.example.springboot_realtimechat.room;
 
-import com.example.springboot_realtimechat.service.InviteCodeGenerator;
+import com.example.springboot_realtimechat.domain.chatroom.service.InviteCodeGenerator;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;

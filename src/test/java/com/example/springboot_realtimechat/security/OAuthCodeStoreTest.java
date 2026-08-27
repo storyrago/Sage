@@ -1,5 +1,7 @@
 package com.example.springboot_realtimechat.security;
 
+import com.example.springboot_realtimechat.domain.auth.service.OAuthCodeStore;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

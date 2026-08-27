@@ -1,6 +1,7 @@
 package com.example.springboot_realtimechat.room;
 
-import com.example.springboot_realtimechat.domain.ChatRoom;
+import com.example.springboot_realtimechat.domain.chatroom.entity.ChatRoom;
+
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

@@ -1,10 +1,15 @@
 package com.example.springboot_realtimechat.service;
 
-import com.example.springboot_realtimechat.domain.ChatRoom;
-import com.example.springboot_realtimechat.domain.Member;
-import com.example.springboot_realtimechat.domain.Message;
+import com.example.springboot_realtimechat.domain.chatroom.entity.ChatRoom;
+import com.example.springboot_realtimechat.domain.chatroom.service.ChatRoomMemberService;
+import com.example.springboot_realtimechat.domain.chatroom.service.ChatRoomService;
+import com.example.springboot_realtimechat.domain.member.entity.Member;
+import com.example.springboot_realtimechat.domain.member.service.MemberService;
+import com.example.springboot_realtimechat.domain.message.entity.Message;
+import com.example.springboot_realtimechat.domain.message.service.MessageService;
 import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

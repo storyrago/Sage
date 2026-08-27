@@ -1,8 +1,9 @@
 package com.example.springboot_realtimechat.ws;
 
+import com.example.springboot_realtimechat.global.auth.CustomUserDetails;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
-import com.example.springboot_realtimechat.security.CustomUserDetails;
-import com.example.springboot_realtimechat.security.RoomSubscriptionRevoker;
+import com.example.springboot_realtimechat.global.websocket.RoomSubscriptionRevoker;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

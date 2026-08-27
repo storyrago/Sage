@@ -4,6 +4,7 @@ import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
 import com.example.springboot_realtimechat.global.exception.ErrorResponse;
 import com.example.springboot_realtimechat.global.exception.GlobalExceptionHandler;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 

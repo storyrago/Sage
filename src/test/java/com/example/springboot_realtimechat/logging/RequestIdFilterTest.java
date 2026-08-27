@@ -1,5 +1,7 @@
 package com.example.springboot_realtimechat.logging;
 
+import com.example.springboot_realtimechat.global.common.RequestIdFilter;
+
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;

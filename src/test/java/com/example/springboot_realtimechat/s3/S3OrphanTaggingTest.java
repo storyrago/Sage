@@ -1,6 +1,7 @@
 package com.example.springboot_realtimechat.s3;
 
-import com.example.springboot_realtimechat.service.S3Service;
+import com.example.springboot_realtimechat.domain.image.service.S3Service;
+
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;

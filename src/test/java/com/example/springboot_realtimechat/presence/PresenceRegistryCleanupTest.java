@@ -1,5 +1,7 @@
 package com.example.springboot_realtimechat.presence;
 
+import com.example.springboot_realtimechat.domain.presence.service.PresenceRegistry;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

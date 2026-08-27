@@ -1,11 +1,12 @@
 package com.example.springboot_realtimechat.ws;
 
-import com.example.springboot_realtimechat.event.MemberDeletedEvent;
-import com.example.springboot_realtimechat.event.RoomDeletedEvent;
-import com.example.springboot_realtimechat.event.RoomLeftEvent;
-import com.example.springboot_realtimechat.event.SubscriptionRevocationListener;
+import com.example.springboot_realtimechat.domain.chatroom.event.RoomDeletedEvent;
+import com.example.springboot_realtimechat.domain.chatroom.event.RoomLeftEvent;
+import com.example.springboot_realtimechat.domain.chatroom.event.SubscriptionRevocationListener;
+import com.example.springboot_realtimechat.domain.member.event.MemberDeletedEvent;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
-import com.example.springboot_realtimechat.security.RoomSubscriptionRevoker;
+import com.example.springboot_realtimechat.global.websocket.RoomSubscriptionRevoker;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

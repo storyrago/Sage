@@ -1,11 +1,12 @@
 package com.example.springboot_realtimechat.exception;
 
-import com.example.springboot_realtimechat.domain.Member;
-import com.example.springboot_realtimechat.repository.ChatRoomMemberRepository;
-import com.example.springboot_realtimechat.repository.ChatRoomRepository;
-import com.example.springboot_realtimechat.repository.MemberRepository;
-import com.example.springboot_realtimechat.security.JwtTokenProvider;
-import com.example.springboot_realtimechat.service.MemberService;
+import com.example.springboot_realtimechat.domain.chatroom.repository.ChatRoomMemberRepository;
+import com.example.springboot_realtimechat.domain.chatroom.repository.ChatRoomRepository;
+import com.example.springboot_realtimechat.domain.member.entity.Member;
+import com.example.springboot_realtimechat.domain.member.repository.MemberRepository;
+import com.example.springboot_realtimechat.domain.member.service.MemberService;
+import com.example.springboot_realtimechat.global.jwt.JwtTokenProvider;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

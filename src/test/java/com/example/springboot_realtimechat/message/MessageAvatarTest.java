@@ -1,13 +1,15 @@
 package com.example.springboot_realtimechat.message;
 
-import com.example.springboot_realtimechat.domain.ChatRoom;
-import com.example.springboot_realtimechat.domain.Member;
-import com.example.springboot_realtimechat.domain.Message;
-import com.example.springboot_realtimechat.dto.MessageResponse;
-import com.example.springboot_realtimechat.service.ChatRoomMemberService;
-import com.example.springboot_realtimechat.service.ChatRoomService;
-import com.example.springboot_realtimechat.service.MemberService;
-import com.example.springboot_realtimechat.service.MessageService;
+import com.example.springboot_realtimechat.domain.chatroom.entity.ChatRoom;
+import com.example.springboot_realtimechat.domain.chatroom.service.ChatRoomMemberService;
+import com.example.springboot_realtimechat.domain.chatroom.service.ChatRoomService;
+import com.example.springboot_realtimechat.domain.member.entity.Member;
+import com.example.springboot_realtimechat.domain.member.service.MemberService;
+import com.example.springboot_realtimechat.domain.message.dto.MessageResponse;
+import com.example.springboot_realtimechat.domain.message.entity.Message;
+import com.example.springboot_realtimechat.domain.message.service.MessageService;
+import com.example.springboot_realtimechat.global.redis.RedisSubscriber;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

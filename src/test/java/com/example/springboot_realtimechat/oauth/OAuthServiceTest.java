@@ -1,10 +1,11 @@
 package com.example.springboot_realtimechat.oauth;
 
-import com.example.springboot_realtimechat.domain.Member;
+import com.example.springboot_realtimechat.domain.auth.service.OAuthService;
+import com.example.springboot_realtimechat.domain.member.entity.Member;
+import com.example.springboot_realtimechat.domain.member.repository.MemberRepository;
 import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
-import com.example.springboot_realtimechat.repository.MemberRepository;
-import com.example.springboot_realtimechat.service.OAuthService;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

@@ -1,6 +1,8 @@
 package com.example.springboot_realtimechat.dto;
 
-import com.example.springboot_realtimechat.domain.Member;
+import com.example.springboot_realtimechat.domain.member.dto.PublicMemberResponse;
+import com.example.springboot_realtimechat.domain.member.entity.Member;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 

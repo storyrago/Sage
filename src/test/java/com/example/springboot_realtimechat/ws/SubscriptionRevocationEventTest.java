@@ -1,13 +1,15 @@
 package com.example.springboot_realtimechat.ws;
 
-import com.example.springboot_realtimechat.domain.ChatRoom;
-import com.example.springboot_realtimechat.domain.Member;
-import com.example.springboot_realtimechat.event.MemberDeletedEvent;
-import com.example.springboot_realtimechat.event.RoomLeftEvent;
+import com.example.springboot_realtimechat.domain.chatroom.entity.ChatRoom;
+import com.example.springboot_realtimechat.domain.chatroom.event.RoomLeftEvent;
+import com.example.springboot_realtimechat.domain.chatroom.service.ChatRoomMemberService;
+import com.example.springboot_realtimechat.domain.chatroom.service.ChatRoomService;
+import com.example.springboot_realtimechat.domain.image.event.ImageCleanupListener;
+import com.example.springboot_realtimechat.domain.member.entity.Member;
+import com.example.springboot_realtimechat.domain.member.event.MemberDeletedEvent;
+import com.example.springboot_realtimechat.domain.member.service.MemberService;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
-import com.example.springboot_realtimechat.service.ChatRoomMemberService;
-import com.example.springboot_realtimechat.service.ChatRoomService;
-import com.example.springboot_realtimechat.service.MemberService;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

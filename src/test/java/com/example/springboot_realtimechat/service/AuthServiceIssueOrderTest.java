@@ -1,12 +1,15 @@
 package com.example.springboot_realtimechat.service;
 
-import com.example.springboot_realtimechat.domain.Member;
-import com.example.springboot_realtimechat.dto.LoginRequest;
+import com.example.springboot_realtimechat.domain.auth.dto.LoginRequest;
+import com.example.springboot_realtimechat.domain.auth.service.AuthService;
+import com.example.springboot_realtimechat.domain.auth.service.LoginRateLimiter;
+import com.example.springboot_realtimechat.domain.auth.service.OAuthCodeStore;
+import com.example.springboot_realtimechat.domain.member.entity.Member;
+import com.example.springboot_realtimechat.domain.member.repository.MemberRepository;
 import com.example.springboot_realtimechat.global.exception.CustomException;
-import com.example.springboot_realtimechat.repository.MemberRepository;
-import com.example.springboot_realtimechat.security.JwtTokenProvider;
-import com.example.springboot_realtimechat.security.OAuthCodeStore;
-import com.example.springboot_realtimechat.security.TokenDenylist;
+import com.example.springboot_realtimechat.global.jwt.JwtTokenProvider;
+import com.example.springboot_realtimechat.global.jwt.TokenDenylist;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InOrder;

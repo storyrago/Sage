@@ -1,6 +1,7 @@
 package com.example.springboot_realtimechat.oauth;
 
-import com.example.springboot_realtimechat.security.HttpCookieOAuth2AuthorizationRequestRepository;
+import com.example.springboot_realtimechat.global.auth.HttpCookieOAuth2AuthorizationRequestRepository;
+
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;

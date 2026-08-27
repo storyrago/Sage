@@ -1,8 +1,9 @@
 package com.example.springboot_realtimechat.room;
 
-import com.example.springboot_realtimechat.domain.ChatRoom;
-import com.example.springboot_realtimechat.domain.Member;
-import com.example.springboot_realtimechat.dto.ChatRoomResponse;
+import com.example.springboot_realtimechat.domain.chatroom.dto.ChatRoomResponse;
+import com.example.springboot_realtimechat.domain.chatroom.entity.ChatRoom;
+import com.example.springboot_realtimechat.domain.member.entity.Member;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
