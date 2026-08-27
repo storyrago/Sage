@@ -29,8 +29,8 @@ public class ChatRoom {
 
     // 주인 없는 방은 시드/레거시 데이터뿐이다. 살아있는 방은 항상 주인이 있다.
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by")
-    private Member createdBy;
+    @JoinColumn(name = "owner_id")
+    private Member owner;
 
     @Column(name = "is_private", nullable = false)
     private boolean isPrivate;
@@ -47,19 +47,19 @@ public class ChatRoom {
     @OneToMany(mappedBy = "chatRoom")
     private List<Message> messages = new ArrayList<>();
 
-    private ChatRoom(String name, Member createdBy, boolean isPrivate, String inviteCode) {
+    private ChatRoom(String name, Member owner, boolean isPrivate, String inviteCode) {
         this.name = name;
-        this.createdBy = createdBy;
+        this.owner = owner;
         this.isPrivate = isPrivate;
         this.inviteCode = inviteCode;
     }
 
-    public static ChatRoom publicRoom(String name, Member createdBy) {
-        return new ChatRoom(name, createdBy, false, null);
+    public static ChatRoom publicRoom(String name, Member owner) {
+        return new ChatRoom(name, owner, false, null);
     }
 
-    public static ChatRoom privateRoom(String name, Member createdBy, String inviteCode) {
-        return new ChatRoom(name, createdBy, true, inviteCode);
+    public static ChatRoom privateRoom(String name, Member owner, String inviteCode) {
+        return new ChatRoom(name, owner, true, inviteCode);
     }
 
     public boolean isPrivate() {
@@ -67,9 +67,9 @@ public class ChatRoom {
     }
 
     public boolean isOwnedBy(Long memberId) {
-        return createdBy != null
-                && createdBy.getId() != null
-                && createdBy.getId().equals(memberId);
+        return owner != null
+                && owner.getId() != null
+                && owner.getId().equals(memberId);
     }
 
     /** 주인이 없는 방(시드·레거시 데이터)은 아무도 운영할 수 없다. 주인이 탈퇴하면 소유권이 승계된다. */
@@ -110,12 +110,12 @@ public class ChatRoom {
      * ChatRoomService.transferOwnership이 조건부로 처리한다.
      */
     public void transferOwnership(Member newOwner) {
-        this.createdBy = newOwner;
+        this.owner = newOwner;
     }
 
     /** 승계받을 사람이 없어 닫는 방에 쓴다. 남은 코드는 회수한다. */
     public void releaseOwnership() {
-        this.createdBy = null;
+        this.owner = null;
         this.inviteCode = null;
     }
 }
