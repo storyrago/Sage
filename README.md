@@ -112,7 +112,7 @@ erDiagram
         varchar(100) name "NOT NULL · 방 이름"
         datetime(6) created_at "NOT NULL · 개설 일시"
         bigint owner_id FK "NULL 허용 · 현재 방장 · NULL이면 주인 없는 방"
-        boolean is_private "NOT NULL · DEFAULT FALSE · 비공개 여부"
+        tinyint(1) is_private "NOT NULL · DEFAULT 0 · 비공개 여부"
         varchar(12) invite_code UK "NULL 허용 · 초대 코드"
         datetime(6) deleted_at "NULL 허용 · 소프트 삭제 시각"
     }
@@ -150,6 +150,7 @@ erDiagram
 - `members`: `UNIQUE(provider, provider_id)` — 소셜 신원의 실제 키
 - `chatroom_members`: `UNIQUE(member_id, chatroom_id)` — 중복 참여 방지
 - `chatroom_bans`: `PRIMARY KEY(chatroom_id, member_id)`
+- `is_private`은 마이그레이션에 `BOOLEAN`으로 썼지만 MySQL에서 `BOOLEAN`은 `TINYINT(1)`의 별칭이라 실제 컬럼 타입은 `tinyint(1)`입니다.
 - `chatroom_members.last_read_message_id`는 **FK가 아닙니다**(V2에서 컬럼만 추가). 참조 무결성은 애플리케이션이 책임집니다.
 
 연관관계 주인은 FK를 가진 `Message` / `ChatRoomMember` 쪽이고, 모든 `@ManyToOne`은 `LAZY`입니다.
