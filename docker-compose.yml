@@ -1,7 +1,7 @@
 services:
   app:
     image: ghcr.io/storyrago/realtimechat-backend-app:${IMAGE_TAG:?IMAGE_TAG required}
-    build: .
+    build: ./backend
     restart: unless-stopped
     expose:
       - "8080"

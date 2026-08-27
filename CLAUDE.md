@@ -24,13 +24,13 @@ PR 본문은 항상 `.github/pull_request_template.md`의 섹션을 **그대로,
 
 ## 스키마 변경
 
-- **Flyway 사용 중**(`src/main/resources/db/migration/V*.sql`, `ddl-auto: validate`).
+- **Flyway 사용 중**(`backend/src/main/resources/db/migration/V*.sql`, `ddl-auto: validate`).
   스키마 변경은 마이그레이션 파일로만 넣는다. **수동 ALTER 금지** — 배포 시 자동 적용된다.
-- 테스트는 H2 create-drop이라 Flyway 비활성(`src/test/resources/application.yaml`).
+- 테스트는 H2 create-drop이라 Flyway 비활성(`backend/src/test/resources/application.yaml`).
 
 ## 검증 명령
 
-- 백엔드: `./gradlew test`
+- 백엔드: `cd backend && ./gradlew test`
 - 프론트: `cd frontend && npm test && npm run lint && npm run build` (`npm test`는 vitest, CI도 같이 돌린다)
 
 ## 환경변수 / 배포
