@@ -82,13 +82,13 @@ flowchart LR
 
 ## 🗂️ ERD
 
-스키마는 **Flyway**(`src/main/resources/db/migration/V1~V8`)로만 바뀝니다. 현재 구성은 다음과 같습니다.
+스키마는 **Flyway**(`src/main/resources/db/migration/V1~V9`)로만 바뀝니다. 현재 구성은 다음과 같습니다.
 
 ```mermaid
 erDiagram
     members ||--o{ messages : "작성한다"
     members ||--o{ chatroom_members : "참여한다"
-    members ||--o{ chatrooms : "개설한다"
+    members ||--o{ chatrooms : "소유한다"
     members ||--o{ chatroom_bans : "강퇴당한다"
     chatrooms ||--o{ messages : "담는다"
     chatrooms ||--o{ chatroom_members : "참여자를 가진다"
@@ -111,10 +111,10 @@ erDiagram
         bigint id PK "NOT NULL · AUTO_INCREMENT · 채팅방 번호"
         varchar(100) name "NOT NULL · 방 이름"
         datetime(6) created_at "NOT NULL · 개설 일시"
-        bigint created_by FK "NULL 허용 · 방장 · NULL이면 주인 없는 방"
+        bigint owner_id FK "NULL 허용 · 현재 방장 · NULL이면 주인 없는 방"
         boolean is_private "NOT NULL · DEFAULT FALSE · 비공개 여부"
         varchar(12) invite_code UK "NULL 허용 · 초대 코드"
-        datetime(6) deleted_at "NULL 허용 · 소프트 삭제 일시"
+        datetime(6) deleted_at "NULL 허용 · 소프트 삭제 시각"
     }
 
     messages {
@@ -125,8 +125,8 @@ erDiagram
         bigint chatroom_id FK "NULL 허용 · 소속 채팅방"
         datetime(6) created_at "NOT NULL · 보낸 일시"
         bigint reply_to_id FK "NULL 허용 · 답장 대상 · 자기참조"
-        datetime(6) edited_at "NULL 허용 · 수정 일시"
-        bit deleted "NOT NULL · DEFAULT 0 · 삭제 여부"
+        datetime(6) edited_at "NULL 허용 · 수정 시각"
+        datetime(6) deleted_at "NULL 허용 · 소프트 삭제 시각"
     }
 
     chatroom_members {
