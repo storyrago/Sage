@@ -46,3 +46,6 @@ frontend/dist/
 
 ### Agent tooling ###
 .claude/
+
+# 로컬 전용 작업 지침 (레포에 올리지 않는다)
+CLAUDE.md
