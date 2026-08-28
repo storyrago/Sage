@@ -122,7 +122,7 @@ flowchart LR
 
 ## ERD
 
-스키마는 **Flyway**(`src/main/resources/db/migration/V1~V9`)로만 바뀝니다. 현재 구성은 다음과 같습니다.
+스키마는 **Flyway**(`backend/src/main/resources/db/migration/V1~V9`)로만 바뀝니다. 현재 구성은 다음과 같습니다.
 
 ```mermaid
 erDiagram
@@ -306,6 +306,17 @@ erDiagram
 
 ## Getting Started
 
+### 폴더 구조
+
+```
+.
+├── backend/    Spring Boot — Gradle 래퍼·Dockerfile 포함
+├── frontend/   React + Vite — nginx 설정·Dockerfile 포함
+├── docs/       설계 문서·운영 런북
+└── docker-compose.yml   두 서비스를 함께 띄운다 (루트에 둔다)
+```
+
+
 ### 1. 클론
 
 ```bash
@@ -359,13 +370,13 @@ MySQL(`localhost:3306`, DB `spring_realtimechat_service`) · Redis(`localhost:63
 
 ```bash
 export JWT_SECRET=$(openssl rand -base64 32)
-./gradlew bootRun
+cd backend && ./gradlew bootRun
 ```
 
 ### 5. 테스트
 
 ```bash
-./gradlew test
+cd backend && ./gradlew test
 ```
 **H2 인메모리 DB**와 더미 설정을 사용합니다.
 

@@ -1,0 +1,72 @@
+package com.example.springboot_realtimechat.domain.member.controller;
+
+import com.example.springboot_realtimechat.domain.member.dto.MemberResponse;
+import com.example.springboot_realtimechat.domain.member.dto.NicknameRequest;
+import com.example.springboot_realtimechat.domain.member.dto.ProfileImageRequest;
+import com.example.springboot_realtimechat.domain.member.dto.PublicMemberResponse;
+import com.example.springboot_realtimechat.domain.member.entity.Member;
+import com.example.springboot_realtimechat.domain.member.service.MemberService;
+import com.example.springboot_realtimechat.global.auth.CustomUserDetails;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/api/members")
+public class MemberController {
+    private final MemberService memberService;
+
+    @GetMapping("/me")
+    public MemberResponse getMe(@AuthenticationPrincipal CustomUserDetails customUserDetails){
+        Member member = memberService.getMemberById(customUserDetails.getMemberId());
+        return MemberResponse.from(member);
+    }
+
+    @GetMapping("/{id}")
+    public PublicMemberResponse getMemberById(@PathVariable Long id){
+        Member member = memberService.getMemberById(id);
+        return PublicMemberResponse.from(member);
+    }
+
+    @PatchMapping("/me")
+    public MemberResponse updateMe(
+            @AuthenticationPrincipal CustomUserDetails customUserDetails,
+            @Valid @RequestBody NicknameRequest request) {
+
+        Member member = memberService.updateNickname(
+                customUserDetails.getMemberId(),
+                request.getNickname());
+
+        return MemberResponse.from(member);
+    }
+
+    @PostMapping("/me/onboarding")
+    public MemberResponse completeOnboarding(
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
+
+        Member member = memberService.completeOnboarding(customUserDetails.getMemberId());
+        return MemberResponse.from(member);
+    }
+
+    @PatchMapping("/me/profile-image")
+    public MemberResponse updateProfileImage(
+            @AuthenticationPrincipal CustomUserDetails customUserDetails,
+            @Valid @RequestBody ProfileImageRequest request) {
+
+        Member member = memberService.updateProfileImage(
+                customUserDetails.getMemberId(),
+                request.getImageUrl());
+
+        return MemberResponse.from(member);
+    }
+
+    @DeleteMapping("/me")
+    public ResponseEntity<Void> deleteMe(@AuthenticationPrincipal CustomUserDetails customUserDetails){
+        memberService.delete(customUserDetails.getMemberId());
+        return ResponseEntity.noContent().build();
+    }
+}
