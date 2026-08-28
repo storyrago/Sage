@@ -97,26 +97,93 @@
 
 ## System Architecture
 
-```mermaid
-flowchart LR
-    U["브라우저"] -->|HTTPS / WSS| N["nginx<br/>TLS 종단 · 정적 서빙<br/>/api · /ws 프록시"]
-    N -->|"내부 전용 :8080"| A["Spring Boot<br/>REST + STOMP"]
-    A --> DB[("MySQL (RDS)<br/>Flyway 관리")]
-    A --> R[("Redis<br/>Pub/Sub · presence · 토큰 회수")]
-    A --> S3[("S3<br/>프리사인드 GET")]
-    A -.->|OTLP push| G["Grafana Cloud"]
-    A -.->|로그| CW["CloudWatch Logs"]
+<!-- ┌─────────────────────────────────────────────────────────────┐
+     │  아키텍처 이미지 자리                                        │
+     │  직접 그린 다이어그램(draw.io·Excalidraw 등)을 넣을 자리입니다. │
+     │  편집창에 파일을 끌어다 놓으면 URL이 자동 삽입됩니다.           │
+     │  이미지를 넣으면 아래 mermaid는 지우거나 상세도로 남기세요.      │
+     └─────────────────────────────────────────────────────────────┘ -->
 
-    subgraph CI["GitHub Actions"]
-        B["빌드 · 테스트"] --> GH["GHCR 이미지"]
+### 런타임 구조
+
+```mermaid
+flowchart TB
+    subgraph CLIENT["① 사용자"]
+        U["브라우저 · React 19 · Vite"]
     end
-    GH -->|"pull (SHA 고정)"| A
+
+    subgraph EC2["② EC2 · Docker Compose"]
+        N["nginx — TLS 종단 · 정적 서빙 · /api · /ws 프록시"]
+        subgraph PRIV["내부 전용 — 외부 미노출"]
+            A["Spring Boot · REST + STOMP"]
+            R[("Redis<br/>Pub/Sub · presence<br/>토큰 회수")]
+        end
+    end
+
+    subgraph DEPS["③ 외부 의존 서비스"]
+        DB[("RDS MySQL<br/>Flyway 관리")]
+        S3[("S3<br/>프리사인드 GET")]
+        OAUTH["Google · Kakao<br/>OAuth"]
+    end
+
+    U -->|"HTTPS / WSS"| N
+    N -->|":8080"| A
+    A <--> R
+    A -->|"JPA · Flyway"| DB
+    A -->|"업로드 · 서명"| S3
+    A -->|"로그인"| OAUTH
+
+    classDef zone fill:#f8fafc,stroke:#94a3b8
+    classDef aws fill:#fff7ed,stroke:#fb923c
+    classDef ext fill:#eff6ff,stroke:#60a5fa
+    class CLIENT,EC2,PRIV,DEPS zone
+    class DB,S3 aws
+    class OAUTH ext
 ```
 
-- 프론트와 백엔드를 **same-origin**으로 묶어 CORS와 mixed-content를 구조적으로 없앴습니다.
-- **EC2에서 빌드하지 않습니다.** Actions가 이미지를 만들어 GHCR에 올리고, EC2는 배포 대상 SHA만 `pull`합니다.
-- 앱은 nginx 뒤 내부 전용이라 `8080`과 Swagger·Actuator가 외부로 열리지 않습니다.
-- 점선은 관측 경로입니다. 로그는 상시 CloudWatch로 나가고, **메트릭 push는 `OTLP_METRICS_ENABLED`로 켜는 선택 항목**이라 기본값은 꺼짐입니다.
+- **① 사용자** — 정적 자산과 API를 같은 오리진에서 받습니다. 프론트와 백엔드를 **same-origin**으로 묶어 CORS와 mixed-content를 구조적으로 없앴습니다.
+- **② EC2** — 한 인스턴스에서 compose로 nginx·app·Redis를 함께 띄웁니다. **app(8080)은 nginx 뒤 내부 전용**이라 Swagger·Actuator가 외부로 열리지 않습니다.
+- **③ 외부 의존** — 상태는 전부 인스턴스 밖에 둡니다. 컨테이너를 지워도 데이터는 남습니다.
+
+### 배포 파이프라인
+
+```mermaid
+flowchart LR
+    subgraph DEV["① 개발"]
+        GIT["GitHub<br/>develop 머지"]
+    end
+
+    subgraph GHA["② GitHub Actions"]
+        CI["CI<br/>테스트 · 실제 MySQL 기동 검증"]
+        CD["CD<br/>이미지 빌드"]
+    end
+
+    subgraph REG["③ 레지스트리"]
+        GHCR["GHCR<br/>SHA 태그 고정"]
+    end
+
+    subgraph RUN["④ 운영"]
+        EC2["EC2<br/>compose pull → up<br/>healthy 대기"]
+    end
+
+    GIT --> CI --> CD --> GHCR --> EC2
+
+    classDef zone fill:#f8fafc,stroke:#94a3b8
+    class DEV,GHA,REG,RUN zone
+```
+
+- **EC2에서 빌드하지 않습니다.** 1GB 인스턴스가 Gradle·Vite 빌드를 버티지 못해 Actions로 옮겼습니다. EC2는 배포 대상 SHA만 `pull`합니다.
+- 배포 대상이 `develop` 끝이 아니면 CD가 **중단**합니다. 재실행으로 완료 순서가 뒤집혀도 옛 커밋이 배포되지 못합니다.
+
+### 관측
+
+| 대상 | 경로 | 상태 |
+|---|---|---|
+| 로그 | Docker `awslogs` → **CloudWatch Logs** (`/sage/app`) | 상시 |
+| 메트릭 | Micrometer **OTLP push** → Grafana Cloud (60초) | **기본 꺼짐**(`OTLP_METRICS_ENABLED`) |
+| 헬스 | `/actuator/health` — 배포 게이트는 `readiness` 그룹 | 상시 |
+
+`readiness`에서 Redis는 일부러 뺐습니다. Redis는 fail-open이라 죽어도 API는 응답하고 실시간 배달·프레즌스만 멈추는데, 이것으로 배포를 막으면 정작 그 문제를 고치는 배포조차 나가지 못합니다.
 
 ---
 
