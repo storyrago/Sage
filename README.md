@@ -21,48 +21,46 @@
 
 ## Demo
 
-**🔗 라이브 — [sagertc.duckdns.org](https://sagertc.duckdns.org)**
-
 ### 로그인 · 온보딩
 
 이메일 / Google / Kakao 로그인과, 소셜 첫 진입에서 닉네임을 정하는 흐름
 
-<img width="400" height="201" alt="로그인, 온보딩" src="https://github.com/user-attachments/assets/8a970861-a601-4756-b7bc-dbe34299bf92" />
+<img width="1280" height="642" alt="로그인, 온보딩" src="https://github.com/user-attachments/assets/48b56d46-380c-4978-b9ac-a0add9ae93c2" />
 
 
 ### 실시간 채팅
 
 창 두 개로 주고받는 메시지, 접속자 표시, 입력 중 표시
 
-<img width="400" height="201" alt="실시간 채팅" src="https://github.com/user-attachments/assets/22dbf7f3-855d-4719-a276-2037e209fab1" />
+<img width="1280" height="642" alt="실시간 채팅" src="https://github.com/user-attachments/assets/07bdb06a-9cef-4fa3-91bc-b75a573cd537" />
 
 
 ### 안읽음 · 답장
 
 안읽음 배지와 "여기부터 안 읽음" , 나에게 온 답장
 
-<img width="400" height="201" alt="안읽음 답장" src="https://github.com/user-attachments/assets/1f7d7e9b-f406-4433-804a-584bc19dc575" />
+<img width="1280" height="642" alt="안읽음 답장" src="https://github.com/user-attachments/assets/4b2462f7-6603-4a7c-a371-d757af4b2b93" />
 
 
 ### 비공개방 · 초대 코드
 
 초대 코드로 입장, 공개↔비공개 전환
 
-<img width="400" height="201" alt="비공개방" src="https://github.com/user-attachments/assets/6c5cfb07-7d94-45ce-876a-e299bf1ac3a3" />
+<img width="1280" height="642" alt="비공개방" src="https://github.com/user-attachments/assets/e56d1348-2425-4c39-a3c0-4223b4c9ef2a" />
 
 
 ### 방장 운영
 
 강퇴 · 차단 · 방장 위임
 
-<img width="400" height="201" alt="방장 운영" src="https://github.com/user-attachments/assets/18728841-b266-4dd6-b79a-c27b4946cbbc" />
+<img width="1280" height="642" alt="방장 운영" src="https://github.com/user-attachments/assets/91bc562a-01c2-4f9b-b828-a1b9f462cfa7" />
 
 
 ### 이미지 전송
 
 이미지 업로드와 프리사인드 URL로 열람
 
-<img width="400" height="201" alt="이미지 전송" src="https://github.com/user-attachments/assets/c350c1e3-2226-43dd-8d69-c52f545c6960" />
+<img width="1280" height="642" alt="이미지 전송" src="https://github.com/user-attachments/assets/aef65321-c80e-4f3f-b9ac-49168f13bc1f" />
 
 ---
 
@@ -72,7 +70,7 @@
 |---|---|
 | **회원 / 인증** | **JWT 발급** — 이메일 · **Google** · **Kakao** OAuth. REST는 필터로, WebSocket은 **STOMP CONNECT 시** 토큰 검증. 로그아웃·탈퇴 시 **토큰 회수**(무효화 목록) |
 | **온보딩** | 소셜 로그인 후 닉네임을 직접 정하는 첫 진입 흐름 |
-| **채팅방 — 인가** | **공개 / 비공개(초대 코드)** 2상태 (+ 레거시 데이터에만 남은 **동결**). 목록·입장·메시지 읽기·쓰기가 모두 **참여 여부**로 갈린다 |
+| **채팅방 — 인가** | **공개 / 비공개(초대 코드)**. 목록·입장·메시지 읽기·쓰기가 모두 **참여 여부**로 갈린다 |
 | **방장 운영** | 강퇴 · 차단 · 차단 해제 · 초대 코드 재발급 · 공개↔비공개 전환 · 방 삭제 · **방장 위임**. 위임·나가기·강퇴는 방 행을 **비관적 잠금**으로 잡아 경합을 막는다 |
 | **실시간 채팅** | **WebSocket(STOMP)** 송수신. **Redis Pub/Sub** 경유로 **모든 서버의 구독자**에게 브로드캐스트 |
 | **실시간 부가** | 방별 **접속자(presence)** · **입력 중** 표시 · **답장** · **안읽음 카운트**와 "여기부터 안 읽음" 구분선 · **나에게 온 답장** 구분 |
@@ -103,7 +101,6 @@
 | **Realtime / Auth** | ![STOMP](https://img.shields.io/badge/WebSocket%20STOMP-010101?style=for-the-badge&logo=socketdotio&logoColor=white) ![JWT](https://img.shields.io/badge/JWT-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white) |
 | **Frontend** | ![React](https://img.shields.io/badge/React%2019-61DAFB?style=for-the-badge&logo=react&logoColor=black) ![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white) ![Tailwind](https://img.shields.io/badge/Tailwind%20CSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white) |
 | **Migration** | ![Flyway](https://img.shields.io/badge/Flyway-CC0200?style=for-the-badge&logo=flyway&logoColor=white) |
-| **Observability** | ![Actuator](https://img.shields.io/badge/Spring%20Actuator-6DB33F?style=for-the-badge&logo=springboot&logoColor=white) ![Micrometer](https://img.shields.io/badge/Micrometer%20OTLP-117DBB?style=for-the-badge&logo=opentelemetry&logoColor=white) ![Grafana](https://img.shields.io/badge/Grafana%20Cloud-F46800?style=for-the-badge&logo=grafana&logoColor=white) ![CloudWatch](https://img.shields.io/badge/CloudWatch%20Logs-FF4F8B?style=for-the-badge&logo=amazoncloudwatch&logoColor=white) |
 | **Database** | ![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white) ![Redis](https://img.shields.io/badge/Redis%207-DC382D?style=for-the-badge&logo=redis&logoColor=white) ![H2](https://img.shields.io/badge/H2%20test-004488?style=for-the-badge&logo=databricks&logoColor=white) |
 | **Infrastructure** | ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white) ![Nginx](https://img.shields.io/badge/Nginx-009639?style=for-the-badge&logo=nginx&logoColor=white) ![EC2](https://img.shields.io/badge/AWS%20EC2-FF9900?style=for-the-badge&logo=amazonec2&logoColor=white) ![RDS](https://img.shields.io/badge/AWS%20RDS-527FFF?style=for-the-badge&logo=amazonrds&logoColor=white) ![S3](https://img.shields.io/badge/AWS%20S3-569A31?style=for-the-badge&logo=amazons3&logoColor=white) ![Let's Encrypt](https://img.shields.io/badge/Let's%20Encrypt-003A70?style=for-the-badge&logo=letsencrypt&logoColor=white) |
 | **CI / CD** | ![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white) ![GHCR](https://img.shields.io/badge/GHCR-222222?style=for-the-badge&logo=github&logoColor=white) |
