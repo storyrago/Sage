@@ -20,12 +20,6 @@ services:
       KAKAO_CLIENT_SECRET: ${KAKAO_CLIENT_SECRET}
       FRONTEND_URL: ${FRONTEND_URL}                 # OAuth 성공 후 JWT 핸드오프 대상 프론트 주소
       JWT_ACCESS_TOKEN_EXPIRATION_MS: ${JWT_ACCESS_TOKEN_EXPIRATION_MS:-3600000}
-      # 메트릭 내보내기 스위치. compose environment는 명시 목록이라 여기 없으면 .env에 넣어도 컨테이너에 닿지 않는다.
-      # 기본값은 application.yaml과 같게 둔다 — .env에 값이 없어도 지금 동작이 그대로 유지된다.
-      OTLP_METRICS_ENABLED: ${OTLP_METRICS_ENABLED:-false}
-      OTLP_METRICS_URL: ${OTLP_METRICS_URL:-}
-      OTLP_METRICS_AUTH: ${OTLP_METRICS_AUTH:-}
-      OTLP_METRICS_ENV: ${OTLP_METRICS_ENV:-prod}
     healthcheck:                                    # 배포 스크립트가 이 상태로 기동 성공을 판정한다 (readiness: db·diskSpace 확인, Redis는 fail-open이라 게이트에서 제외)
       test: ["CMD", "curl", "-sf", "http://localhost:8080/actuator/health/readiness"]
       interval: 10s
