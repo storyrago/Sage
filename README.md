@@ -1,6 +1,6 @@
 <div align="center">
 
-# 💬 Realtime Chat
+# 🍃 Sage
 
 **🔗 라이브 데모 — [sagertc.duckdns.org](https://sagertc.duckdns.org)**
 
@@ -16,7 +16,6 @@
 - [Tech Stack](#tech-stack)
 - [API](#api)
 - [Getting Started](#getting-started)
-- [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -97,174 +96,14 @@
 
 ## System Architecture
 
-<!-- ┌─────────────────────────────────────────────────────────────┐
-     │  아키텍처 이미지 자리                                        │
-     │  직접 그린 다이어그램(draw.io·Excalidraw 등)을 넣을 자리입니다. │
-     │  편집창에 파일을 끌어다 놓으면 URL이 자동 삽입됩니다.           │
-     │  이미지를 넣으면 아래 mermaid는 지우거나 상세도로 남기세요.      │
-     └─────────────────────────────────────────────────────────────┘ -->
+<img width="741" height="493" alt="image" src="https://github.com/user-attachments/assets/f5cc56f2-f2db-4328-bc64-c915292ce310" />
 
-### 런타임 구조
-
-```mermaid
-flowchart TB
-    subgraph CLIENT["① 사용자"]
-        U["브라우저 · React 19 · Vite"]
-    end
-
-    subgraph EC2["② EC2 · Docker Compose"]
-        N["nginx — TLS 종단 · 정적 서빙 · /api · /ws 프록시"]
-        subgraph PRIV["내부 전용 — 외부 미노출"]
-            A["Spring Boot · REST + STOMP"]
-            R[("Redis<br/>Pub/Sub · presence<br/>토큰 회수")]
-        end
-    end
-
-    subgraph DEPS["③ 외부 의존 서비스"]
-        DB[("RDS MySQL<br/>Flyway 관리")]
-        S3[("S3<br/>프리사인드 GET")]
-        OAUTH["Google · Kakao<br/>OAuth"]
-    end
-
-    U -->|"HTTPS / WSS"| N
-    N -->|":8080"| A
-    A <--> R
-    A -->|"JPA · Flyway"| DB
-    A -->|"업로드 · 서명"| S3
-    A -->|"로그인"| OAUTH
-
-    classDef zone fill:#f8fafc,stroke:#94a3b8
-    classDef aws fill:#fff7ed,stroke:#fb923c
-    classDef ext fill:#eff6ff,stroke:#60a5fa
-    class CLIENT,EC2,PRIV,DEPS zone
-    class DB,S3 aws
-    class OAUTH ext
-```
-
-- **① 사용자** — 정적 자산과 API를 같은 오리진에서 받습니다. 프론트와 백엔드를 **same-origin**으로 묶어 CORS와 mixed-content를 구조적으로 없앴습니다.
-- **② EC2** — 한 인스턴스에서 compose로 nginx·app·Redis를 함께 띄웁니다. **app(8080)은 nginx 뒤 내부 전용**이라 Swagger·Actuator가 외부로 열리지 않습니다.
-- **③ 외부 의존** — 상태는 전부 인스턴스 밖에 둡니다. 컨테이너를 지워도 데이터는 남습니다.
-
-### 배포 파이프라인
-
-```mermaid
-flowchart LR
-    subgraph DEV["① 개발"]
-        GIT["GitHub<br/>develop 머지"]
-    end
-
-    subgraph GHA["② GitHub Actions"]
-        CI["CI<br/>테스트 · 실제 MySQL 기동 검증"]
-        CD["CD<br/>이미지 빌드"]
-    end
-
-    subgraph REG["③ 레지스트리"]
-        GHCR["GHCR<br/>SHA 태그 고정"]
-    end
-
-    subgraph RUN["④ 운영"]
-        EC2["EC2<br/>compose pull → up<br/>healthy 대기"]
-    end
-
-    GIT --> CI --> CD --> GHCR --> EC2
-
-    classDef zone fill:#f8fafc,stroke:#94a3b8
-    class DEV,GHA,REG,RUN zone
-```
-
-- **EC2에서 빌드하지 않습니다.** 1GB 인스턴스가 Gradle·Vite 빌드를 버티지 못해 Actions로 옮겼습니다. EC2는 배포 대상 SHA만 `pull`합니다.
-- 배포 대상이 `develop` 끝이 아니면 CD가 **중단**합니다. 재실행으로 완료 순서가 뒤집혀도 옛 커밋이 배포되지 못합니다.
-
-### 관측
-
-| 대상 | 경로 | 상태 |
-|---|---|---|
-| 로그 | Docker `awslogs` → **CloudWatch Logs** (`/sage/app`) | 상시 |
-| 메트릭 | Micrometer **OTLP push** → Grafana Cloud (60초) | **기본 꺼짐**(`OTLP_METRICS_ENABLED`) |
-| 헬스 | `/actuator/health` — 배포 게이트는 `readiness` 그룹 | 상시 |
-
-`readiness`에서 Redis는 일부러 뺐습니다. Redis는 fail-open이라 죽어도 API는 응답하고 실시간 배달·프레즌스만 멈추는데, 이것으로 배포를 막으면 정작 그 문제를 고치는 배포조차 나가지 못합니다.
 
 ---
 
 ## ERD
 
-스키마는 **Flyway**(`backend/src/main/resources/db/migration/V1~V9`)로만 바뀝니다. 현재 구성은 다음과 같습니다.
-
-```mermaid
-erDiagram
-    members  |o..o{ messages          : "작성한다"
-    members  |o..o{ chatroom_members  : "참여한다"
-    members  |o..o{ chatrooms         : "소유한다"
-    members  ||--o{ chatroom_bans     : "강퇴당한다"
-    chatrooms |o..o{ messages         : "담는다"
-    chatrooms |o..o{ chatroom_members : "참여자를 가진다"
-    chatrooms ||--o{ chatroom_bans    : "강퇴를 기록한다"
-    messages |o..o{ messages          : "답장한다"
-
-    members {
-        BIGINT id PK "NOT NULL · AUTO_INCREMENT · 회원 번호"
-        VARCHAR(255) email UK "NULL 허용 · 이메일 · 소셜은 없을 수 있음"
-        VARCHAR(255) password "NULL 허용 · 비밀번호 · 소셜은 없음"
-        VARCHAR(20) nickname "NULL 허용 · 닉네임"
-        VARCHAR(500) profile_image_url "NULL 허용 · 프로필 사진 주소"
-        DATETIME(6) created_at "NOT NULL · 가입 일시"
-        VARCHAR(20) provider UK "NOT NULL · DEFAULT LOCAL · 인증 제공자 · 복합 UK"
-        VARCHAR(255) provider_id UK "NULL 허용 · 제공자 측 식별자 · 복합 UK"
-        DATETIME(6) onboarded_at "NULL 허용 · 온보딩 완료 일시"
-    }
-
-    chatrooms {
-        BIGINT id PK "NOT NULL · AUTO_INCREMENT · 채팅방 번호"
-        VARCHAR(100) name "NOT NULL · 방 이름"
-        DATETIME(6) created_at "NOT NULL · 개설 일시"
-        BIGINT owner_id FK "NULL 허용 · 현재 방장 · NULL이면 주인 없는 방"
-        TINYINT(1) is_private "NOT NULL · DEFAULT 0 · 비공개 여부"
-        VARCHAR(12) invite_code UK "NULL 허용 · 초대 코드"
-        DATETIME(6) deleted_at "NULL 허용 · 소프트 삭제 시각"
-    }
-
-    messages {
-        BIGINT id PK "NOT NULL · AUTO_INCREMENT · 메시지 번호"
-        VARCHAR(500) content "NOT NULL · 본문"
-        VARCHAR(500) image_url "NULL 허용 · 이미지 주소"
-        BIGINT member_id FK "NULL 허용 · 보낸 사람 · 탈퇴하면 NULL"
-        BIGINT chatroom_id FK "NULL 허용 · 소속 채팅방"
-        DATETIME(6) created_at "NOT NULL · 보낸 일시"
-        BIGINT reply_to_id FK "NULL 허용 · 답장 대상 · 자기참조"
-        DATETIME(6) edited_at "NULL 허용 · 수정 시각"
-        DATETIME(6) deleted_at "NULL 허용 · 소프트 삭제 시각"
-    }
-
-    chatroom_members {
-        BIGINT id PK "NOT NULL · AUTO_INCREMENT · 참여 번호"
-        BIGINT member_id FK "NULL 허용 · 참여 회원 · 복합 UK 구성"
-        BIGINT chatroom_id FK "NULL 허용 · 참여 채팅방 · 복합 UK 구성"
-        BIGINT last_read_message_id "NULL 허용 · 마지막으로 읽은 메시지 · FK 아님"
-    }
-
-    chatroom_bans {
-        BIGINT chatroom_id PK "NOT NULL · 채팅방 · 부모에서 온 식별 FK"
-        BIGINT member_id PK "NOT NULL · 강퇴된 회원 · 부모에서 온 식별 FK"
-        DATETIME(6) banned_at "NOT NULL · 강퇴 시각"
-    }
-```
-
-**테이블 이름** — `members` 회원 · `chatrooms` 채팅방 · `messages` 메시지 · `chatroom_members` 방 참여 · `chatroom_bans` 강퇴 기록
-
-복합 제약은 다이어그램 문법으로 표현되지 않아 따로 적습니다.
-
-- `members`: `UNIQUE(provider, provider_id)` — 소셜 신원의 실제 키
-- `chatroom_members`: `UNIQUE(member_id, chatroom_id)` — 중복 참여 방지
-- `chatroom_bans`: `PRIMARY KEY(chatroom_id, member_id)`
-- 키 표기는 ERDCloud 규칙을 따릅니다 — **PK이면서 FK인 컬럼은 `PK`로만 표시하고, FK라는 사실은 실선(식별관계)이 나타냅니다.** `chatroom_members`의 두 FK도 복합 UNIQUE의 구성 컬럼이지만 `FK`로만 표시합니다.
-- **실선은 식별관계, 점선은 비식별관계입니다.** `chatroom_bans`만 식별관계입니다 — 복합 PK `(chatroom_id, member_id)`가 두 부모의 FK로만 이뤄져 있어, 부모 없이는 행을 식별할 수 없습니다. 나머지는 대리키 `id`를 따로 가지므로 비식별관계입니다.
-- 부모 쪽 `|o`는 FK가 NULL을 허용한다는 뜻입니다(탈퇴한 회원의 메시지, 주인 없는 방, 답장이 아닌 메시지). `||`는 NOT NULL입니다.
-- `provider`·`provider_id`의 `UK`는 **복합 UNIQUE `(provider, provider_id)`의 구성 컬럼**이라는 표시입니다. 각 컬럼이 단독으로 유일한 것이 아닙니다.
-- `is_private`은 마이그레이션에 `BOOLEAN`으로 썼지만 MySQL에서 `BOOLEAN`은 `TINYINT(1)`의 별칭이라 실제 컬럼 타입은 `tinyint(1)`입니다.
-- `chatroom_members.last_read_message_id`는 **FK가 아닙니다**(V2에서 컬럼만 추가). 참조 무결성은 애플리케이션이 책임집니다.
-
-연관관계 주인은 FK를 가진 `Message` / `ChatRoomMember` 쪽이고, 모든 `@ManyToOne`은 `LAZY`입니다.
+<img width="2190" height="922" alt="realtimechatERD (1)" src="https://github.com/user-attachments/assets/4aa86e84-d8e9-4eea-b09b-926192eea817" />
 
 ---
 
@@ -287,87 +126,9 @@ erDiagram
 
 ## API
 
-> Swagger UI (로컬/개발): `http://localhost:8080/swagger-ui/index.html`
-> — 운영에선 app(8080)이 **nginx 뒤 내부 전용**이라 외부로 노출하지 않습니다.
-> 인증이 필요한 API는 헤더에 **`Authorization: Bearer {accessToken}`**
-> 실패 응답은 `{ code, message }` 형태이며, `code`는 프론트가 분기에 쓰는 식별자입니다.
-
-### 인증
-
-| Method | Path | 인증 | 설명 |
-|:---:|---|:---:|---|
-| `POST` | `/api/auth/login` | — | 로그인 → `{ tokenType, accessToken }` |
-| `POST` | `/api/auth/logout` | ✅ | 로그아웃 (**토큰 회수** — 남은 유효기간 동안 재사용 차단) |
-| `POST` | `/api/auth/oauth/token` | — | 소셜 로그인 **일회용 코드 → JWT 교환** |
-
-### 회원
-
-| Method | Path | 인증 | 설명 |
-|:---:|---|:---:|---|
-| `GET` | `/api/members/me` | ✅ | 내 정보 |
-| `GET` | `/api/members/{id}` | ✅ | 회원 단건 조회 |
-| `PATCH` | `/api/members/me` | ✅ | 닉네임 변경 (trim 후 1~20자) |
-| `POST` | `/api/members/me/onboarding` | ✅ | 온보딩 완료 기록 (**멱등**) |
-| `PATCH` | `/api/members/me/profile-image` | ✅ | 프로필 이미지 변경 |
-| `DELETE` | `/api/members/me` | ✅ | 회원 탈퇴 (**본인만**) |
-
-### 채팅방
-
-| Method | Path | 인증 | 설명 |
-|:---:|---|:---:|---|
-| `POST` | `/api/chatrooms` | ✅ | 방 생성 (공개 / 비공개). 생성자가 **주인이자 첫 참여자**로 등록 |
-| `GET` | `/api/chatrooms` | ✅ | 방 목록 (참여 여부 · 잠금 여부 포함) |
-| `PATCH` | `/api/chatrooms/{id}` | 👑 | 공개 ↔ 비공개 전환 (전환 시 **초대 코드 재발급**) |
-| `DELETE` | `/api/chatrooms/{id}` | 👑 | 방 삭제 (소프트 삭제 + 실시간 통지) |
-| `PATCH` | `/api/chatrooms/{id}/owner` | 👑 | **방장 위임** |
-| `POST` | `/api/chatrooms/{id}/invite-code` | 👑 | 초대 코드 재발급 |
-| `GET` | `/api/chatrooms/{id}/bans` | 👑 | 차단 목록 |
-| `DELETE` | `/api/chatrooms/{id}/bans/{memberId}` | 👑 | 차단 해제 |
-
-### 참여
-
-| Method | Path | 인증 | 설명 |
-|:---:|---|:---:|---|
-| `POST` | `/api/chatrooms/{id}/members` | ✅ | 입장 (**비공개방은 초대 코드 필요**, 차단된 회원은 거부) |
-| `GET` | `/api/chatrooms/{id}/members` | ✅ | 참여자 목록 (**해당 방 멤버만**) |
-| `DELETE` | `/api/chatrooms/{id}/members` | ✅ | 나가기 (방장은 위임 후에만 가능) |
-| `DELETE` | `/api/chatrooms/{id}/members/{memberId}` | 👑 | **강퇴** (+ 차단 기록, 실시간 통지) |
-
-### 안읽음
-
-| Method | Path | 인증 | 설명 |
-|:---:|---|:---:|---|
-| `GET` | `/api/chatrooms/unread` | ✅ | 방별 `{ unreadCount, replyCount, lastReadMessageId }` |
-| `POST` | `/api/chatrooms/{id}/read` | ✅ | 읽음 처리 (읽음 경계를 방의 최신 메시지로 전진) |
-
-### 메시지 / 이미지
-
-| Method | Path | 인증 | 설명 |
-|:---:|---|:---:|---|
-| `POST` | `/api/chatrooms/{id}/messages` | ✅ | 메시지 저장 + 브로드캐스트 |
-| `GET` | `/api/chatrooms/{id}/messages` | ✅ | 메시지 목록 (커서 페이지네이션 `before`, `limit` 최대 50) |
-| `PATCH` | `/api/chatrooms/{id}/messages/{messageId}` | ✍️ | 메시지 수정 (**작성자만**) |
-| `DELETE` | `/api/chatrooms/{id}/messages/{messageId}` | ✍️ | 메시지 삭제 (**작성자만**, 소프트 삭제) |
-| `POST` | `/api/images?purpose=profile\|chat` | ✅ | 이미지 업로드 (`multipart/form-data`, 최대 10MB) → `{ "url": "..." }` |
-
-> ✅ 로그인 필요 · 👑 방장만 · ✍️ 작성자만
-> 💡 `purpose`는 **필수**입니다. 값에 따라 `profiles/`(공개) 또는 `rooms/{memberId}/`(비공개) 키로 저장되며, 기본값을 두지 않아 잘못 지정한 업로드가 조용히 공개되지 않습니다.
-
-### WebSocket (STOMP)
-
-| 항목 | 값 |
-|---|---|
-| **핸드셰이크** | 운영 `wss://sagertc.duckdns.org/ws` (nginx 프록시) · 로컬 `ws://localhost:8080/ws` |
-| **인증** | `CONNECT` 프레임 헤더 `Authorization: Bearer {token}` |
-| **전송(SEND)** | `/pub/chatrooms/{id}/messages` · `/pub/chatrooms/{id}/typing` |
-| **구독(SUBSCRIBE)** | `/sub/chatrooms/{id}` (메시지) · `/sub/chatrooms/{id}/typing` · `/sub/chatrooms/{id}/presence` |
-| **개인 큐** | `/user/queue/unread` (안읽음·답장 통지) · `/user/queue/errors` (구독 거부 사유) |
-| **메시지 페이로드** | `{ messageId, content, imageUrl, memberId, nickname, profileImageUrl, chatroomId, createdAt, replyToId, editedAt, deleted }` |
-| **안읽음 페이로드** | `{ chatroomId, messageId, replyToMe }` |
-
-> 💡 **구독도 인가 대상입니다.** 참여하지 않은 방을 구독하면 거부되고 그 사유가 `/user/queue/errors`로 옵니다. 강퇴·방 삭제 시에는 이미 열린 구독도 회수됩니다.
-> 💡 **이미지는 2단계** — WebSocket으로 파일을 보낼 수 없어, `POST /api/images`로 먼저 올려 URL을 받고 그 URL만 메시지에 실어 보냅니다.
-> 💡 응답으로 나가는 채팅 이미지 URL은 **매번 새로 서명**됩니다. 저장된 값은 서명 없는 원본 URL입니다.
+<div align="center">
+     <img width="428" height="844" alt="image" src="https://github.com/user-attachments/assets/86cf951c-2509-45a3-9dfb-eb37b2ac29af" />
+</div>
 
 ---
 
@@ -418,20 +179,7 @@ FRONTEND_URL=https://sagertc.duckdns.org   # OAuth 성공 후 JWT를 넘겨줄 �
 > ⚠️ `JWT_SECRET`은 **기본값이 없습니다.** 설정하지 않으면 앱이 기동되지 않습니다 (취약한 상태로 조용히 뜨는 것을 막기 위한 의도).
 > 생성: `openssl rand -base64 32`
 
-### 3. Docker Compose (운영 토폴로지)
-
-운영은 **GitHub Actions가 이미지를 GHCR에 빌드·push → EC2가 pull**합니다. compose는 **app · redis · web(nginx)** 을 띄우고, nginx가 `80/443`에서 정적 프론트 서빙 + `/api`·`/ws` 프록시(TLS 종단), app은 내부 전용(`expose 8080`)입니다.
-
-```bash
-docker compose up -d        # GHCR 이미지 pull → 기동
-```
-- `image:`의 `IMAGE_TAG`는 필수 값이라 미설정 시 즉시 실패합니다. 배포 스크립트가 매 배포마다 `.env`에 `IMAGE_TAG=<배포된 SHA>`를 기록해 두므로, EC2에서는 위 명령이 그대로 동작합니다.
-- 특정 버전으로 띄우려면 태그를 직접 지정합니다: `IMAGE_TAG=<sha> docker compose up -d`
-- 외부 의존: **MySQL(RDS)**, **S3**
-- 접속: **https://sagertc.duckdns.org**
-- ⚠️ `web`(nginx)은 TLS 인증서(`/etc/letsencrypt`)가 필요합니다. 인증서 없는 **로컬에선 아래 4번(`bootRun`) + 프론트 `npm --prefix frontend run dev`** 로 개발하세요.
-
-### 4. 로컬 실행 (Docker 없이)
+### 3. 로컬 실행 (Docker 없이)
 
 MySQL(`localhost:3306`, DB `spring_realtimechat_service`) · Redis(`localhost:6379`) 필요
 
@@ -448,29 +196,3 @@ cd backend && ./gradlew test
 **H2 인메모리 DB**와 더미 설정을 사용합니다.
 
 ---
-
-## Troubleshooting
-
-프로젝트를 진행하며 실제로 겪고 해결한 문제들입니다.
-
-| 문제 | 원인 | 해결 |
-|---|---|---|
-| **서버가 여러 대면 메시지가 안 감** | `convertAndSend`는 **자기 서버 세션에만** 전달 | **Redis Pub/Sub** 경유 브로드캐스트로 전환 |
-| **컨테이너에서 DB 접속 실패** | 컨테이너 안 `localhost`는 **자기 자신** | Compose **서비스 이름**으로 접속, 설정은 env로 주입 |
-| **앱이 DB보다 먼저 떠서 죽음** | `depends_on`은 **기동**만 보장, 준비 완료는 아님 | MySQL **healthcheck** + `condition: service_healthy` |
-| **배포 후 앱이 계속 죽음 (OOM)** | 1GB 서버에서 MySQL까지 함께 구동 | **DB를 RDS로 분리** (+ swap, `.dockerignore`, `--no-daemon`) |
-| **CI에서 테스트 전부 실패** | 러너엔 Redis/MySQL이 없음 | **service containers**로 의존 서비스 기동 |
-| **JWT 시크릿이 레포에 노출** | 설정 파일에 하드코딩 | **`${JWT_SECRET}` 외부화** + 시크릿 로테이션 |
-| **배포가 20분 만에 타임아웃** | 1GB EC2에서 gradle+vite 빌드가 메모리 부족 (swap으로도 느림) | **빌드를 GitHub Actions로 이전** → GHCR 이미지 push → EC2는 `pull`만 (서버 빌드 제거, 20분→30초) |
-| **프론트 배포 시 CORS·mixed-content 우려** | 프론트/백 분리 배포면 origin 상이 + HTTPS↔HTTP 혼용 | **nginx 리버스 프록시로 same-origin 통합** + Let's Encrypt로 HTTPS/WSS |
-| **방을 잠갔는데 거기 올린 사진은 URL만 알면 계속 보임** | 버킷이 전체 공개라 이미지에 인가가 전혀 없었음 | 채팅 이미지를 **프리사인드 URL(1시간)** 로만 열람. `<img>`가 `Authorization` 헤더를 못 실어 **프록시 방식은 불가**했고, 프로필만 공개로 남겨 아바타 캐시를 지켰습니다 |
-| **접근 제어를 붙였는데도 회수가 안 됨** | 이미지 URL이 클라이언트 입력인데 검증 없이 저장 → 응답이 그걸 그대로 **재서명**해 줌 | 키에 업로더를 넣고(`rooms/{memberId}/`) **자기 소유가 아닌 키를 거절**. 입장 판정과 서명 판정을 같은 함수에서 파생시켜, 가드를 피하면 서명도 피하게 만들었습니다 |
-| **답장 없는 방의 안읽음이 0으로 뭉개짐** | JPQL 암묵 조인이 **INNER로 떨어져** LEFT JOIN한 행이 사라짐 | 명시 `LEFT JOIN`으로 교체. 해피패스로는 안 잡혀서, **한 줄 되돌리면 빨개지는 회귀 테스트**로 잠갔습니다 |
-
----
-
-<div align="center">
-
-**개인 학습용 프로젝트** — 새로운 기술을 늘리기보다, **하나의 서비스를 끝까지 완성**하는 것을 목표로 했습니다.
-
-</div>
