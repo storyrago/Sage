@@ -27,55 +27,42 @@
 
 이메일 / Google / Kakao 로그인과, 소셜 첫 진입에서 닉네임을 정하는 흐름
 
-<!-- 1. 여기에 GIF/이미지를 넣으세요.
-     GitHub 웹에서 이 파일을 편집(연필 아이콘) → 파일을 편집창에 끌어다 놓으면
-     ![...](https://github.com/user-attachments/assets/...) 가 자동 삽입됩니다.
-     이 주석은 지우고 그 줄만 남기면 됩니다. -->
+<img width="400" height="201" alt="로그인, 온보딩" src="https://github.com/user-attachments/assets/8a970861-a601-4756-b7bc-dbe34299bf92" />
+
 
 ### 실시간 채팅
 
 창 두 개로 주고받는 메시지, 접속자 표시, 입력 중 표시
 
-<!-- 2. 여기에 GIF/이미지를 넣으세요.
-     GitHub 웹에서 이 파일을 편집(연필 아이콘) → 파일을 편집창에 끌어다 놓으면
-     ![...](https://github.com/user-attachments/assets/...) 가 자동 삽입됩니다.
-     이 주석은 지우고 그 줄만 남기면 됩니다. -->
+<img width="400" height="201" alt="실시간 채팅" src="https://github.com/user-attachments/assets/22dbf7f3-855d-4719-a276-2037e209fab1" />
+
 
 ### 안읽음 · 답장
 
-안읽음 배지와 "여기부터 안 읽음" 구분선, 답장과 나에게 온 답장
+안읽음 배지와 "여기부터 안 읽음" , 나에게 온 답장
 
-<!-- 3. 여기에 GIF/이미지를 넣으세요.
-     GitHub 웹에서 이 파일을 편집(연필 아이콘) → 파일을 편집창에 끌어다 놓으면
-     ![...](https://github.com/user-attachments/assets/...) 가 자동 삽입됩니다.
-     이 주석은 지우고 그 줄만 남기면 됩니다. -->
+<img width="400" height="201" alt="안읽음 답장" src="https://github.com/user-attachments/assets/1f7d7e9b-f406-4433-804a-584bc19dc575" />
+
 
 ### 비공개방 · 초대 코드
 
 초대 코드로 입장, 공개↔비공개 전환
 
-<!-- 4. 여기에 GIF/이미지를 넣으세요.
-     GitHub 웹에서 이 파일을 편집(연필 아이콘) → 파일을 편집창에 끌어다 놓으면
-     ![...](https://github.com/user-attachments/assets/...) 가 자동 삽입됩니다.
-     이 주석은 지우고 그 줄만 남기면 됩니다. -->
+<img width="400" height="201" alt="비공개방" src="https://github.com/user-attachments/assets/6c5cfb07-7d94-45ce-876a-e299bf1ac3a3" />
+
 
 ### 방장 운영
 
-강퇴 · 차단 · 방장 위임 · 초대 코드 재발급
+강퇴 · 차단 · 방장 위임
 
-<!-- 5. 여기에 GIF/이미지를 넣으세요.
-     GitHub 웹에서 이 파일을 편집(연필 아이콘) → 파일을 편집창에 끌어다 놓으면
-     ![...](https://github.com/user-attachments/assets/...) 가 자동 삽입됩니다.
-     이 주석은 지우고 그 줄만 남기면 됩니다. -->
+<img width="400" height="201" alt="방장 운영" src="https://github.com/user-attachments/assets/18728841-b266-4dd6-b79a-c27b4946cbbc" />
+
 
 ### 이미지 전송
 
 이미지 업로드와 프리사인드 URL로 열람
 
-<!-- 6. 여기에 GIF/이미지를 넣으세요.
-     GitHub 웹에서 이 파일을 편집(연필 아이콘) → 파일을 편집창에 끌어다 놓으면
-     ![...](https://github.com/user-attachments/assets/...) 가 자동 삽입됩니다.
-     이 주석은 지우고 그 줄만 남기면 됩니다. -->
+<img width="400" height="201" alt="이미지 전송" src="https://github.com/user-attachments/assets/c350c1e3-2226-43dd-8d69-c52f545c6960" />
 
 ---
 
