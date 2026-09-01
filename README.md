@@ -1,6 +1,18 @@
 <div align="center">
 
-# 🍃 Sage
+
+<img width="512" height="512" alt="sageicon2" src="https://github.com/user-attachments/assets/6f109980-b7a1-4469-8248-ffa8035c34b4" /><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Sage">
+  <mask id="vein">
+    <rect width="512" height="512" fill="#fff"/>
+    <path d="M112 400 L400 112" stroke="#000" stroke-width="30" stroke-linecap="round"/>
+  </mask>
+  <path d="M112 400 C112 208 208 112 400 112 C400 304 304 400 112 400 Z" fill="#5E9079" mask="url(#vein)"/>
+</svg>
+
+
+
+
+#  Sage
 
 **🔗 라이브 데모 — [sagertc.duckdns.org](https://sagertc.duckdns.org)**
 
@@ -58,7 +70,7 @@
 
 ### 이미지 전송
 
-이미지 업로드와 프리사인드 URL로 열람
+이미지 업로드
 
 <img width="1280" height="642" alt="이미지 전송" src="https://github.com/user-attachments/assets/aef65321-c80e-4f3f-b9ac-49168f13bc1f" />
 
