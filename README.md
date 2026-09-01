@@ -132,8 +132,8 @@
 ### 1. 클론
 
 ```bash
-git clone https://github.com/storyrago/realtimechat-backend.git
-cd realtimechat-backend
+git clone https://github.com/storyrago/Sage.git
+cd Sage
 ```
 
 ### 2. 환경변수 (`.env`)

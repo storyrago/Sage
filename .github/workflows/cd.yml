@@ -13,8 +13,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  IMAGE_APP: ghcr.io/storyrago/realtimechat-backend-app
-  IMAGE_WEB: ghcr.io/storyrago/realtimechat-backend-web
+  IMAGE_APP: ghcr.io/storyrago/sage-app
+  IMAGE_WEB: ghcr.io/storyrago/sage-web
 
 jobs:
   # 1) GitHub Actions(메모리 넉넉)에서 이미지 빌드 → GHCR push. EC2에서 빌드 안 함.
