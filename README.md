@@ -2,7 +2,7 @@
 
 # 🍃 Sage
 
-**🔗 라이브 데모 — [sagertc.duckdns.org](https://sagertc.duckdns.org)**
+**초대 코드·안읽음·방장 권한까지, 실제 메신저처럼 굴러가는 실시간 채팅 서비스**
 
 </div>
 
@@ -132,8 +132,8 @@
 ### 1. 클론
 
 ```bash
-git clone https://github.com/storyrago/realtimechat-backend.git
-cd realtimechat-backend
+git clone https://github.com/storyrago/Sage.git
+cd Sage
 ```
 
 ### 2. 환경변수 (`.env`)

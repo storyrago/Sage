@@ -1,8 +1,7 @@
 name: CD
 
 on:
-  push:
-    branches: [ develop ]      # develop에 머지되면 자동 배포
+  workflow_dispatch:           # 배포 대상 서버를 둘 때만 수동으로 실행한다
 
 # 같은 브랜치의 CD는 한 번에 하나만 돌린다.
 # 두 실행이 겹치면 각자 :latest 태그에 push하고 같은 컨테이너를 동시에 교체하려 해서,
@@ -13,8 +12,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  IMAGE_APP: ghcr.io/storyrago/realtimechat-backend-app
-  IMAGE_WEB: ghcr.io/storyrago/realtimechat-backend-web
+  IMAGE_APP: ghcr.io/storyrago/sage-app
+  IMAGE_WEB: ghcr.io/storyrago/sage-web
 
 jobs:
   # 1) GitHub Actions(메모리 넉넉)에서 이미지 빌드 → GHCR push. EC2에서 빌드 안 함.
