@@ -44,7 +44,9 @@ public class MessageService {
         }
 
         Member member = memberService.getMemberById(memberId);
-        ChatRoom chatRoom = chatRoomService.getChatRoomById(chatroomId);
+        // 방 행을 잠그고 시작한다. 순번 발급부터 커밋까지 이 잠금 아래에서 일어나야
+        // 같은 방 안에서 순번 순서 = 커밋 순서가 된다. 잠금 순서는 위임·나가기·강퇴와 같은 chatrooms → chatroom_members다.
+        ChatRoom chatRoom = chatRoomService.getChatRoomByIdForUpdate(chatroomId);
 
         if (!roomAccess.isMember(memberId, chatroomId)) {
             throw new CustomException(ErrorCode.NOT_JOINED_ROOM);
@@ -63,7 +65,8 @@ public class MessageService {
         }
 
         // content 컬럼은 NOT NULL이므로, 이미지 전용 메시지(content=null)를 저장하려면 빈 문자열로 정규화한다
-        Message message = new Message(content == null ? "" : content, imageUrl, member, chatRoom, replyTo);
+        Message message = new Message(content == null ? "" : content, imageUrl, member, chatRoom, replyTo,
+                chatRoom.nextMessageSeq());
         return messageRepository.save(message);
     }
 

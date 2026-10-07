@@ -13,7 +13,9 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @NoArgsConstructor
-@Table(name = "messages")
+@Table(name = "messages", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_messages_room_seq", columnNames = {"chatroom_id", "seq"})
+})
 public class Message {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -47,10 +49,15 @@ public class Message {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
-    public Message(String content, String imageUrl, Member member, ChatRoom chatRoom, Message replyTo) {
+    // 방 안에서 1부터 빈틈없이 증가하는 순번. 클라이언트가 순서 정렬과 누락 감지에 쓴다.
+    @Column(nullable = false, updatable = false)
+    private Long seq;
+
+    public Message(String content, String imageUrl, Member member, ChatRoom chatRoom, Message replyTo, long seq) {
         this.content = content;
         this.imageUrl = imageUrl;
         this.replyTo = replyTo;
+        this.seq = seq;
         connect(member, chatRoom);
     }
 
