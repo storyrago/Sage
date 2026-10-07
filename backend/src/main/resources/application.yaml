@@ -74,6 +74,11 @@ server:
   forward-headers-strategy: framework   # nginx(X-Forwarded-*) 뒤에서 OAuth redirect_uri를 https 원본 host로 생성
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}   # OAuth 성공 후 JWT 핸드오프 대상
+  outbox:
+    # 메시지 이벤트를 outbox(→ Debezium → Kafka)에 남길지. 기본은 끔 — 기존 Redis 전파만 동작한다.
+    # 켜려면 스키마 레지스트리에 스키마가 등록돼 있어야 한다(infra/local/README.md).
+    enabled: ${APP_OUTBOX_ENABLED:false}
+    schema-registry-url: ${APP_OUTBOX_SCHEMA_REGISTRY_URL:http://localhost:8081}
 management:
   endpoints:
     web:
