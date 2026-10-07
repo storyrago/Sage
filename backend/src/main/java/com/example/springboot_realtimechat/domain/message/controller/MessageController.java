@@ -35,7 +35,8 @@ public class MessageController {
                 messageRequest.getImageUrl(),
                 customUserDetails.getMemberId(),
                 chatroomId,
-                messageRequest.getReplyToId());
+                messageRequest.getReplyToId(),
+                messageRequest.getClientMessageId());
         MessageResponse response = messageResponseFactory.of(message);
         redisPublisher.publish(response); // 새 메시지를 방 전체에 실시간 전파
         return response;

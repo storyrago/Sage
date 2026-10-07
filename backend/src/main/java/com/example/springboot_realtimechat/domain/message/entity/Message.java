@@ -14,7 +14,8 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor
 @Table(name = "messages", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_messages_room_seq", columnNames = {"chatroom_id", "seq"})
+        @UniqueConstraint(name = "uk_messages_room_seq", columnNames = {"chatroom_id", "seq"}),
+        @UniqueConstraint(name = "uk_messages_member_client_id", columnNames = {"member_id", "client_message_id"})
 })
 public class Message {
     @Id
@@ -53,11 +54,17 @@ public class Message {
     @Column(nullable = false, updatable = false)
     private Long seq;
 
-    public Message(String content, String imageUrl, Member member, ChatRoom chatRoom, Message replyTo, long seq) {
+    // 클라이언트가 전송마다 만든 UUID. 재전송을 같은 메시지로 식별한다. 구버전 클라이언트는 비워 보낸다.
+    @Column(name = "client_message_id", length = 36, updatable = false)
+    private String clientMessageId;
+
+    public Message(String content, String imageUrl, Member member, ChatRoom chatRoom, Message replyTo,
+                   long seq, String clientMessageId) {
         this.content = content;
         this.imageUrl = imageUrl;
         this.replyTo = replyTo;
         this.seq = seq;
+        this.clientMessageId = clientMessageId;
         connect(member, chatRoom);
     }
 

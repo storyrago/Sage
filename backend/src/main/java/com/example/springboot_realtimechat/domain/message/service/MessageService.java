@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -38,7 +39,17 @@ public class MessageService {
     public record MessagePage(List<Message> messages, boolean hasMore) {}
 
     @Transactional
-    public Message create(String content, String imageUrl, Long memberId, Long chatroomId, Long replyToId){
+    public Message create(String content, String imageUrl, Long memberId, Long chatroomId, Long replyToId) {
+        return create(content, imageUrl, memberId, chatroomId, replyToId, null);
+    }
+
+    /**
+     * clientMessageId가 있으면 재전송을 식별한다. 같은 회원이 같은 값으로 다시 보내면
+     * 새로 저장하지 않고 처음 저장된 메시지를 돌려준다(순번도 다시 쓰지 않는다).
+     */
+    @Transactional
+    public Message create(String content, String imageUrl, Long memberId, Long chatroomId, Long replyToId,
+                          String clientMessageId) {
         if ((content == null || content.isBlank()) && (imageUrl == null || imageUrl.isBlank())) {
             throw new CustomException(ErrorCode.EMPTY_MESSAGE);
         }
@@ -50,6 +61,19 @@ public class MessageService {
 
         if (!roomAccess.isMember(memberId, chatroomId)) {
             throw new CustomException(ErrorCode.NOT_JOINED_ROOM);
+        }
+
+        // 재전송 확인은 방 잠금 아래에서 한다. 같은 방으로 동시에 들어온 재전송은 잠금에서 줄을 서므로
+        // 뒤쪽이 앞쪽의 커밋을 반드시 본다.
+        if (clientMessageId != null) {
+            Optional<Message> existing =
+                    messageRepository.findByMemberIdAndClientMessageIdForUpdate(memberId, clientMessageId);
+            if (existing.isPresent()) {
+                if (!existing.get().getChatRoom().getId().equals(chatroomId)) {
+                    throw new CustomException(ErrorCode.CLIENT_MESSAGE_ID_CONFLICT);
+                }
+                return existing.get();
+            }
         }
 
         // 메시지 이미지는 보내는 사람이 이 방 용도로 올린 키만 참조할 수 있다.
@@ -66,7 +90,7 @@ public class MessageService {
 
         // content 컬럼은 NOT NULL이므로, 이미지 전용 메시지(content=null)를 저장하려면 빈 문자열로 정규화한다
         Message message = new Message(content == null ? "" : content, imageUrl, member, chatRoom, replyTo,
-                chatRoom.nextMessageSeq());
+                chatRoom.nextMessageSeq(), clientMessageId);
         return messageRepository.save(message);
     }
 

@@ -50,7 +50,7 @@ class ImageReferenceGateTest {
     }
 
     private Message messageReferencing(Member sender, ChatRoom room, String url) {
-        return messageRepository.saveAndFlush(new Message("", url, sender, room, null, room.nextMessageSeq()));
+        return messageRepository.saveAndFlush(new Message("", url, sender, room, null, room.nextMessageSeq(), null));
     }
 
     @Test

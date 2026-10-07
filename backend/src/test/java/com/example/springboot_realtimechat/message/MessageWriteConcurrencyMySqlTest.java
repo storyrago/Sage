@@ -102,4 +102,19 @@ class MessageWriteConcurrencyMySqlTest {
         assertThat(seqs).containsExactlyElementsOf(LongStream.rangeClosed(1, total).boxed().toList());
         assertThat(chatRoomRepository.findById(room.getId()).orElseThrow().getLastMessageSeq()).isEqualTo(total);
     }
+
+    @Test
+    void 같은_clientMessageId를_동시에_보내도_하나만_저장된다() throws Exception {
+        Member member = memberService.create("idem-concurrency@e.com", "1234", "동시재전송");
+        ChatRoom room = chatRoomService.create("동시재전송방", false, null);
+        chatRoomMemberService.join(member.getId(), room.getId(), null);
+        String clientId = "9c1d2e3f-4a5b-4c6d-8e7f-0a1b2c3d4e5f";
+
+        List<Long> ids = runConcurrently(8, () ->
+                messageService.create("retry", null, member.getId(), room.getId(), null, clientId).getId());
+
+        // 모든 요청이 같은 메시지를 돌려받고, 순번은 한 번만 쓰인다.
+        assertThat(ids).containsOnly(ids.get(0));
+        assertThat(chatRoomRepository.findById(room.getId()).orElseThrow().getLastMessageSeq()).isEqualTo(1L);
+    }
 }
