@@ -1,5 +1,7 @@
 package com.example.springboot_realtimechat.delivery;
 
+import com.example.springboot_realtimechat.domain.image.event.InProcessMessageImageRelease;
+import com.example.springboot_realtimechat.domain.image.event.MessageImageRelease;
 import com.example.springboot_realtimechat.domain.message.delivery.MessageBroadcaster;
 import com.example.springboot_realtimechat.domain.message.delivery.RedisMessageBroadcaster;
 
@@ -16,6 +18,7 @@ class MessageDeliveryDefaultTest {
 
     @Autowired MessageBroadcaster messageBroadcaster;
     @Autowired SimpleBrokerMessageHandler simpleBrokerMessageHandler;
+    @Autowired MessageImageRelease messageImageRelease;
 
     @Test
     void 기본_방송기는_Redis_경로다() {
@@ -25,5 +28,10 @@ class MessageDeliveryDefaultTest {
     @Test
     void 기본_STOMP_설정은_바뀌지_않는다() {
         assertThat(simpleBrokerMessageHandler.isPreservePublishOrder()).isFalse();
+    }
+
+    @Test
+    void 기본_경로의_메시지_이미지_정리는_커밋_후_리스너가_한다() {
+        assertThat(messageImageRelease).isInstanceOf(InProcessMessageImageRelease.class);
     }
 }

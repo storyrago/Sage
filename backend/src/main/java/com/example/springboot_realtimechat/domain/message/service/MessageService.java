@@ -3,7 +3,7 @@ package com.example.springboot_realtimechat.domain.message.service;
 import com.example.springboot_realtimechat.domain.chatroom.entity.ChatRoom;
 import com.example.springboot_realtimechat.domain.chatroom.service.ChatRoomService;
 import com.example.springboot_realtimechat.domain.chatroom.service.RoomAccess;
-import com.example.springboot_realtimechat.domain.image.event.ImageDereferencedEvent;
+import com.example.springboot_realtimechat.domain.image.event.MessageImageRelease;
 import com.example.springboot_realtimechat.domain.image.service.ImageUploads;
 import com.example.springboot_realtimechat.domain.image.service.S3Service;
 import com.example.springboot_realtimechat.domain.member.entity.Member;
@@ -16,7 +16,6 @@ import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -34,7 +33,7 @@ public class MessageService {
     private final MessageRepository messageRepository;
     private final MemberService memberService;
     private final ChatRoomService chatRoomService;
-    private final ApplicationEventPublisher eventPublisher;
+    private final MessageImageRelease messageImageRelease;
     private final RoomAccess roomAccess;
     private final S3Service s3Service;
     private final MessageEventRecorder messageEventRecorder;
@@ -156,7 +155,7 @@ public class MessageService {
         messageEventRecorder.record(MessageEventType.DELETED, message, dereferencedImageUrl);
 
         if (dereferencedImageUrl != null) {
-            eventPublisher.publishEvent(new ImageDereferencedEvent(dereferencedImageUrl));
+            messageImageRelease.release(dereferencedImageUrl);
         }
         return message;
     }
