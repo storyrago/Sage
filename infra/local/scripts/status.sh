@@ -12,6 +12,10 @@ echo "== consumer group lag =="
 docker compose exec -T kafka-1 /opt/kafka/bin/kafka-consumer-groups.sh \
   --bootstrap-server kafka-1:19092 --describe --all-groups
 
-echo "== DLT 건수(파티션별 끝 오프셋) =="
+echo "== 순서 보장 소비자 DLT 건수(파티션별 끝 오프셋) =="
 docker compose exec -T kafka-1 /opt/kafka/bin/kafka-get-offsets.sh \
   --bootstrap-server kafka-1:19092 --topic chat.message.events.DLT
+
+echo "== 이미지 정리 DLT 건수(파티션별 끝 오프셋) =="
+docker compose exec -T kafka-1 /opt/kafka/bin/kafka-get-offsets.sh \
+  --bootstrap-server kafka-1:19092 --topic chat.message.events.image-cleanup-DLT
