@@ -40,4 +40,11 @@ class KafkaDeliveryWiringTest {
     void 처리_실패는_재시도_후_DLT로_보낸다() {
         assertThat(commonErrorHandler).isInstanceOf(DefaultErrorHandler.class);
     }
+
+    @Test
+    void 안읽음도_서버마다_고유한_group으로_읽는다() {
+        // 안읽음 통지도 개인 큐(/user/..)라 그 사용자가 접속한 서버만 보낼 수 있다.
+        assertThat(listenerRegistry.getListenerContainer("unreadNotification").getGroupId())
+                .isEqualTo("sage-unread-test-node");
+    }
 }
