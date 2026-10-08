@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.kafka.config.KafkaListenerEndpointRegistry;
+import org.springframework.kafka.listener.AbstractMessageListenerContainer;
 import org.springframework.kafka.listener.CommonErrorHandler;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 
@@ -39,6 +40,14 @@ class KafkaDeliveryWiringTest {
     @Test
     void 처리_실패는_재시도_후_DLT로_보낸다() {
         assertThat(commonErrorHandler).isInstanceOf(DefaultErrorHandler.class);
+    }
+
+    @Test
+    void 두_리스너_모두_같은_에러_핸들러_빈을_쓴다() {
+        assertThat(((AbstractMessageListenerContainer<?, ?>) listenerRegistry.getListenerContainer("realtimeDelivery"))
+                .getCommonErrorHandler()).isSameAs(commonErrorHandler);
+        assertThat(((AbstractMessageListenerContainer<?, ?>) listenerRegistry.getListenerContainer("unreadNotification"))
+                .getCommonErrorHandler()).isSameAs(commonErrorHandler);
     }
 
     @Test
