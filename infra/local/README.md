@@ -56,6 +56,8 @@ APP_OUTBOX_ENABLED=true APP_MESSAGE_DELIVERY=kafka APP_MESSAGE_NODE_ID=node-2 SE
 ```
 
 - 서버마다 consumer group 두 개가 생긴다: `sage-realtime-<노드 id>`(방 구독자 전달), `sage-unread-<노드 id>`(안읽음).
+- 여러 대를 띄울 때는 `APP_MESSAGE_NODE_ID`를 서버마다 다르게, 재기동해도 같은 값으로 준다. 비우면 기동마다 새 UUID group이 생기고 옛 group은 브로커에 남는다(빈 group의 오프셋은 브로커 보존 기간 뒤 정리된다).
+- 스키마 레지스트리에 닿지 못하면(접속 불가·타임아웃·5xx·401·403) 소비자는 이벤트를 DLT로 보내지 않고 복구될 때까지 다시 시도한다(최대 30초 간격). 그동안 해당 파티션은 멈추고 lag이 쌓인다.
 - `APP_MESSAGE_DELIVERY=kafka`인데 `APP_OUTBOX_ENABLED`가 true가 아니면 앱이 뜨지 않는다.
 - 상태 확인: `./scripts/status.sh` — 커넥터 상태, group별 lag, DLT 건수.
 - DLT(`chat.message.events.DLT`)에는 원본 바이트와 헤더가 그대로 남는다. 헤더 `kafka_dlt-original-consumer-group`·`kafka_dlt-exception-message`로 어느 소비자가 왜 실패했는지 본다.
