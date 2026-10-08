@@ -74,6 +74,12 @@ server:
   forward-headers-strategy: framework   # nginx(X-Forwarded-*) 뒤에서 OAuth redirect_uri를 https 원본 host로 생성
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}   # OAuth 성공 후 JWT 핸드오프 대상
+  message:
+    # 메시지 전파 경로. redis(기본): 저장 후 Redis Pub/Sub으로 방송. kafka: 커밋된 outbox 이벤트를 Kafka 소비자가 전달.
+    # kafka는 app.outbox.enabled=true가 필요하다(아니면 기동 실패).
+    delivery: ${APP_MESSAGE_DELIVERY:redis}
+    # 서버마다 다른 값. 비우면 기동마다 새로 만든다. 소비자 group 이름(sage-realtime-<id>, sage-unread-<id>)에 쓰인다.
+    node-id: ${APP_MESSAGE_NODE_ID:}
   outbox:
     # 메시지 이벤트를 outbox(→ Debezium → Kafka)에 남길지. 기본은 끔 — 기존 Redis 전파만 동작한다.
     # 켜려면 스키마 레지스트리에 스키마가 등록돼 있어야 한다(infra/local/README.md).

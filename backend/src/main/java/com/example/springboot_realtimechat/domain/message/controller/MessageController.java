@@ -7,8 +7,8 @@ import com.example.springboot_realtimechat.domain.message.dto.MessageUpdateReque
 import com.example.springboot_realtimechat.domain.message.entity.Message;
 import com.example.springboot_realtimechat.domain.message.service.MessageResponseFactory;
 import com.example.springboot_realtimechat.domain.message.service.MessageService;
+import com.example.springboot_realtimechat.domain.message.delivery.MessageBroadcaster;
 import com.example.springboot_realtimechat.global.auth.CustomUserDetails;
-import com.example.springboot_realtimechat.global.redis.RedisPublisher;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +22,7 @@ import java.util.List;
 @RequestMapping("/api/chatrooms/{chatroomId}/messages")
 public class MessageController {
     private final MessageService messageService;
-    private final RedisPublisher redisPublisher;
+    private final MessageBroadcaster messageBroadcaster;
     private final MessageResponseFactory messageResponseFactory;
 
     @PostMapping
@@ -38,7 +38,7 @@ public class MessageController {
                 messageRequest.getReplyToId(),
                 messageRequest.getClientMessageId());
         MessageResponse response = messageResponseFactory.of(message);
-        redisPublisher.publish(response); // 새 메시지를 방 전체에 실시간 전파
+        messageBroadcaster.broadcast(response); // 새 메시지를 방 전체에 실시간 전파
         return response;
     }
 
@@ -65,7 +65,7 @@ public class MessageController {
             @Valid @RequestBody MessageUpdateRequest request) {
         Message message = messageService.update(chatroomId, messageId, customUserDetails.getMemberId(), request.getContent());
         MessageResponse response = messageResponseFactory.of(message);
-        redisPublisher.publish(response); // 수정 결과를 방 전체에 실시간 전파
+        messageBroadcaster.broadcast(response); // 수정 결과를 방 전체에 실시간 전파
         return response;
     }
 
@@ -76,7 +76,7 @@ public class MessageController {
             @AuthenticationPrincipal CustomUserDetails customUserDetails) {
         Message message = messageService.delete(chatroomId, messageId, customUserDetails.getMemberId());
         MessageResponse response = messageResponseFactory.of(message);
-        redisPublisher.publish(response); // 삭제 상태를 방 전체에 실시간 전파
+        messageBroadcaster.broadcast(response); // 삭제 상태를 방 전체에 실시간 전파
         return response;
     }
 }
