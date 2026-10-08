@@ -42,3 +42,20 @@ docker compose exec schema-registry kafka-avro-console-consumer \
 ## 정리
 
 `docker compose stop`은 데이터를 보존하고, `docker compose down`은 Kafka 데이터를 지운다(MySQL은 볼륨에 남는다. 지우려면 `down -v`).
+
+## Kafka 전달 모드로 앱 실행
+
+스택을 띄우고 토픽·스키마·커넥터를 등록한 뒤(위 절차), 앱을 Kafka 경로로 띄운다.
+서버를 여러 대 흉내 내려면 포트와 노드 id를 바꿔 한 번 더 띄운다(8081은 스키마 레지스트리가 쓴다).
+
+```bash
+cd backend
+APP_OUTBOX_ENABLED=true APP_MESSAGE_DELIVERY=kafka APP_MESSAGE_NODE_ID=node-1 ./gradlew bootRun
+# 두 번째 서버
+APP_OUTBOX_ENABLED=true APP_MESSAGE_DELIVERY=kafka APP_MESSAGE_NODE_ID=node-2 SERVER_PORT=8090 ./gradlew bootRun
+```
+
+- 서버마다 consumer group 두 개가 생긴다: `sage-realtime-<노드 id>`(방 구독자 전달), `sage-unread-<노드 id>`(안읽음).
+- `APP_MESSAGE_DELIVERY=kafka`인데 `APP_OUTBOX_ENABLED`가 true가 아니면 앱이 뜨지 않는다.
+- 상태 확인: `./scripts/status.sh` — 커넥터 상태, group별 lag, DLT 건수.
+- DLT(`chat.message.events.DLT`)에는 원본 바이트와 헤더가 그대로 남는다. 헤더 `kafka_dlt-original-consumer-group`·`kafka_dlt-exception-message`로 어느 소비자가 왜 실패했는지 본다.
