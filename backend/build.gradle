@@ -85,10 +85,24 @@ dependencies {
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
+	//cdc 태그 테스트는 컨테이너 4종(MySQL·Kafka·스키마 레지스트리·Debezium Connect)을 띄워 무겁다 — cdcTest로 따로 돌린다
+	useJUnitPlatform {
+		excludeTags 'cdc'
+	}
 	//측정용 테스트(CrossNodeMessageOrderTest) opt-in 스위치를 JVM 시스템 프로퍼티로 전달한다.
 	//-Dmeasure=true로 테스트 프로세스는 포크되므로 명시적으로 중계해야 한다.
 	systemProperty 'measure', System.getProperty('measure', 'false')
+}
+
+tasks.register('cdcTest', Test) {
+	description = 'outbox → Debezium → Kafka 경로를 실제 컨테이너로 검증한다.'
+	group = 'verification'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform {
+		includeTags 'cdc'
+	}
+	shouldRunAfter tasks.named('test')
 }
 
 tasks.named('jar'){
