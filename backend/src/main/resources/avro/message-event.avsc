@@ -1,0 +1,24 @@
+{
+  "type": "record",
+  "name": "MessageEvent",
+  "namespace": "com.example.springboot_realtimechat.events",
+  "doc": "채팅 메시지의 생성·수정·삭제 이벤트. 소비자가 DB 조회 없이 화면을 그릴 수 있도록 이벤트 시점의 메시지 전체 상태를 싣는다.",
+  "fields": [
+    {"name": "eventId", "type": {"type": "string", "logicalType": "uuid"}, "doc": "Kafka 헤더 id와 같은 값. 소비자 중복 제거 키"},
+    {"name": "eventType", "type": {"type": "enum", "name": "MessageEventType", "symbols": ["CREATED", "UPDATED", "DELETED"]}},
+    {"name": "occurredAt", "type": {"type": "long", "logicalType": "timestamp-millis"}},
+    {"name": "chatroomId", "type": "long"},
+    {"name": "messageId", "type": "long"},
+    {"name": "seq", "type": "long", "doc": "방 안에서 1부터 빈틈없이 증가하는 순번"},
+    {"name": "clientMessageId", "type": ["null", "string"], "default": null},
+    {"name": "content", "type": "string", "doc": "삭제된 메시지는 빈 문자열"},
+    {"name": "imageUrl", "type": ["null", "string"], "default": null, "doc": "DB 저장값(서명 전). 서명은 전달 시점에 소비자가 한다"},
+    {"name": "authorId", "type": ["null", "long"], "default": null, "doc": "탈퇴한 회원의 메시지는 null"},
+    {"name": "authorNickname", "type": ["null", "string"], "default": null, "doc": "이벤트 시점 스냅샷"},
+    {"name": "authorProfileImageUrl", "type": ["null", "string"], "default": null, "doc": "이벤트 시점 스냅샷, DB 저장값"},
+    {"name": "replyToId", "type": ["null", "long"], "default": null},
+    {"name": "createdAt", "type": {"type": "long", "logicalType": "local-timestamp-micros"}},
+    {"name": "editedAt", "type": ["null", {"type": "long", "logicalType": "local-timestamp-micros"}], "default": null},
+    {"name": "deleted", "type": "boolean"}
+  ]
+}

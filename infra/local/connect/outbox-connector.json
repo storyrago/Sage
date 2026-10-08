@@ -1,0 +1,31 @@
+{
+  "name": "sage-outbox",
+  "config": {
+    "connector.class": "io.debezium.connector.mysql.MySqlConnector",
+    "tasks.max": "1",
+    "database.hostname": "mysql",
+    "database.port": "3306",
+    "database.user": "debezium",
+    "database.password": "dbz",
+    "database.server.id": "184054",
+    "topic.prefix": "sage",
+    "database.include.list": "spring_realtimechat_service",
+    "table.include.list": "spring_realtimechat_service.outbox_events",
+    "snapshot.mode": "no_data",
+    "include.schema.changes": "false",
+    "tombstones.on.delete": "false",
+    "schema.history.internal.kafka.bootstrap.servers": "kafka-1:19092,kafka-2:19092,kafka-3:19092",
+    "schema.history.internal.kafka.topic": "sage.schema-history",
+    "schema.history.internal.store.only.captured.tables.ddl": "true",
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "io.debezium.converters.BinaryDataConverter",
+    "value.converter.delegate.converter.type": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter.delegate.converter.type.schemas.enable": "false",
+    "transforms": "outbox",
+    "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+    "transforms.outbox.route.by.field": "aggregatetype",
+    "transforms.outbox.route.topic.replacement": "chat.${routedByValue}.events",
+    "transforms.outbox.table.field.event.key": "aggregateid",
+    "transforms.outbox.table.fields.additional.placement": "type:header:eventType"
+  }
+}

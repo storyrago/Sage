@@ -1,0 +1,143 @@
+# 로컬 전용 CDC 파이프라인: MySQL(binlog) → Debezium(Kafka Connect) → Kafka(3대, KRaft) + 스키마 레지스트리.
+# 운영 compose(레포 루트 docker-compose.yml)와 별개다. 기동 순서는 infra/local/README.md.
+# Kafka 브로커 구성은 apache/kafka 4.3 공식 예시(docker/examples/.../cluster/combined/plaintext)를 따른다.
+name: sage-local-cdc
+
+x-kafka-env: &kafka-env
+  KAFKA_PROCESS_ROLES: 'broker,controller'
+  KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+  KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093'
+  KAFKA_LISTENERS: 'PLAINTEXT://:19092,CONTROLLER://:9093,PLAINTEXT_HOST://:9092'
+  KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+  KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+  CLUSTER_ID: '4L6g3nShT-eMCtK--X86sw'
+  # 쓰기는 복제본 3개 중 2개가 받아야 성공한다(acks=all과 함께). 브로커 1대가 죽어도 쓰기가 계속된다.
+  KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+  KAFKA_MIN_INSYNC_REPLICAS: 2
+  KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+  KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+  KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+  KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR: 3
+  KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR: 2
+  # 토픽은 스크립트로만 만든다. 오타 난 토픽 이름이 조용히 생기는 것을 막는다.
+  KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+  KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+  KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+  KAFKA_HEAP_OPTS: '-Xms512m -Xmx512m'
+
+x-kafka-healthcheck: &kafka-healthcheck
+  interval: 5s
+  timeout: 10s
+  retries: 30
+
+services:
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: "1111"
+      MYSQL_DATABASE: spring_realtimechat_service
+    volumes:
+      - ./mysql/conf.d/debezium.cnf:/etc/mysql/conf.d/debezium.cnf:ro
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p1111"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  kafka-1:
+    image: apache/kafka:4.3.1
+    hostname: kafka-1
+    ports:
+      - "29092:9092"
+    environment:
+      <<: *kafka-env
+      KAFKA_NODE_ID: 1
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka-1:19092,PLAINTEXT_HOST://localhost:29092'
+    healthcheck:
+      <<: *kafka-healthcheck
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server kafka-1:19092 > /dev/null 2>&1"]
+
+  kafka-2:
+    image: apache/kafka:4.3.1
+    hostname: kafka-2
+    ports:
+      - "39092:9092"
+    environment:
+      <<: *kafka-env
+      KAFKA_NODE_ID: 2
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka-2:19092,PLAINTEXT_HOST://localhost:39092'
+    healthcheck:
+      <<: *kafka-healthcheck
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server kafka-2:19092 > /dev/null 2>&1"]
+
+  kafka-3:
+    image: apache/kafka:4.3.1
+    hostname: kafka-3
+    ports:
+      - "49092:9092"
+    environment:
+      <<: *kafka-env
+      KAFKA_NODE_ID: 3
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka-3:19092,PLAINTEXT_HOST://localhost:49092'
+    healthcheck:
+      <<: *kafka-healthcheck
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server kafka-3:19092 > /dev/null 2>&1"]
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:8.3.2
+    hostname: schema-registry
+    depends_on:
+      kafka-1: { condition: service_healthy }
+      kafka-2: { condition: service_healthy }
+      kafka-3: { condition: service_healthy }
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka-1:19092,PLAINTEXT://kafka-2:19092,PLAINTEXT://kafka-3:19092
+      SCHEMA_REGISTRY_KAFKASTORE_TOPIC_REPLICATION_FACTOR: 3
+      # 전역 기본값. subject별 값은 register-schema.sh가 명시한다.
+      SCHEMA_REGISTRY_SCHEMA_COMPATIBILITY_LEVEL: backward
+    healthcheck:
+      # 이미지에 curl·wget이 없어 bash /dev/tcp로 요청하고 상태 줄이 200인지 본다.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/8081 && printf 'GET /subjects HTTP/1.0\\r\\n\\r\\n' >&3 && read -r status <&3 && [[ $$status == *' 200 '* ]]"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  connect:
+    image: quay.io/debezium/connect:3.7.0.Final
+    hostname: connect
+    depends_on:
+      mysql: { condition: service_healthy }
+      kafka-1: { condition: service_healthy }
+      kafka-2: { condition: service_healthy }
+      kafka-3: { condition: service_healthy }
+    ports:
+      - "8083:8083"
+    environment:
+      BOOTSTRAP_SERVERS: kafka-1:19092,kafka-2:19092,kafka-3:19092
+      GROUP_ID: sage-connect
+      CONFIG_STORAGE_TOPIC: sage-connect-configs
+      OFFSET_STORAGE_TOPIC: sage-connect-offsets
+      STATUS_STORAGE_TOPIC: sage-connect-status
+      # 이미지 entrypoint가 CONNECT_* 환경변수를 워커 설정(connect-distributed.properties)으로 옮긴다.
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 3
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 3
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 3
+      # Connect는 소스 프로듀서를 acks=all, in-flight 1로 고정하지만 멱등성은 끈다. 재시도 중복을 막기 위해 켠다.
+      CONNECT_PRODUCER_ENABLE_IDEMPOTENCE: "true"
+      HEAP_OPTS: '-Xms512m -Xmx1g'
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8083/connectors > /dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+
+volumes:
+  mysql-data:

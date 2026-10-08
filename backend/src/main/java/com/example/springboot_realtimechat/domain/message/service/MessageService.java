@@ -9,6 +9,8 @@ import com.example.springboot_realtimechat.domain.image.service.S3Service;
 import com.example.springboot_realtimechat.domain.member.entity.Member;
 import com.example.springboot_realtimechat.domain.member.service.MemberService;
 import com.example.springboot_realtimechat.domain.message.entity.Message;
+import com.example.springboot_realtimechat.domain.message.event.MessageEventRecorder;
+import com.example.springboot_realtimechat.domain.message.event.MessageEventType;
 import com.example.springboot_realtimechat.domain.message.repository.MessageRepository;
 import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
@@ -35,6 +37,7 @@ public class MessageService {
     private final ApplicationEventPublisher eventPublisher;
     private final RoomAccess roomAccess;
     private final S3Service s3Service;
+    private final MessageEventRecorder messageEventRecorder;
 
     public record MessagePage(List<Message> messages, boolean hasMore) {}
 
@@ -91,7 +94,11 @@ public class MessageService {
         // content 컬럼은 NOT NULL이므로, 이미지 전용 메시지(content=null)를 저장하려면 빈 문자열로 정규화한다
         Message message = new Message(content == null ? "" : content, imageUrl, member, chatRoom, replyTo,
                 chatRoom.nextMessageSeq(), clientMessageId);
-        return messageRepository.save(message);
+        Message saved = messageRepository.save(message);
+        // 같은 트랜잭션에서 이벤트를 남긴다. 방 잠금 아래이므로 방 안 이벤트 순서 = 순번 순서다.
+        // 재전송(위의 기존 메시지 반환)은 여기까지 오지 않으므로 이벤트가 중복되지 않는다.
+        messageEventRecorder.record(MessageEventType.CREATED, saved);
+        return saved;
     }
 
     public Message getMessageById(Long messageId){
@@ -130,6 +137,7 @@ public class MessageService {
             throw new CustomException(ErrorCode.EMPTY_MESSAGE);
         }
         message.edit(content); // 더티체킹으로 반영
+        messageEventRecorder.record(MessageEventType.UPDATED, message);
         return message;
     }
 
@@ -144,6 +152,7 @@ public class MessageService {
         }
         String imageUrl = message.getImageUrl();        // softDelete가 참조를 지우기 전에 읽는다
         message.softDelete();
+        messageEventRecorder.record(MessageEventType.DELETED, message);
 
         if (imageUrl != null && !imageUrl.isBlank()) {
             eventPublisher.publishEvent(new ImageDereferencedEvent(imageUrl));
