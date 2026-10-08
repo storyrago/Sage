@@ -14,6 +14,19 @@ spring:
   h2:
     console:
       enabled: true
+  kafka:
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
+      auto-offset-reset: latest
+      enable-auto-commit: false
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+      acks: all
+    listener:
+      concurrency: 3
+      observation-enabled: true
   flyway:
     # 테스트는 H2 create-drop로 스키마 생성, Flyway 미개입.
     # 마이그레이션 SQL과 ddl-auto: validate는 CI의 "마이그레이션·스키마 검증" 스텝에서

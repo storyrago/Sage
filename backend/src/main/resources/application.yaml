@@ -29,6 +29,25 @@ spring:
       # 정상 응답은 2~3ms이므로 500ms는 100배 이상의 여유. 미설정 시 요청마다 워커 스레드가 60초 점유된다.
       connect-timeout: 500ms
       timeout: 500ms
+  kafka:
+    # 소비자는 app.message.delivery=kafka일 때만 만들어진다. redis 경로에서는 Kafka에 접속하지 않는다.
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:29092,localhost:39092,localhost:49092}
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      # 값은 바이트로 받고 소비자가 Avro로 읽는다. 처리하지 못한 이벤트를 원본 바이트 그대로 DLT에 남기기 위해서다.
+      value-deserializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
+      # 서버별 group은 기동할 때 새로 생긴다. 지난 이벤트를 되감아 보내지 않는다(재연결한 클라이언트는 REST로 다시 읽는다).
+      auto-offset-reset: latest
+      enable-auto-commit: false
+    producer:
+      # DLT 발행용. 원본 바이트를 그대로 싣는다.
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+      acks: all
+    listener:
+      # 토픽 파티션 6개를 소비자 스레드 3개가 나눠 읽는다. 한 파티션은 한 스레드가 순서대로 처리한다.
+      concurrency: 3
+      observation-enabled: true
   security:
     oauth2:
       client:

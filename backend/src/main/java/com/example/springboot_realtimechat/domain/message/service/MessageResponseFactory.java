@@ -3,6 +3,7 @@ package com.example.springboot_realtimechat.domain.message.service;
 import com.example.springboot_realtimechat.domain.image.service.S3Service;
 import com.example.springboot_realtimechat.domain.message.dto.MessageResponse;
 import com.example.springboot_realtimechat.domain.message.entity.Message;
+import com.example.springboot_realtimechat.events.MessageEvent;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -25,6 +26,26 @@ public class MessageResponseFactory {
 
     public MessageResponse of(Message message) {
         MessageResponse response = MessageResponse.from(message);
+        response.setImageUrl(s3Service.presignedGetUrl(response.getImageUrl(), IMAGE_URL_TTL));
+        return response;
+    }
+
+    /** 소비자가 이벤트로 응답을 만든다. 저장 직후 응답과 같은 모양이어야 프론트가 경로를 구분하지 않는다. */
+    public MessageResponse of(MessageEvent event) {
+        MessageResponse response = new MessageResponse(
+                event.getMessageId(),
+                event.getContent(),
+                event.getImageUrl(),
+                event.getAuthorId(),
+                event.getAuthorNickname(),
+                event.getAuthorProfileImageUrl(),
+                event.getChatroomId(),
+                event.getCreatedAt(),
+                event.getReplyToId(),
+                event.getEditedAt(),
+                event.getDeleted(),
+                event.getSeq(),
+                event.getClientMessageId());
         response.setImageUrl(s3Service.presignedGetUrl(response.getImageUrl(), IMAGE_URL_TTL));
         return response;
     }

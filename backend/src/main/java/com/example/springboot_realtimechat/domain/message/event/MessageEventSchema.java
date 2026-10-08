@@ -16,6 +16,8 @@ public final class MessageEventSchema {
     public static final String TOPIC = "chat." + AGGREGATE_TYPE + ".events";
     // TopicNameStrategy(기본값): 값 스키마의 subject는 "<토픽>-value"다.
     public static final String SUBJECT = TOPIC + "-value";
+    // 처리하지 못한 이벤트를 원본 바이트 그대로 모으는 토픽. 원본과 같은 파티션 번호로 보내므로 파티션 수가 같거나 많아야 한다.
+    public static final String DEAD_LETTER_TOPIC = TOPIC + ".DLT";
     public static final Schema SCHEMA = load();
 
     private MessageEventSchema() {
