@@ -10,8 +10,8 @@ import com.example.springboot_realtimechat.domain.message.service.MessageService
 import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.outbox.OutboxEvent;
 import com.example.springboot_realtimechat.global.outbox.OutboxWriter;
+import com.example.springboot_realtimechat.events.MessageEvent;
 
-import org.apache.avro.generic.GenericRecord;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -59,7 +59,7 @@ class OutboxMessageEventRecorderTest {
         return captor.getAllValues();
     }
 
-    private GenericRecord payloadOf(OutboxEvent event) {
+    private MessageEvent payloadOf(OutboxEvent event) {
         return MessageEventTestSupport.deserialize(SCOPE, event.getPayload());
     }
 
@@ -76,13 +76,13 @@ class OutboxMessageEventRecorderTest {
         assertThat(event.getAggregateType()).isEqualTo("message");
         assertThat(event.getAggregateId()).isEqualTo(String.valueOf(room.getId()));
         assertThat(event.getType()).isEqualTo("CREATED");
-        GenericRecord record = payloadOf(event);
-        assertThat(record.get("eventId")).hasToString(event.getId());
-        assertThat(record.get("messageId")).isEqualTo(message.getId());
-        assertThat(record.get("seq")).isEqualTo(1L);
-        assertThat(record.get("clientMessageId")).hasToString(CLIENT_ID);
-        assertThat(record.get("content")).hasToString("안녕");
-        assertThat(record.get("authorNickname")).hasToString("기록작성자");
+        MessageEvent record = payloadOf(event);
+        assertThat(record.getEventId()).hasToString(event.getId());
+        assertThat(record.getMessageId()).isEqualTo(message.getId());
+        assertThat(record.getSeq()).isEqualTo(1L);
+        assertThat(record.getClientMessageId()).isEqualTo(CLIENT_ID);
+        assertThat(record.getContent()).isEqualTo("안녕");
+        assertThat(record.getAuthorNickname()).isEqualTo("기록작성자");
     }
 
     @Test
@@ -106,10 +106,10 @@ class OutboxMessageEventRecorderTest {
 
         List<OutboxEvent> events = appended();
         assertThat(events).extracting(OutboxEvent::getType).containsExactly("CREATED", "UPDATED");
-        GenericRecord updated = payloadOf(events.get(1));
-        assertThat(updated.get("content")).hasToString("수정본");
-        assertThat(updated.get("editedAt")).isNotNull();
-        assertThat(updated.get("seq")).isEqualTo(1L);
+        MessageEvent updated = payloadOf(events.get(1));
+        assertThat(updated.getContent()).isEqualTo("수정본");
+        assertThat(updated.getEditedAt()).isNotNull();
+        assertThat(updated.getSeq()).isEqualTo(1L);
     }
 
     @Test
@@ -122,9 +122,9 @@ class OutboxMessageEventRecorderTest {
 
         List<OutboxEvent> events = appended();
         assertThat(events).extracting(OutboxEvent::getType).containsExactly("CREATED", "DELETED");
-        GenericRecord deleted = payloadOf(events.get(1));
-        assertThat(deleted.get("deleted")).isEqualTo(true);
-        assertThat(deleted.get("content")).hasToString("");
+        MessageEvent deleted = payloadOf(events.get(1));
+        assertThat(deleted.getDeleted()).isTrue();
+        assertThat(deleted.getContent()).isEmpty();
     }
 
     @Test

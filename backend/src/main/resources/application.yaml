@@ -29,6 +29,25 @@ spring:
       # 정상 응답은 2~3ms이므로 500ms는 100배 이상의 여유. 미설정 시 요청마다 워커 스레드가 60초 점유된다.
       connect-timeout: 500ms
       timeout: 500ms
+  kafka:
+    # 소비자는 app.message.delivery=kafka일 때만 만들어진다. redis 경로에서는 Kafka에 접속하지 않는다.
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:29092,localhost:39092,localhost:49092}
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      # 값은 바이트로 받고 소비자가 Avro로 읽는다. 처리하지 못한 이벤트를 원본 바이트 그대로 DLT에 남기기 위해서다.
+      value-deserializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
+      # 서버별 group은 기동할 때 새로 생긴다. 지난 이벤트를 되감아 보내지 않는다(재연결한 클라이언트는 REST로 다시 읽는다).
+      auto-offset-reset: latest
+      enable-auto-commit: false
+    producer:
+      # DLT 발행용. 원본 바이트를 그대로 싣는다.
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+      acks: all
+    listener:
+      # 토픽 파티션 6개를 소비자 스레드 3개가 나눠 읽는다. 한 파티션은 한 스레드가 순서대로 처리한다.
+      concurrency: 3
+      observation-enabled: true
   security:
     oauth2:
       client:
@@ -74,6 +93,12 @@ server:
   forward-headers-strategy: framework   # nginx(X-Forwarded-*) 뒤에서 OAuth redirect_uri를 https 원본 host로 생성
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}   # OAuth 성공 후 JWT 핸드오프 대상
+  message:
+    # 메시지 전파 경로. redis(기본): 저장 후 Redis Pub/Sub으로 방송. kafka: 커밋된 outbox 이벤트를 Kafka 소비자가 전달.
+    # kafka는 app.outbox.enabled=true가 필요하다(아니면 기동 실패).
+    delivery: ${APP_MESSAGE_DELIVERY:redis}
+    # 서버마다 다른 값. 비우면 기동마다 새로 만든다. 소비자 group 이름(sage-realtime-<id>, sage-unread-<id>)에 쓰인다.
+    node-id: ${APP_MESSAGE_NODE_ID:}
   outbox:
     # 메시지 이벤트를 outbox(→ Debezium → Kafka)에 남길지. 기본은 끔 — 기존 Redis 전파만 동작한다.
     # 켜려면 스키마 레지스트리에 스키마가 등록돼 있어야 한다(infra/local/README.md).

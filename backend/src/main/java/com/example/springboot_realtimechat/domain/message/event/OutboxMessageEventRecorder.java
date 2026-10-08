@@ -29,7 +29,7 @@ public class OutboxMessageEventRecorder implements MessageEventRecorder {
     public void record(MessageEventType type, Message message) {
         UUID eventId = UUID.randomUUID();
         byte[] payload = outboxAvroSerializer.serialize(
-                MessageEventSchema.TOPIC, MessageEventRecords.toRecord(eventId, type, Instant.now(), message));
+                MessageEventSchema.TOPIC, MessageEventRecords.toEvent(eventId, type, Instant.now(), message));
         outboxWriter.append(new OutboxEvent(
                 eventId.toString(),
                 MessageEventSchema.AGGREGATE_TYPE,

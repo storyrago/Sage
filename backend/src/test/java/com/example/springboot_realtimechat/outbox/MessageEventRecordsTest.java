@@ -7,22 +7,17 @@ import com.example.springboot_realtimechat.domain.member.entity.Member;
 import com.example.springboot_realtimechat.domain.member.service.MemberService;
 import com.example.springboot_realtimechat.domain.message.entity.Message;
 import com.example.springboot_realtimechat.domain.message.event.MessageEventRecords;
-import com.example.springboot_realtimechat.domain.message.event.MessageEventSchema;
 import com.example.springboot_realtimechat.domain.message.event.MessageEventType;
 import com.example.springboot_realtimechat.domain.message.service.MessageService;
+import com.example.springboot_realtimechat.events.MessageEvent;
 
-import io.confluent.kafka.schemaregistry.testutil.MockSchemaRegistry;
-import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig;
-import io.confluent.kafka.serializers.KafkaAvroSerializer;
-import org.apache.avro.generic.GenericRecord;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.util.Map;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -49,27 +44,28 @@ class MessageEventRecordsTest {
         UUID eventId = UUID.randomUUID();
         Instant occurredAt = Instant.parse("2026-10-08T01:02:03.456Z");
 
-        GenericRecord record = MessageEventRecords.toRecord(eventId, MessageEventType.CREATED, occurredAt, reply);
+        MessageEvent event = MessageEventRecords.toEvent(eventId, MessageEventType.CREATED, occurredAt, reply);
 
-        assertThat(record.get("eventId")).hasToString(eventId.toString());
-        assertThat(record.get("eventType")).hasToString("CREATED");
-        assertThat(record.get("occurredAt")).isEqualTo(occurredAt.toEpochMilli());
-        assertThat(record.get("chatroomId")).isEqualTo(room.getId());
-        assertThat(record.get("messageId")).isEqualTo(reply.getId());
-        assertThat(record.get("seq")).isEqualTo(2L);
-        assertThat(record.get("clientMessageId")).hasToString(CLIENT_ID);
-        assertThat(record.get("content")).hasToString("답장");
-        assertThat(record.get("imageUrl")).isNull();
-        assertThat(record.get("authorId")).isEqualTo(author.getId());
-        assertThat(record.get("authorNickname")).hasToString("매핑작성자");
-        assertThat(record.get("replyToId")).isEqualTo(original.getId());
-        assertThat(record.get("createdAt")).isEqualTo(MessageEventRecords.toLocalMicros(reply.getCreatedAt()));
-        assertThat(record.get("editedAt")).isNull();
-        assertThat(record.get("deleted")).isEqualTo(false);
+        assertThat(event.getEventId()).isEqualTo(eventId);
+        assertThat(event.getEventType()).isEqualTo(com.example.springboot_realtimechat.events.MessageEventType.CREATED);
+        assertThat(event.getOccurredAt()).isEqualTo(occurredAt);
+        assertThat(event.getChatroomId()).isEqualTo(room.getId());
+        assertThat(event.getMessageId()).isEqualTo(reply.getId());
+        assertThat(event.getSeq()).isEqualTo(2L);
+        assertThat(event.getClientMessageId()).isEqualTo(CLIENT_ID);
+        assertThat(event.getContent()).isEqualTo("답장");
+        assertThat(event.getImageUrl()).isNull();
+        assertThat(event.getAuthorId()).isEqualTo(author.getId());
+        assertThat(event.getAuthorNickname()).isEqualTo("매핑작성자");
+        assertThat(event.getReplyToId()).isEqualTo(original.getId());
+        assertThat(event.getCreatedAt()).isEqualTo(reply.getCreatedAt());
+        assertThat(event.getEditedAt()).isNull();
+        assertThat(event.getDeleted()).isFalse();
     }
 
     @Test
-    void 삭제된_메시지는_빈_본문과_삭제_표시로_직렬화되고_다시_읽힌다() {
+    void 등록된_스키마로_직렬화되고_생성_클래스로_다시_읽힌다() {
+        // 생성 클래스의 스키마에는 avro.java.string 속성이 붙는다. 직렬화기가 그것을 떼어 내야 등록된 스키마와 일치한다.
         MessageEventTestSupport.register(SCOPE);
         ChatRoom room = chatRoomService.create("왕복방", false, null);
         Member author = memberService.create("records-roundtrip@e.com", "1234", "왕복작성자");
@@ -77,28 +73,19 @@ class MessageEventRecordsTest {
         Message message = messageService.create("지울 메시지", null, author.getId(), room.getId(), null);
         messageService.delete(room.getId(), message.getId(), author.getId());
 
-        GenericRecord record = MessageEventRecords.toRecord(UUID.randomUUID(), MessageEventType.DELETED, Instant.now(), message);
-        byte[] payload;
-        try (KafkaAvroSerializer serializer = new KafkaAvroSerializer(MockSchemaRegistry.getClientForScope(SCOPE), Map.of(
-                AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, "mock://" + SCOPE,
-                AbstractKafkaSchemaSerDeConfig.AUTO_REGISTER_SCHEMAS, false,
-                AbstractKafkaSchemaSerDeConfig.NORMALIZE_SCHEMAS, true))) {
-            payload = serializer.serialize(MessageEventSchema.TOPIC, record);
-        }
-        GenericRecord read = MessageEventTestSupport.deserialize(SCOPE, payload);
+        MessageEvent event = MessageEventRecords.toEvent(UUID.randomUUID(), MessageEventType.DELETED, Instant.now(), message);
+        byte[] payload = MessageEventTestSupport.serialize(SCOPE, event);
+        MessageEvent read = MessageEventTestSupport.deserialize(SCOPE, payload);
 
         // 와이어 포맷 첫 바이트는 매직 바이트 0이다.
         assertThat(payload[0]).isZero();
-        assertThat(read.get("eventType")).hasToString("DELETED");
-        assertThat(read.get("content")).hasToString("");
-        assertThat(read.get("deleted")).isEqualTo(true);
-        assertThat(read.get("messageId")).isEqualTo(message.getId());
-    }
-
-    @Test
-    void 시간대_없는_시각은_UTC로_가정한_epoch_마이크로초다() {
-        // Avro local-timestamp-micros 명세: 시간대 없는 날짜·시각을 UTC 기준 epoch로 센다.
-        assertThat(MessageEventRecords.toLocalMicros(LocalDateTime.of(1970, 1, 1, 0, 0, 1, 2_500)))
-                .isEqualTo(1_000_002L);
+        assertThat(read.getEventId()).isEqualTo(event.getEventId());
+        assertThat(read.getEventType()).isEqualTo(com.example.springboot_realtimechat.events.MessageEventType.DELETED);
+        assertThat(read.getContent()).isEmpty();
+        assertThat(read.getDeleted()).isTrue();
+        assertThat(read.getMessageId()).isEqualTo(message.getId());
+        // local-timestamp-micros: 마이크로초까지 보존된다.
+        assertThat(read.getCreatedAt()).isEqualTo(message.getCreatedAt().truncatedTo(ChronoUnit.MICROS));
+        assertThat(read.getOccurredAt()).isEqualTo(event.getOccurredAt().truncatedTo(ChronoUnit.MILLIS));
     }
 }

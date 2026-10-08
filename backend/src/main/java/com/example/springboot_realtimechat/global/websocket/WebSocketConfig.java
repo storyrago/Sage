@@ -3,6 +3,7 @@ package com.example.springboot_realtimechat.global.websocket;
 import com.example.springboot_realtimechat.global.jwt.JwtAuthChannelInterceptor;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -20,10 +21,16 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private final WsRequestIdHandshakeInterceptor wsRequestIdHandshakeInterceptor;
     private final WsRequestIdChannelInterceptor wsRequestIdChannelInterceptor;
 
+    // 생성자 주입(@RequiredArgsConstructor)과 섞지 않으려고 필드로 받는다.
+    @Value("${app.message.delivery:redis}")
+    private String messageDelivery;
+
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry){
         registry.enableSimpleBroker("/sub", "/queue"); // 클라이언트가 구독하는 주소 (/queue: convertAndSendToUser 개인 큐)
         registry.setApplicationDestinationPrefixes("/pub"); // 클라이언트가 보내는 주소
+        // Kafka 소비자는 방 안 순번 순서로 보낸다. 송신 채널의 스레드 풀이 세션별 순서를 섞지 않게 한다.
+        registry.setPreservePublishOrder("kafka".equals(messageDelivery));
     }
 
     @Override

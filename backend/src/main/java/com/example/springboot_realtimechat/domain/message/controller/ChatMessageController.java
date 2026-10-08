@@ -2,6 +2,7 @@ package com.example.springboot_realtimechat.domain.message.controller;
 
 import com.example.springboot_realtimechat.domain.member.entity.Member;
 import com.example.springboot_realtimechat.domain.member.service.MemberService;
+import com.example.springboot_realtimechat.domain.message.delivery.MessageBroadcaster;
 import com.example.springboot_realtimechat.domain.message.dto.MessageRequest;
 import com.example.springboot_realtimechat.domain.message.dto.MessageResponse;
 import com.example.springboot_realtimechat.domain.message.entity.Message;
@@ -37,6 +38,7 @@ public class ChatMessageController {
     private final MessageService messageService;
     private final MemberService memberService;
     private final RedisPublisher redisPublisher;
+    private final MessageBroadcaster messageBroadcaster;
     private final MessageResponseFactory messageResponseFactory;
     private final SimpMessagingTemplate messagingTemplate;
 
@@ -55,7 +57,7 @@ public class ChatMessageController {
                 messageRequest.getReplyToId(),
                 messageRequest.getClientMessageId());
         MessageResponse messageResponse = messageResponseFactory.of(message);
-        redisPublisher.publish(messageResponse);
+        messageBroadcaster.broadcast(messageResponse);
     }
 
     @MessageMapping("/chatrooms/{chatroomId}/typing")
