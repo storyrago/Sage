@@ -151,11 +151,12 @@ public class MessageService {
             throw new CustomException(ErrorCode.NOT_MESSAGE_OWNER);
         }
         String imageUrl = message.getImageUrl();        // softDelete가 참조를 지우기 전에 읽는다
+        String dereferencedImageUrl = (imageUrl == null || imageUrl.isBlank()) ? null : imageUrl;
         message.softDelete();
-        messageEventRecorder.record(MessageEventType.DELETED, message);
+        messageEventRecorder.record(MessageEventType.DELETED, message, dereferencedImageUrl);
 
-        if (imageUrl != null && !imageUrl.isBlank()) {
-            eventPublisher.publishEvent(new ImageDereferencedEvent(imageUrl));
+        if (dereferencedImageUrl != null) {
+            eventPublisher.publishEvent(new ImageDereferencedEvent(dereferencedImageUrl));
         }
         return message;
     }

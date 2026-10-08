@@ -8,5 +8,10 @@ import com.example.springboot_realtimechat.domain.message.entity.Message;
  */
 public interface MessageEventRecorder {
 
-    void record(MessageEventType type, Message message);
+    default void record(MessageEventType type, Message message) {
+        record(type, message, null);
+    }
+
+    /** dereferencedImageUrl: 이 변경으로 참조가 끊긴 이미지(없으면 null). */
+    void record(MessageEventType type, Message message, String dereferencedImageUrl);
 }

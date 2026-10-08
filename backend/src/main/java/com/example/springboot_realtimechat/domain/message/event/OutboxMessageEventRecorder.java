@@ -26,10 +26,10 @@ public class OutboxMessageEventRecorder implements MessageEventRecorder {
     private final OutboxWriter outboxWriter;
 
     @Override
-    public void record(MessageEventType type, Message message) {
+    public void record(MessageEventType type, Message message, String dereferencedImageUrl) {
         UUID eventId = UUID.randomUUID();
-        byte[] payload = outboxAvroSerializer.serialize(
-                MessageEventSchema.TOPIC, MessageEventRecords.toEvent(eventId, type, Instant.now(), message));
+        byte[] payload = outboxAvroSerializer.serialize(MessageEventSchema.TOPIC,
+                MessageEventRecords.toEvent(eventId, type, Instant.now(), message, dereferencedImageUrl));
         outboxWriter.append(new OutboxEvent(
                 eventId.toString(),
                 MessageEventSchema.AGGREGATE_TYPE,

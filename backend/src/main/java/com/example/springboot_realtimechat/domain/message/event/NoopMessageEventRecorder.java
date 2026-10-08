@@ -11,6 +11,6 @@ import org.springframework.stereotype.Component;
 public class NoopMessageEventRecorder implements MessageEventRecorder {
 
     @Override
-    public void record(MessageEventType type, Message message) {
+    public void record(MessageEventType type, Message message, String dereferencedImageUrl) {
     }
 }
