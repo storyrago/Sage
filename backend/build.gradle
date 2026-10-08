@@ -22,6 +22,11 @@ repositories {
 	}
 }
 
+configurations {
+	//Avro 공식 컴파일러(단독 실행 jar). 생성 코드는 런타임 Avro(kafka-avro-serializer가 끌어오는 1.12.1)와 버전이 같아야 한다
+	avroTools { transitive = false }
+}
+
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
@@ -80,9 +85,32 @@ dependencies {
 	//메시지 이벤트 Avro 직렬화(스키마 레지스트리 와이어 포맷). 8.1.x는 Boot BOM의 kafka-clients 4.1과 같은 계열
 	implementation 'io.confluent:kafka-avro-serializer:8.1.6'
 
+	//Avro 스키마 → SpecificRecord 클래스 생성(generateAvroJava 태스크 전용)
+	avroTools 'org.apache.avro:avro-tools:1.12.1'
+
 	//aws s3
 	implementation 'software.amazon.awssdk:s3:2.31.0'
 }
+
+def avroSchemaDir = layout.projectDirectory.dir('src/main/resources/avro')
+def avroGeneratedDir = layout.buildDirectory.dir('generated/sources/avro/java/main')
+
+//스키마(.avsc)가 계약의 원본이다. 생산자·소비자는 여기서 만든 클래스로 읽고 쓴다.
+//대표 Gradle 플러그인은 관리가 멈춰 Avro 공식 컴파일러를 직접 부른다(생성 결과는 Maven 공식 플러그인과 같다).
+tasks.register('generateAvroJava', JavaExec) {
+	description = 'src/main/resources/avro의 스키마로 SpecificRecord 클래스를 만든다.'
+	group = 'build'
+	classpath = configurations.avroTools
+	mainClass = 'org.apache.avro.tool.Main'
+	inputs.dir(avroSchemaDir)
+	outputs.dir(avroGeneratedDir)
+	//-string: 문자열 필드를 CharSequence(Utf8)가 아니라 java.lang.String으로 만든다
+	args 'compile', '-string', 'schema', avroSchemaDir.asFile.absolutePath, avroGeneratedDir.get().asFile.absolutePath
+	doFirst { delete avroGeneratedDir }
+}
+
+sourceSets.main.java.srcDir(avroGeneratedDir)
+tasks.named('compileJava') { dependsOn 'generateAvroJava' }
 
 tasks.named('test') {
 	//cdc 태그 테스트는 컨테이너 4종(MySQL·Kafka·스키마 레지스트리·Debezium Connect)을 띄워 무겁다 — cdcTest로 따로 돌린다
