@@ -80,7 +80,7 @@ class MessageEventReaderTest {
 
     @Test
     void 레지스트리가_429로_응답하면_레지스트리_불통_예외다() {
-        // Confluent toKafkaException이 429를 ThrottlingQuotaExceededException(RetriableException)으로 매핑한다.
+        // 일시적인 과부하라 기다리면 나아진다.
         MessageEventTestSupport.register(SCOPE);
         byte[] payload = MessageEventTestSupport.serialize(SCOPE,
                 MessageEventFixtures.event(MessageEventType.CREATED, 1L, 2L, 3L, 1L, null, false));
@@ -127,6 +127,29 @@ class MessageEventReaderTest {
                 MessageEventFixtures.event(MessageEventType.CREATED, 1L, 2L, 3L, 1L, null, false));
 
         assertThatThrownBy(() -> readerBackedByFailingRegistry(new RestClientException("서버 오류", 500, 50001))
+                .read(payload))
+                .isInstanceOf(SchemaRegistryUnavailableException.class);
+    }
+
+    @Test
+    void 레지스트리가_401로_응답하면_레지스트리_불통_예외다() {
+        // 자격 증명 문제는 이벤트 잘못이 아니다 — 모든 이벤트를 DLT로 보내지 않고 멈춰서 드러낸다.
+        MessageEventTestSupport.register(SCOPE);
+        byte[] payload = MessageEventTestSupport.serialize(SCOPE,
+                MessageEventFixtures.event(MessageEventType.CREATED, 1L, 2L, 3L, 1L, null, false));
+
+        assertThatThrownBy(() -> readerBackedByFailingRegistry(new RestClientException("인증 실패", 401, 40101))
+                .read(payload))
+                .isInstanceOf(SchemaRegistryUnavailableException.class);
+    }
+
+    @Test
+    void 레지스트리가_403으로_응답하면_레지스트리_불통_예외다() {
+        MessageEventTestSupport.register(SCOPE);
+        byte[] payload = MessageEventTestSupport.serialize(SCOPE,
+                MessageEventFixtures.event(MessageEventType.CREATED, 1L, 2L, 3L, 1L, null, false));
+
+        assertThatThrownBy(() -> readerBackedByFailingRegistry(new RestClientException("권한 없음", 403, 40301))
                 .read(payload))
                 .isInstanceOf(SchemaRegistryUnavailableException.class);
     }

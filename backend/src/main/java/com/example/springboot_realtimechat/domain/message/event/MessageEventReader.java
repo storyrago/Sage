@@ -5,6 +5,8 @@ import com.example.springboot_realtimechat.events.MessageEvent;
 import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import lombok.RequiredArgsConstructor;
+import org.apache.kafka.common.errors.AuthenticationException;
+import org.apache.kafka.common.errors.AuthorizationException;
 import org.apache.kafka.common.errors.RetriableException;
 import org.apache.kafka.common.errors.SerializationException;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -40,7 +42,7 @@ public class MessageEventReader {
     }
 
     /**
-     * 원인 체인에 네트워크 장애(접속 불가·타임아웃·5xx 등)만 레지스트리 불통으로 다시 던진다.
+     * 원인 체인에 네트워크 장애(접속 불가·타임아웃·5xx 등)나 인증 실패(401·403)가 있을 때만 레지스트리 불통으로 다시 던진다.
      * Avro 본문 손상(잘린 페이로드의 EOFException, 깨진 varint의 InvalidNumberEncodingException 등)도
      * IOException 계열이라 전부 IOException으로 잡으면 손상된 이벤트가 영원히 재시도된다 — 반드시 허용 목록으로 좁힌다.
      */
@@ -63,8 +65,13 @@ public class MessageEventReader {
             // 실제 호출 경로(subject.name.strategy=AssociatedNameStrategy의 getAssociationsByResourceName)는
             // RestClientException을 toKafkaException 없이 그대로 감싸 올린다 — 429/408도 ThrottlingQuotaExceededException/
             // TimeoutException으로 바뀌지 않고 RestClientException 그대로 온다. 그래서 상태코드로 직접 판정한다.
+            // 401·403은 자격 증명 문제라 이벤트 잘못이 아니다 — 모든 이벤트를 DLT로 쏟지 않고 멈춰서 드러낸다.
             int status = restClientException.getStatus();
-            return status >= 500 || status == 429 || status == 408;
+            return status >= 500 || status == 429 || status == 408 || status == 401 || status == 403;
+        }
+        if (cause instanceof AuthenticationException || cause instanceof AuthorizationException) {
+            // toKafkaException을 거치는 경로에서는 401·403이 이 둘로 바뀌어 온다.
+            return true;
         }
         // 연결 거부(ConnectException)는 SocketException, 호스트를 못 찾으면 UnknownHostException,
         // 읽기 타임아웃은 SocketTimeoutException — 전부 네트워크 장애. EOFException 등 본문 손상은 포함하지 않는다.
