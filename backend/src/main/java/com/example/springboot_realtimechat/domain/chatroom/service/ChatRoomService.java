@@ -94,8 +94,8 @@ public class ChatRoomService {
     }
 
     /**
-     * transferOwnership 전용. 방 행에 쓰기 잠금을 걸고 시작해
-     * leave/kick과 경합에서 순서를 강제한다.
+     * 방 행에 쓰기 잠금을 걸고 가져온다. 잠금은 커밋까지 유지된다.
+     * 위임은 leave/kick과의 경합 순서를, 메시지 저장은 순번 발급과 커밋 순서를 이 잠금으로 맞춘다.
      */
     public ChatRoom getChatRoomByIdForUpdate(Long chatRoomId){
         return chatRoomRepository.findByIdAndDeletedAtIsNullForUpdate(chatRoomId)

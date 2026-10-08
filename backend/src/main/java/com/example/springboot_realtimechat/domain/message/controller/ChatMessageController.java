@@ -52,7 +52,8 @@ public class ChatMessageController {
                 messageRequest.getImageUrl(),
                 customUserDetails.getMemberId(),
                 chatroomId,
-                messageRequest.getReplyToId());
+                messageRequest.getReplyToId(),
+                messageRequest.getClientMessageId());
         MessageResponse messageResponse = messageResponseFactory.of(message);
         redisPublisher.publish(messageResponse);
     }
