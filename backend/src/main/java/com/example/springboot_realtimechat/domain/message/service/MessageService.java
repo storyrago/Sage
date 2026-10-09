@@ -110,14 +110,34 @@ public class MessageService {
     }
 
     public MessagePage getMessages(Long chatroomId, Long memberId, Long before, int limit) {
+        return getMessages(chatroomId, memberId, before, null, null, limit);
+    }
+
+    /** 커서는 before(id)·beforeSeq·afterSeq 중 하나만 줄 수 있다. 결과는 항상 오래된 → 최신 순이다. */
+    public MessagePage getMessages(Long chatroomId, Long memberId, Long before, Long beforeSeq, Long afterSeq,
+                                   int limit) {
+        int cursors = (before != null ? 1 : 0) + (beforeSeq != null ? 1 : 0) + (afterSeq != null ? 1 : 0);
+        if (cursors > 1) {
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
+        }
         ChatRoom chatRoom = chatRoomService.getChatRoomById(chatroomId);
         if (!roomAccess.isMember(memberId, chatroomId)) {
             throw new CustomException(ErrorCode.NOT_JOINED_ROOM);
         }
         Pageable pageable = PageRequest.of(0, limit + 1);
-        List<Message> desc = (before == null)
-                ? messageRepository.findLatestByChatRoom(chatRoom, pageable)
-                : messageRepository.findOlderByChatRoom(chatRoom, before, pageable);
+        if (afterSeq != null) {
+            List<Message> asc = messageRepository.findAfterSeq(chatRoom, afterSeq, pageable);
+            boolean hasMore = asc.size() > limit;
+            return new MessagePage(hasMore ? new ArrayList<>(asc.subList(0, limit)) : asc, hasMore);
+        }
+        List<Message> desc;
+        if (beforeSeq != null) {
+            desc = messageRepository.findBeforeSeq(chatRoom, beforeSeq, pageable);
+        } else if (before != null) {
+            desc = messageRepository.findOlderByChatRoom(chatRoom, before, pageable);
+        } else {
+            desc = messageRepository.findLatestByChatRoom(chatRoom, pageable);
+        }
         boolean hasMore = desc.size() > limit;
         List<Message> page = hasMore ? new ArrayList<>(desc.subList(0, limit)) : new ArrayList<>(desc);
         Collections.reverse(page); // 오름차순(오래된 → 최신)
