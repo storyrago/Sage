@@ -54,8 +54,8 @@ class RedisSubscriberReplyTest {
         return """
             {"messageId":%d,"content":"c","imageUrl":null,"memberId":%d,"nickname":"n",
              "profileImageUrl":null,"chatroomId":7,"createdAt":"2026-08-12T00:00:00",
-             "replyToId":%s,"editedAt":null,"deleted":false}
-            """.formatted(messageId, senderId, replyToId == null ? "null" : replyToId.toString());
+             "replyToId":%s,"editedAt":null,"deleted":false,"seq":%d}
+            """.formatted(messageId, senderId, replyToId == null ? "null" : replyToId.toString(), messageId + 100);
     }
 
     @Test
@@ -72,6 +72,7 @@ class RedisSubscriberReplyTest {
         ArgumentCaptor<UnreadEvent> captor = ArgumentCaptor.forClass(UnreadEvent.class);
         verify(messagingTemplate).convertAndSendToUser(eq("1"), eq("/queue/unread"), captor.capture());
         assertThat(captor.getValue().isReplyToMe()).isTrue();
+        assertThat(captor.getValue().getSeq()).isEqualTo(151L);
 
         ArgumentCaptor<UnreadEvent> other = ArgumentCaptor.forClass(UnreadEvent.class);
         verify(messagingTemplate).convertAndSendToUser(eq("3"), eq("/queue/unread"), other.capture());

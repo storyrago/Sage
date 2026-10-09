@@ -1,6 +1,7 @@
 package com.example.springboot_realtimechat.domain.message.service;
 
 import com.example.springboot_realtimechat.domain.chatroom.entity.ChatRoom;
+import com.example.springboot_realtimechat.domain.chatroom.repository.ChatRoomMemberRepository;
 import com.example.springboot_realtimechat.domain.chatroom.service.ChatRoomService;
 import com.example.springboot_realtimechat.domain.chatroom.service.RoomAccess;
 import com.example.springboot_realtimechat.domain.image.event.MessageImageRelease;
@@ -37,6 +38,7 @@ public class MessageService {
     private final RoomAccess roomAccess;
     private final S3Service s3Service;
     private final MessageEventRecorder messageEventRecorder;
+    private final ChatRoomMemberRepository chatRoomMemberRepository;
 
     public record MessagePage(List<Message> messages, boolean hasMore) {}
 
@@ -97,6 +99,8 @@ public class MessageService {
         // 같은 트랜잭션에서 이벤트를 남긴다. 방 잠금 아래이므로 방 안 이벤트 순서 = 순번 순서다.
         // 재전송(위의 기존 메시지 반환)은 여기까지 오지 않으므로 이벤트가 중복되지 않는다.
         messageEventRecorder.record(MessageEventType.CREATED, saved);
+        // 보낸 사람은 자기 메시지까지 읽은 것으로 본다. 방 잠금 아래라 잠금 순서는 chatrooms → chatroom_members다.
+        chatRoomMemberRepository.advanceLastRead(memberId, chatroomId, saved.getSeq(), saved.getId());
         return saved;
     }
 
@@ -106,14 +110,34 @@ public class MessageService {
     }
 
     public MessagePage getMessages(Long chatroomId, Long memberId, Long before, int limit) {
+        return getMessages(chatroomId, memberId, before, null, null, limit);
+    }
+
+    /** 커서는 before(id)·beforeSeq·afterSeq 중 하나만 줄 수 있다. 결과는 항상 오래된 → 최신 순이다. */
+    public MessagePage getMessages(Long chatroomId, Long memberId, Long before, Long beforeSeq, Long afterSeq,
+                                   int limit) {
+        int cursors = (before != null ? 1 : 0) + (beforeSeq != null ? 1 : 0) + (afterSeq != null ? 1 : 0);
+        if (cursors > 1) {
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
+        }
         ChatRoom chatRoom = chatRoomService.getChatRoomById(chatroomId);
         if (!roomAccess.isMember(memberId, chatroomId)) {
             throw new CustomException(ErrorCode.NOT_JOINED_ROOM);
         }
         Pageable pageable = PageRequest.of(0, limit + 1);
-        List<Message> desc = (before == null)
-                ? messageRepository.findLatestByChatRoom(chatRoom, pageable)
-                : messageRepository.findOlderByChatRoom(chatRoom, before, pageable);
+        if (afterSeq != null) {
+            List<Message> asc = messageRepository.findAfterSeq(chatRoom, afterSeq, pageable);
+            boolean hasMore = asc.size() > limit;
+            return new MessagePage(hasMore ? new ArrayList<>(asc.subList(0, limit)) : asc, hasMore);
+        }
+        List<Message> desc;
+        if (beforeSeq != null) {
+            desc = messageRepository.findBeforeSeq(chatRoom, beforeSeq, pageable);
+        } else if (before != null) {
+            desc = messageRepository.findOlderByChatRoom(chatRoom, before, pageable);
+        } else {
+            desc = messageRepository.findLatestByChatRoom(chatRoom, pageable);
+        }
         boolean hasMore = desc.size() > limit;
         List<Message> page = hasMore ? new ArrayList<>(desc.subList(0, limit)) : new ArrayList<>(desc);
         Collections.reverse(page); // 오름차순(오래된 → 최신)

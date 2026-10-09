@@ -4,6 +4,7 @@ import com.example.springboot_realtimechat.domain.chatroom.dto.BannedMemberRespo
 import com.example.springboot_realtimechat.domain.chatroom.dto.ChatRoomRequest;
 import com.example.springboot_realtimechat.domain.chatroom.dto.ChatRoomResponse;
 import com.example.springboot_realtimechat.domain.chatroom.dto.OwnerTransferRequest;
+import com.example.springboot_realtimechat.domain.chatroom.dto.ReadRequest;
 import com.example.springboot_realtimechat.domain.chatroom.dto.RoomPrivacyRequest;
 import com.example.springboot_realtimechat.domain.chatroom.dto.UnreadCountResponse;
 import com.example.springboot_realtimechat.domain.chatroom.entity.ChatRoom;
@@ -47,8 +48,9 @@ public class ChatRoomController {
 
     @PostMapping("/{id}/read")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void markRead(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails user) {
-        chatRoomMemberService.markRead(user.getMemberId(), id);
+    public void markRead(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails user,
+                         @Valid @RequestBody(required = false) ReadRequest request) {
+        chatRoomMemberService.markRead(user.getMemberId(), id, request == null ? null : request.getSeq());
     }
 
     @GetMapping

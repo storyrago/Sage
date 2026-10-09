@@ -43,7 +43,7 @@ public class LocalUnreadNotifier {
     }
 
     private void notifyLocalMembers(MessageEvent event) {
-        // 수정·삭제는 새 메시지가 아니다. 보내면 배지가 부풀고 deleted=false만 세는 서버 집계와 어긋난다.
+        // 수정·삭제는 새 메시지가 아니다. 방 최신 순번이 바뀌지 않으므로 알릴 것이 없다.
         if (event.getEventType() != MessageEventType.CREATED || event.getDeleted()) {
             return;
         }
@@ -62,7 +62,8 @@ public class LocalUnreadNotifier {
         // 조회는 보내기 전에 모두 끝낸다. 보내는 도중 예외로 재시도되면 이미 받은 사람이 같은 알림을 또 받는다.
         Long replyToAuthorId = event.getReplyToId() == null ? null : messageRepository.findAuthorIdById(event.getReplyToId());
         for (Long memberId : recipients) {
-            UnreadEvent unread = new UnreadEvent(event.getChatroomId(), event.getMessageId(), memberId.equals(replyToAuthorId));
+            UnreadEvent unread = new UnreadEvent(event.getChatroomId(), event.getMessageId(), event.getSeq(),
+                    memberId.equals(replyToAuthorId));
             try {
                 messagingTemplate.convertAndSendToUser(String.valueOf(memberId), "/queue/unread", unread);
             } catch (Exception e) {

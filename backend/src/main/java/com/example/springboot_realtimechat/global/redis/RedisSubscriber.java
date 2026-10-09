@@ -50,7 +50,7 @@ public class RedisSubscriber implements MessageListener {
                     if (member.getId().equals(messageResponse.getMemberId())) continue; // 보낸 사람 제외
                     boolean replyToMe = replyToAuthorId != null && replyToAuthorId.equals(member.getId());
                     UnreadEvent event = new UnreadEvent(
-                            messageResponse.getChatroomId(), messageResponse.getMessageId(), replyToMe);
+                            messageResponse.getChatroomId(), messageResponse.getMessageId(), messageResponse.getSeq(), replyToMe);
                     try {
                         messagingTemplate.convertAndSendToUser(String.valueOf(member.getId()), "/queue/unread", event);
                     } catch (Exception e) {

@@ -47,10 +47,12 @@ public class MessageController {
             @PathVariable Long chatroomId,
             @AuthenticationPrincipal CustomUserDetails customUserDetails,
             @RequestParam(required = false) Long before,
+            @RequestParam(required = false) Long beforeSeq,
+            @RequestParam(required = false) Long afterSeq,
             @RequestParam(defaultValue = "30") int limit) {
         int capped = Math.min(Math.max(limit, 1), 50);
         MessageService.MessagePage page = messageService.getMessages(
-                chatroomId, customUserDetails.getMemberId(), before, capped);
+                chatroomId, customUserDetails.getMemberId(), before, beforeSeq, afterSeq, capped);
         List<MessageResponse> messages = page.messages().stream()
                 .map(messageResponseFactory::of)
                 .toList();

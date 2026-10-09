@@ -25,16 +25,25 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 
     boolean existsByContentContaining(String url);
 
-    // 최신 → 과거(id DESC). member는 fetch join으로 페이지 내 N+1 제거.
+    // 최신 → 과거(seq DESC). member는 fetch join으로 페이지 내 N+1 제거.
     // 작성자가 없는 메시지(탈퇴자)도 목록에 남아야 하므로 LEFT JOIN이다.
-    @Query("SELECT m FROM Message m LEFT JOIN FETCH m.member WHERE m.chatRoom = :room ORDER BY m.id DESC")
+    @Query("SELECT m FROM Message m LEFT JOIN FETCH m.member WHERE m.chatRoom = :room ORDER BY m.seq DESC")
     List<Message> findLatestByChatRoom(@Param("room") ChatRoom room, Pageable pageable);
 
     @Query("SELECT m FROM Message m LEFT JOIN FETCH m.member WHERE m.chatRoom = :room AND m.id < :before ORDER BY m.id DESC")
     List<Message> findOlderByChatRoom(@Param("room") ChatRoom room, @Param("before") Long before, Pageable pageable);
 
-    @Query("SELECT MAX(m.id) FROM Message m WHERE m.chatRoom = :room")
-    Long findMaxIdByChatRoom(@Param("room") ChatRoom room);
+    // 과거 스크롤용. 최신 → 과거(seq DESC)로 읽고 서비스가 뒤집는다.
+    @Query("SELECT m FROM Message m LEFT JOIN FETCH m.member WHERE m.chatRoom = :room AND m.seq < :beforeSeq ORDER BY m.seq DESC")
+    List<Message> findBeforeSeq(@Param("room") ChatRoom room, @Param("beforeSeq") long beforeSeq, Pageable pageable);
+
+    // 빈 순번 채우기·재접속 따라잡기용. 과거 → 최신(seq ASC).
+    @Query("SELECT m FROM Message m LEFT JOIN FETCH m.member WHERE m.chatRoom = :room AND m.seq > :afterSeq ORDER BY m.seq ASC")
+    List<Message> findAfterSeq(@Param("room") ChatRoom room, @Param("afterSeq") long afterSeq, Pageable pageable);
+
+    /** 읽음 위치를 옮길 때 같은 순번의 메시지 id를 함께 저장하기 위한 조회. */
+    @Query("SELECT m.id FROM Message m WHERE m.chatRoom = :room AND m.seq = :seq")
+    Long findIdByChatRoomAndSeq(@Param("room") ChatRoom room, @Param("seq") long seq);
 
     /** 부모 메시지 작성자 판정용. FK 컬럼만 읽으므로 조인이 생기지 않는다. 탈퇴자·없는 메시지는 null. */
     @Query("SELECT m.member.id FROM Message m WHERE m.id = :messageId")
