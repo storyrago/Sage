@@ -1,5 +1,6 @@
 package com.example.springboot_realtimechat.outbox;
 
+import com.example.springboot_realtimechat.domain.image.event.MessageImageCleanupConsumer;
 import com.example.springboot_realtimechat.domain.message.event.MessageEventSchema;
 
 import io.confluent.kafka.schemaregistry.avro.AvroSchema;
@@ -40,6 +41,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -196,11 +198,16 @@ public final class CdcTestEnvironment {
     }
 
     private static void createTopics() throws Exception {
+        List<NewTopic> topics = new ArrayList<>(List.of(
+                new NewTopic(MessageEventSchema.TOPIC, TOPIC_PARTITIONS, (short) 1),
+                new NewTopic(MessageEventSchema.DEAD_LETTER_TOPIC, TOPIC_PARTITIONS, (short) 1),
+                new NewTopic(MessageImageCleanupConsumer.DEAD_LETTER_TOPIC, TOPIC_PARTITIONS, (short) 1),
+                new NewTopic(PROBE_TOPIC, 1, (short) 1)));
+        for (String retryTopic : MessageImageCleanupConsumer.RETRY_TOPICS) {
+            topics.add(new NewTopic(retryTopic, TOPIC_PARTITIONS, (short) 1));
+        }
         try (Admin admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers()))) {
-            admin.createTopics(List.of(
-                    new NewTopic(MessageEventSchema.TOPIC, TOPIC_PARTITIONS, (short) 1),
-                    new NewTopic(MessageEventSchema.DEAD_LETTER_TOPIC, TOPIC_PARTITIONS, (short) 1),
-                    new NewTopic(PROBE_TOPIC, 1, (short) 1))).all().get();
+            admin.createTopics(topics).all().get();
         }
     }
 

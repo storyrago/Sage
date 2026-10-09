@@ -14,6 +14,12 @@ public final class MessageEventRecords {
     }
 
     public static MessageEvent toEvent(UUID eventId, MessageEventType type, Instant occurredAt, Message message) {
+        return toEvent(eventId, type, occurredAt, message, null);
+    }
+
+    /** dereferencedImageUrl: 이 변경으로 참조가 끊긴 이미지. 삭제는 엔티티의 imageUrl을 지운 뒤 기록하므로 따로 받는다. */
+    public static MessageEvent toEvent(UUID eventId, MessageEventType type, Instant occurredAt, Message message,
+                                       String dereferencedImageUrl) {
         Member author = message.getMember();   // 탈퇴한 회원의 메시지는 작성자가 없다
         return MessageEvent.newBuilder()
                 .setEventId(eventId)
@@ -32,6 +38,7 @@ public final class MessageEventRecords {
                 .setCreatedAt(message.getCreatedAt())
                 .setEditedAt(message.getEditedAt())
                 .setDeleted(message.isDeleted())
+                .setDereferencedImageUrl(dereferencedImageUrl)
                 .build();
     }
 }

@@ -19,7 +19,6 @@
     {"name": "replyToId", "type": ["null", "long"], "default": null},
     {"name": "createdAt", "type": {"type": "long", "logicalType": "local-timestamp-micros"}},
     {"name": "editedAt", "type": ["null", {"type": "long", "logicalType": "local-timestamp-micros"}], "default": null},
-    {"name": "deleted", "type": "boolean"},
-    {"name": "dereferencedImageUrl", "type": ["null", "string"], "default": null, "doc": "이 변경으로 참조가 끊긴 이미지(DB 저장값). 이미지가 있던 메시지를 삭제할 때만 채운다. 이미지 정리 소비자가 쓴다"}
+    {"name": "deleted", "type": "boolean"}
   ]
 }

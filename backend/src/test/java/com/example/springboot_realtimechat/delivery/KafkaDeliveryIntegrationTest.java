@@ -1,6 +1,5 @@
 package com.example.springboot_realtimechat.delivery;
 
-import com.example.springboot_realtimechat.SpringbootRealtimechatApplication;
 import com.example.springboot_realtimechat.domain.chatroom.entity.ChatRoom;
 import com.example.springboot_realtimechat.domain.chatroom.service.ChatRoomMemberService;
 import com.example.springboot_realtimechat.domain.chatroom.service.ChatRoomService;
@@ -28,8 +27,6 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.WebApplicationType;
-import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.kafka.config.KafkaListenerEndpointRegistry;
 import org.springframework.kafka.support.KafkaHeaders;
@@ -93,24 +90,7 @@ class KafkaDeliveryIntegrationTest {
     }
 
     private static ConfigurableApplicationContext startNode(String nodeId) {
-        return new SpringApplicationBuilder(SpringbootRealtimechatApplication.class)
-                .web(WebApplicationType.SERVLET)
-                .run(
-                        "--server.port=0",
-                        "--spring.datasource.url=" + CdcTestEnvironment.jdbcUrl(),
-                        "--spring.datasource.username=" + CdcTestEnvironment.username(),
-                        "--spring.datasource.password=" + CdcTestEnvironment.password(),
-                        "--spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver",
-                        "--spring.flyway.enabled=true",
-                        "--spring.jpa.hibernate.ddl-auto=validate",
-                        "--app.outbox.enabled=true",
-                        "--app.outbox.schema-registry-url=" + CdcTestEnvironment.schemaRegistryUrl(),
-                        "--app.message.delivery=kafka",
-                        "--app.message.node-id=" + nodeId,
-                        "--spring.kafka.bootstrap-servers=" + CdcTestEnvironment.bootstrapServers(),
-                        // 운영은 latest. 테스트는 할당 직후 위치를 잡는 사이에 보낸 이벤트를 놓치지 않도록 처음부터 읽는다.
-                        // 앞선 테스트의 이벤트도 받지만, 검증은 이 테스트가 만든 방만 본다.
-                        "--spring.kafka.consumer.auto-offset-reset=earliest");
+        return KafkaTestNodes.start(nodeId);
     }
 
     private static void awaitAssigned(ConfigurableApplicationContext node) {

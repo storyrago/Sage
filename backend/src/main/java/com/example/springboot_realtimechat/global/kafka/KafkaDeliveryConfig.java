@@ -103,18 +103,25 @@ public class KafkaDeliveryConfig {
 
     /**
      * 원인 체인에 SchemaRegistryUnavailableException이 있으면 레지스트리가 돌아올 때까지 무기한 재시도하는
-     * 백오프를 돌려준다(초기 1초, 배수 2, 최대 간격 30초 — max.poll.interval.ms 기본값 5분보다 작다).
-     * 그 밖은 null — DefaultErrorHandler가 기본 백오프(위 3회 재시도)를 쓴다.
+     * 백오프를 돌려준다. 그 밖은 null — DefaultErrorHandler가 기본 백오프(위 3회 재시도)를 쓴다.
      */
     public static BackOff backOffFor(Exception exception) {
         for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
             if (cause instanceof SchemaRegistryUnavailableException) {
-                ExponentialBackOff unlimited = new ExponentialBackOff(1_000L, 2.0);
-                unlimited.setMaxInterval(30_000L);
-                return unlimited;
+                return registryOutageBackOff();
             }
         }
         return null;
+    }
+
+    /**
+     * 레지스트리 불통용 무기한 백오프(초기 1초, 배수 2, 최대 간격 30초 — max.poll.interval.ms 기본값 5분보다 작다).
+     * 재시도 토픽을 쓰는 소비자(KafkaRetryTopicConfig)도 같은 값을 쓴다.
+     */
+    public static BackOff registryOutageBackOff() {
+        ExponentialBackOff unlimited = new ExponentialBackOff(1_000L, 2.0);
+        unlimited.setMaxInterval(30_000L);
+        return unlimited;
     }
 
     private static String header(ConsumerRecord<?, ?> record, String name) {

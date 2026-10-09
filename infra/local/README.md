@@ -16,10 +16,12 @@
 ```bash
 cd infra/local
 docker compose up -d                 # 모든 서비스가 healthy가 될 때까지 기다린다
-./scripts/create-topics.sh           # chat.message.events (RF 3, min ISR 2)
+./scripts/create-topics.sh           # chat.message.events + DLT·이미지 정리 재시도 토픽 (RF 3, min ISR 2)
 ./scripts/register-schema.sh         # subject 호환성 BACKWARD + 스키마 등록
 ./scripts/register-connector.sh      # Debezium 커넥터 등록(이미 있으면 설정 갱신)
 ```
+
+스키마(`backend/src/main/resources/avro/message-event.avsc`)가 바뀐 코드를 받았으면 `./scripts/register-schema.sh`를 다시 실행해 새 버전을 등록한다. 앱은 자기 스키마가 등록돼 있지 않으면 기동하지 않는다. 호환되지 않는 변경은 이 단계에서 거부된다(HTTP 409).
 
 앱은 스위치를 켜고 띄운다(Redis는 기존처럼 별도로 떠 있어야 한다):
 
@@ -56,6 +58,7 @@ APP_OUTBOX_ENABLED=true APP_MESSAGE_DELIVERY=kafka APP_MESSAGE_NODE_ID=node-2 SE
 ```
 
 - 서버마다 consumer group 두 개가 생긴다: `sage-realtime-<노드 id>`(방 구독자 전달), `sage-unread-<노드 id>`(안읽음).
+- 이미지 정리는 서버 전체에서 group 하나(`sage-image-cleanup`)가 맡는다. 메시지 삭제 이벤트의 끊긴 이미지에 orphan 태그를 단다(실제 S3 호출 — 로컬에서 AWS 자격 증명이 없으면 실패해 재시도 토픽을 거쳐 DLT로 간다). 실패는 재시도 토픽 3단계(5초·30초·3분, `APP_IMAGE_CLEANUP_RETRY_DELAY_MS` 등으로 조정) 뒤 `chat.message.events.image-cleanup-DLT`로 간다. 프로필 사진 교체·탈퇴의 정리는 이 소비자가 아니라 커밋 후 리스너가 한다.
 - 여러 대를 띄울 때는 `APP_MESSAGE_NODE_ID`를 서버마다 다르게, 재기동해도 같은 값으로 준다. 비우면 기동마다 새 UUID group이 생기고 옛 group은 브로커에 남는다(빈 group의 오프셋은 브로커 보존 기간 뒤 정리된다).
 - 스키마 레지스트리에 닿지 못하면(접속 불가·타임아웃·5xx·401·403) 소비자는 이벤트를 DLT로 보내지 않고 복구될 때까지 다시 시도한다(최대 30초 간격). 그동안 해당 파티션은 멈추고 lag이 쌓인다.
 - `APP_MESSAGE_DELIVERY=kafka`인데 `APP_OUTBOX_ENABLED`가 true가 아니면 앱이 뜨지 않는다.

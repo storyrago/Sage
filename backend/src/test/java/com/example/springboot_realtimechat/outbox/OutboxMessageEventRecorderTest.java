@@ -35,6 +35,7 @@ class OutboxMessageEventRecorderTest {
 
     static final String SCOPE = "outbox-recorder-test";
     private static final String CLIENT_ID = "7d3e9a1b-2c4f-4e5a-8b6c-0d1e2f3a4b5c";
+    private static final String IMAGE_PREFIX = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/rooms/";
 
     static {
         // 컨텍스트 기동 시 등록 여부를 확인하므로 그 전에 등록해 둔다(배포 단계의 등록을 재현).
@@ -125,6 +126,27 @@ class OutboxMessageEventRecorderTest {
         MessageEvent deleted = payloadOf(events.get(1));
         assertThat(deleted.getDeleted()).isTrue();
         assertThat(deleted.getContent()).isEmpty();
+        assertThat(deleted.getDereferencedImageUrl()).isNull();   // 글만 있던 메시지는 끊긴 이미지가 없다
+    }
+
+    @Test
+    void 이미지_메시지를_삭제하면_삭제_이벤트에_끊긴_이미지_주소를_싣는다() {
+        ChatRoom room = chatRoomService.create("기록이미지삭제방", false, null);
+        Member member = joined("recorder-image-delete@e.com", room);
+        String url = IMAGE_PREFIX + member.getId() + "/00000000-0000-0000-0000-0000000000d1_photo.png";
+        Message message = messageService.create("", url, member.getId(), room.getId(), null);
+
+        messageService.delete(room.getId(), message.getId(), member.getId());
+
+        List<OutboxEvent> events = appended();
+        assertThat(events).extracting(OutboxEvent::getType).containsExactly("CREATED", "DELETED");
+        MessageEvent created = payloadOf(events.get(0));
+        MessageEvent deleted = payloadOf(events.get(1));
+        assertThat(created.getImageUrl()).isEqualTo(url);
+        assertThat(created.getDereferencedImageUrl()).isNull();
+        // 삭제 후 상태는 이미지가 없고, 끊긴 주소는 따로 싣는다.
+        assertThat(deleted.getImageUrl()).isNull();
+        assertThat(deleted.getDereferencedImageUrl()).isEqualTo(url);
     }
 
     @Test
