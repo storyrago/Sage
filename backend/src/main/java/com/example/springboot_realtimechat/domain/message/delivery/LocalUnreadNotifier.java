@@ -43,7 +43,7 @@ public class LocalUnreadNotifier {
     }
 
     private void notifyLocalMembers(MessageEvent event) {
-        // 수정·삭제는 새 메시지가 아니다. 보내면 배지가 부풀고 deleted=false만 세는 서버 집계와 어긋난다.
+        // 수정·삭제는 새 메시지가 아니다. 방 최신 순번이 바뀌지 않으므로 알릴 것이 없다.
         if (event.getEventType() != MessageEventType.CREATED || event.getDeleted()) {
             return;
         }

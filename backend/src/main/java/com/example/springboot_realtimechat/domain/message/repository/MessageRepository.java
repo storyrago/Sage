@@ -41,7 +41,6 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     @Query("SELECT m FROM Message m LEFT JOIN FETCH m.member WHERE m.chatRoom = :room AND m.seq > :afterSeq ORDER BY m.seq ASC")
     List<Message> findAfterSeq(@Param("room") ChatRoom room, @Param("afterSeq") long afterSeq, Pageable pageable);
 
-
     /** 읽음 위치를 옮길 때 같은 순번의 메시지 id를 함께 저장하기 위한 조회. */
     @Query("SELECT m.id FROM Message m WHERE m.chatRoom = :room AND m.seq = :seq")
     Long findIdByChatRoomAndSeq(@Param("room") ChatRoom room, @Param("seq") long seq);
