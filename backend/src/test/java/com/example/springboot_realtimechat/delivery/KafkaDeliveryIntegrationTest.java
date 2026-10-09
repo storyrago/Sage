@@ -167,6 +167,9 @@ class KafkaDeliveryIntegrationTest {
         // 한 이벤트의 통지는 한 번의 처리에서 모두 나가므로, 위가 도착했으면 아래는 더 오지 않는다.
         assertThat(sentByA.destinations()).doesNotContain(unreadQueue(onB), unreadQueue(sender), unreadQueue(offline));
         assertThat(sentByB.destinations()).doesNotContain(unreadQueue(onA), unreadQueue(sender), unreadQueue(offline));
+        // 새 방의 첫 메시지이므로 순번 1이 실린다.
+        assertThat(sentByA.seqsTo(unreadQueue(onA))).containsExactly(1L);
+        assertThat(sentByB.seqsTo(unreadQueue(onB))).containsExactly(1L);
     }
 
     @Test
@@ -257,14 +260,15 @@ class KafkaDeliveryIntegrationTest {
             return sent.stream().map(m -> SimpMessageHeaderAccessor.getDestination(m.getHeaders())).toList();
         }
 
-        List<Long> seqsTo(String destination) {
+        List<JsonNode> payloadsTo(String destination) {
             return sent.stream()
                     .filter(m -> destination.equals(SimpMessageHeaderAccessor.getDestination(m.getHeaders())))
-                    .map(m -> {
-                        JsonNode body = JSON.readTree((byte[]) m.getPayload());
-                        return body.get("seq").asLong();
-                    })
+                    .map(m -> JSON.readTree((byte[]) m.getPayload()))
                     .toList();
+        }
+
+        List<Long> seqsTo(String destination) {
+            return payloadsTo(destination).stream().map(body -> body.get("seq").asLong()).toList();
         }
     }
 }

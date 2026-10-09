@@ -63,7 +63,7 @@ class LocalUnreadNotifierTest {
     }
 
     private MessageEvent created(long messageId, long authorId, Long replyToId) {
-        return MessageEventFixtures.event(MessageEventType.CREATED, ROOM, messageId, 1L, authorId, replyToId, false);
+        return MessageEventFixtures.event(MessageEventType.CREATED, ROOM, messageId, messageId + 100, authorId, replyToId, false);
     }
 
     private Set<String> notifiedUsers() {
@@ -96,6 +96,7 @@ class LocalUnreadNotifierTest {
         assertThat(toParentAuthor.getValue().isReplyToMe()).isTrue();
         assertThat(toParentAuthor.getValue().getChatroomId()).isEqualTo(ROOM);
         assertThat(toParentAuthor.getValue().getMessageId()).isEqualTo(51L);
+        assertThat(toParentAuthor.getValue().getSeq()).isEqualTo(151L);
 
         ArgumentCaptor<UnreadEvent> toOther = ArgumentCaptor.forClass(UnreadEvent.class);
         verify(messagingTemplate).convertAndSendToUser(eq("3"), eq("/queue/unread"), toOther.capture());

@@ -62,7 +62,8 @@ public class LocalUnreadNotifier {
         // 조회는 보내기 전에 모두 끝낸다. 보내는 도중 예외로 재시도되면 이미 받은 사람이 같은 알림을 또 받는다.
         Long replyToAuthorId = event.getReplyToId() == null ? null : messageRepository.findAuthorIdById(event.getReplyToId());
         for (Long memberId : recipients) {
-            UnreadEvent unread = new UnreadEvent(event.getChatroomId(), event.getMessageId(), memberId.equals(replyToAuthorId));
+            UnreadEvent unread = new UnreadEvent(event.getChatroomId(), event.getMessageId(), event.getSeq(),
+                    memberId.equals(replyToAuthorId));
             try {
                 messagingTemplate.convertAndSendToUser(String.valueOf(memberId), "/queue/unread", unread);
             } catch (Exception e) {
