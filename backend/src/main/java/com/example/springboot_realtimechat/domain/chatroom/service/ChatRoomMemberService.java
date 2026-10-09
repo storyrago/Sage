@@ -62,7 +62,11 @@ public class ChatRoomMemberService {
         }
 
         ChatRoomMember chatRoomMember = new ChatRoomMember(member, chatRoom);
-        chatRoomMember.updateLastRead(messageRepository.findMaxIdByChatRoom(chatRoom));
+        long latestSeq = chatRoom.getLastMessageSeq();
+        if (latestSeq > 0) {
+            // 들어오기 전 메시지는 읽은 것으로 시작한다.
+            chatRoomMember.startReadingAt(latestSeq, messageRepository.findIdByChatRoomAndSeq(chatRoom, latestSeq));
+        }
         ChatRoomMember saved;
         try{
             // 트랜잭션이 끝나는 시점에 실제 SQL이 실행될 수 있어서, 중복 참여로 인한 unique 제약조건 예외가 try-catch 밖에서 발생할 수 있음.
@@ -171,17 +175,34 @@ public class ChatRoomMemberService {
     public List<UnreadCountResponse> getUnreadCounts(Long memberId) {
         return chatRoomMemberRepository.findUnreadCountsByMemberId(memberId).stream()
                 .map(p -> new UnreadCountResponse(
-                        p.getChatroomId(), p.getUnreadCount(), p.getReplyCount(), p.getLastReadMessageId()))
+                        p.getChatroomId(),
+                        Math.max(0, p.getLastMessageSeq() - p.getLastReadSeq()),
+                        p.getReplyCount(),
+                        p.getLastReadMessageId(),
+                        p.getLastMessageSeq(),
+                        p.getLastReadSeq()))
                 .toList();
     }
 
     @Transactional
     public void markRead(Long memberId, Long chatRoomId) {
-        Member member = memberService.getMemberById(memberId);
+        markRead(memberId, chatRoomId, null);
+    }
+
+    /** seq까지 읽은 것으로 기록한다. seq가 없으면 방의 최신 순번까지. 방 최신 순번을 넘는 값은 잘라낸다. */
+    @Transactional
+    public void markRead(Long memberId, Long chatRoomId, Long seq) {
         ChatRoom chatRoom = chatRoomService.getChatRoomById(chatRoomId);
-        ChatRoomMember cm = chatRoomMemberRepository.findByMemberAndChatRoom(member, chatRoom)
-                .orElseThrow(() -> new CustomException(ErrorCode.NOT_JOINED_ROOM));
-        cm.updateLastRead(messageRepository.findMaxIdByChatRoom(chatRoom));
+        if (!roomAccess.isMember(memberId, chatRoomId)) {
+            throw new CustomException(ErrorCode.NOT_JOINED_ROOM);
+        }
+        long latestSeq = chatRoom.getLastMessageSeq();
+        long target = seq == null ? latestSeq : Math.min(seq, latestSeq);
+        if (target <= 0) {
+            return;
+        }
+        chatRoomMemberRepository.advanceLastRead(memberId, chatRoomId, target,
+                messageRepository.findIdByChatRoomAndSeq(chatRoom, target));
     }
 
 }

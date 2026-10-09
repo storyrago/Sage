@@ -44,10 +44,6 @@ public class ChatRoomMember {
         chatRoom.getChatRoomMembers().add(this);
     }
 
-    public void updateLastRead(Long messageId) {
-        this.lastReadMessageId = messageId;
-    }
-
     /**
      * 새 멤버십의 시작 위치. 이미 저장된 행은 동시 요청에 안전한
      * ChatRoomMemberRepository.advanceLastRead로만 옮긴다.
