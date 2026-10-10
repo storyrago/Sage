@@ -38,7 +38,7 @@ import { reconnectDelayMs, reconnectExhausted } from './lib/reconnect';
 import { createReadMarker } from './lib/readMarker';
 import { gapAfterSeq, insertLive, mergeMessages, replaceWithPage } from './lib/timeline';
 import { UnreadState, applyUnreadNotice, fromSnapshots, markReadUpTo, toBadges } from './lib/unread';
-import { PendingMessage, PendingState, addPending, classifySendError, markFailed, markSending, removePending } from './lib/pending';
+import { PendingMessage, PendingState, addPending, classifySendError, markFailed, markSending, newClientMessageId, removePending } from './lib/pending';
 import { useTheme } from './lib/useTheme';
 import { toUserMessage, isSessionExpiredError } from './lib/errors';
 
@@ -606,7 +606,7 @@ export default function App() {
   const handleSendMessage = async (text: string, replyToId?: string, imageUrl?: string) => {
     if (!token || !selectedChannelId) return;
     const message: PendingMessage = {
-      clientMessageId: crypto.randomUUID(),
+      clientMessageId: newClientMessageId(),
       channelId: selectedChannelId,
       text,
       replyToId,

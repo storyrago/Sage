@@ -25,6 +25,19 @@ export interface SendFailure {
   message: string;
 }
 
+/**
+ * 보낼 때마다 새 clientMessageId(UUID v4)를 만든다. crypto.randomUUID는 보안 컨텍스트(HTTPS·localhost)에만 있어,
+ * 같은 망의 다른 기기에서 http://<IP>로 열면 없다. getRandomValues는 어디서나 있으므로 그때는 직접 만든다.
+ */
+export function newClientMessageId(cryptoImpl: Pick<Crypto, 'getRandomValues'> & { randomUUID?: () => string } = crypto): string {
+  if (typeof cryptoImpl.randomUUID === 'function') return cryptoImpl.randomUUID();
+  const bytes = cryptoImpl.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40; // 버전 4
+  bytes[8] = (bytes[8] & 0x3f) | 0x80; // RFC 4122 변형
+  const hex = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 export function addPending(state: PendingState, message: PendingMessage): PendingState {
   return { ...state, [message.channelId]: [...(state[message.channelId] ?? []), message] };
 }

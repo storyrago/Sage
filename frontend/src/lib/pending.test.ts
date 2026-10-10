@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ApiError } from './api';
-import { PendingMessage, addPending, classifySendError, markFailed, markSending, removePending } from './pending';
+import { PendingMessage, addPending, classifySendError, markFailed, markSending, newClientMessageId, removePending } from './pending';
 
 function pendingOf(id: string, roomId = '1'): PendingMessage {
   return { clientMessageId: id, channelId: roomId, text: id, createdAt: 0, status: 'sending', retryable: true };
@@ -57,5 +57,18 @@ describe('classifySendError', () => {
   it('시간 초과와 네트워크 오류는 다시 보낼 수 있다', () => {
     expect(classifySendError(new DOMException('aborted', 'AbortError'))).toEqual({ retryable: true, message: '응답이 없어요.' });
     expect(classifySendError(new TypeError('Failed to fetch'))).toEqual({ retryable: true, message: '네트워크에 연결할 수 없어요.' });
+  });
+});
+
+describe('newClientMessageId', () => {
+  const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+  it('randomUUID가 있으면 그대로 쓴다', () => {
+    expect(newClientMessageId({ randomUUID: () => 'from-native', getRandomValues: (a) => a })).toBe('from-native');
+  });
+
+  it('randomUUID가 없는 환경(HTTP로 연 다른 기기)에서도 서버가 받는 UUID v4를 만든다', () => {
+    const id = newClientMessageId({ getRandomValues: (a) => crypto.getRandomValues(a) });
+    expect(id).toMatch(UUID_V4);
   });
 });
