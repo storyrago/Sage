@@ -38,6 +38,7 @@ import { reconnectDelayMs, reconnectExhausted } from './lib/reconnect';
 import { createReadMarker } from './lib/readMarker';
 import { gapAfterSeq, insertLive, mergeMessages, replaceWithPage } from './lib/timeline';
 import { UnreadState, applyUnreadNotice, fromSnapshots, markReadUpTo, toBadges } from './lib/unread';
+import { PendingMessage, PendingState, addPending, classifySendError, markFailed, markSending, newClientMessageId, removePending } from './lib/pending';
 import { useTheme } from './lib/useTheme';
 import { toUserMessage, isSessionExpiredError } from './lib/errors';
 
@@ -81,6 +82,8 @@ export default function App() {
   const [unread, setUnread] = useState<UnreadState>({});
   // "여기부터 안 읽음" 구분선의 경계(읽은 순번). 배지 상태와 달리 보는 동안 화면에 고정해 두는 값이다.
   const [roomLastRead, setRoomLastRead] = useState<Record<string, number | null>>({});
+  // 방별 확정 전 내 메시지. 확정은 POST 응답과 같은 clientMessageId의 방송 중 먼저 온 쪽이 한다.
+  const [pending, setPending] = useState<PendingState>({});
   const [notice, setNotice] = useState<string | null>(null);
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
 
@@ -193,6 +196,7 @@ export default function App() {
     setUser(null);
     setChannels([]);
     setMessagesByRoom({});
+    setPending({});
     setPresences([]);
     setOnlineMemberIds(new Set());
     typingExpiryRef.current.forEach((t) => clearTimeout(t));
@@ -474,6 +478,11 @@ export default function App() {
           // 순번 자리에 넣는다. 같은 순번이면 수정·삭제로 덮어쓰고, 불러온 범위보다 오래된 순번은 버린다.
           // 빈 순번이 생기면 위의 effect가 서버에서 채운다.
           updateRoom(roomId, (list) => insertLive(list, nextMessage));
+          // 내가 보낸 메시지의 방송이 POST 응답보다 먼저 오면 여기서 확정한다(나중에 온 응답은 같은 seq 덮어쓰기).
+          const confirmedId = nextMessage.clientMessageId;
+          if (confirmedId) {
+            setPending((prev) => removePending(prev, roomId, confirmedId));
+          }
 
           // 보는 중 도착한 메시지도 읽음 처리(스펙). 1초 스로틀 — 메시지마다 쓰기 금지.
           if (roomId === selectedChannelRef.current && token) {
@@ -576,15 +585,49 @@ export default function App() {
     }
   }, [selectedChannelId]);
 
+  // 대기 메시지를 서버에 보낸다. 응답(또는 같은 clientMessageId의 실시간 방송) 중 먼저 온 쪽이 확정한다.
+  // 실패하면 대기 말풍선을 실패로 바꾼다. 다시 보내도 같은 clientMessageId라 서버가 중복 저장하지 않는다.
+  const deliver = useCallback(async (message: PendingMessage) => {
+    if (!token) return;
+    try {
+      const saved = await sendMessage(token, message.channelId, {
+        content: message.text,
+        replyToId: message.replyToId,
+        imageUrl: message.imageUrl,
+        clientMessageId: message.clientMessageId,
+      });
+      updateRoom(message.channelId, (list) => insertLive(list, toMessage(saved)));
+      setPending((prev) => removePending(prev, message.channelId, message.clientMessageId));
+    } catch (error) {
+      setPending((prev) => markFailed(prev, message.channelId, message.clientMessageId, classifySendError(error)));
+    }
+  }, [token, updateRoom]);
+
   const handleSendMessage = async (text: string, replyToId?: string, imageUrl?: string) => {
     if (!token || !selectedChannelId) return;
+    const message: PendingMessage = {
+      clientMessageId: newClientMessageId(),
+      channelId: selectedChannelId,
+      text,
+      replyToId,
+      imageUrl,
+      createdAt: Date.now(),
+      status: 'sending',
+      retryable: true,
+    };
+    setPending((prev) => addPending(prev, message));
+    await deliver(message);
+  };
 
-    const sentOverStomp = stompRef.current?.send(selectedChannelId, text, replyToId, imageUrl) ?? false;
-    if (!sentOverStomp) {
-      const saved = await sendMessage(token, selectedChannelId, text, replyToId, imageUrl);
-      const nextMessage = toMessage(saved);
-      updateRoom(selectedChannelId, (list) => insertLive(list, nextMessage));
-    }
+  const retryPending = (clientMessageId: string) => {
+    const message = (pending[selectedChannelId] ?? []).find((p) => p.clientMessageId === clientMessageId);
+    if (!message) return;
+    setPending((prev) => markSending(prev, message.channelId, clientMessageId));
+    void deliver(message);
+  };
+
+  const discardPending = (clientMessageId: string) => {
+    setPending((prev) => removePending(prev, selectedChannelId, clientMessageId));
   };
 
   const handleTypeStateChange = (isTyping: boolean) => {
@@ -751,6 +794,9 @@ export default function App() {
               onEditMessage={handleEditMessage}
               onDeleteMessage={handleDeleteMessage}
               unreadFromSeq={roomLastRead[selectedChannelId] ?? null}
+              pending={pending[selectedChannelId] ?? []}
+              onRetryPending={retryPending}
+              onDiscardPending={discardPending}
             />
           </div>
         ) : (
