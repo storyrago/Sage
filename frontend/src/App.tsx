@@ -36,6 +36,8 @@ import {
 import { SpringStompClient } from './lib/stomp';
 import { reconnectDelayMs, reconnectExhausted } from './lib/reconnect';
 import { createReadMarker } from './lib/readMarker';
+import { gapAfterSeq, insertLive, mergeMessages, replaceWithPage } from './lib/timeline';
+import { UnreadState, applyUnreadNotice, fromSnapshots, markReadUpTo, toBadges } from './lib/unread';
 import { useTheme } from './lib/useTheme';
 import { toUserMessage, isSessionExpiredError } from './lib/errors';
 
@@ -60,8 +62,11 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [channels, setChannels] = useState<Channel[]>([]);
   const [selectedChannelId, setSelectedChannelId] = useState<string>('');
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [pageState, setPageState] = useState<Record<string, { oldestId: number | null; hasMore: boolean; loading: boolean }>>({});
+  // 방별 메시지 목록. 각 목록은 seq 오름차순이며 조작은 lib/timeline.ts로만 한다.
+  const [messagesByRoom, setMessagesByRoom] = useState<Record<string, Message[]>>({});
+  const messagesByRoomRef = useRef(messagesByRoom);
+  useEffect(() => { messagesByRoomRef.current = messagesByRoom; }, [messagesByRoom]);
+  const [pageState, setPageState] = useState<Record<string, { hasMore: boolean; loading: boolean }>>({});
   const pageStateRef = useRef(pageState);
   useEffect(() => { pageStateRef.current = pageState; }, [pageState]);
   const [presences, setPresences] = useState<Presence[]>([]);
@@ -73,7 +78,8 @@ export default function App() {
   const [reconnectCount, setReconnectCount] = useState<number>(0);
   const [reconnectGaveUp, setReconnectGaveUp] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState<string>('채팅 정보를 불러오는 중입니다.');
-  const [unread, setUnread] = useState<Record<string, { count: number; replies: number }>>({});
+  const [unread, setUnread] = useState<UnreadState>({});
+  // "여기부터 안 읽음" 구분선의 경계(읽은 순번). 배지 상태와 달리 보는 동안 화면에 고정해 두는 값이다.
   const [roomLastRead, setRoomLastRead] = useState<Record<string, number | null>>({});
   const [notice, setNotice] = useState<string | null>(null);
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
@@ -87,6 +93,12 @@ export default function App() {
   const typingExpiryRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const toastIdRef = useRef(0);
   const readMarkerRef = useRef<ReturnType<typeof createReadMarker> | null>(null);
+  // 빈 순번을 채우는 중인 방. 같은 방의 조회가 겹치지 않게 한다.
+  const fetchingAfterRef = useRef<Set<string>>(new Set());
+  // 조회 중에 들어온 요청. 끝난 뒤 한 번 더 확인한다.
+  const refetchRequestedRef = useRef<Set<string>>(new Set());
+  // 방마다 마지막으로 채우려 한 빈틈(afterSeq:목록 끝 seq). 같은 빈틈은 목록이 늘기 전까지 다시 조회하지 않는다.
+  const lastGapAttemptRef = useRef<Map<string, string>>(new Map());
 
   const { theme, toggleTheme } = useTheme();
 
@@ -114,6 +126,57 @@ export default function App() {
   // 매번 리셋되어, 3초마다 리렌더되는 재연결 중에는 타이머가 만료될 틈이 없어진다.
   const closeToast = useCallback(() => setToast(null), []);
 
+  // 한 방의 목록만 바꾼다. 바뀐 것이 없으면 이전 상태를 그대로 돌려 리렌더를 막는다.
+  const updateRoom = useCallback((roomId: string, change: (list: Message[]) => Message[]) => {
+    setMessagesByRoom((prev) => {
+      const current = prev[roomId] ?? [];
+      const next = change(current);
+      return next === current ? prev : { ...prev, [roomId]: next };
+    });
+  }, []);
+
+  // afterSeq 다음부터 서버의 최신까지 받아 합친다. 빈 순번 채우기와 재접속 따라잡기에 쓴다.
+  // 방마다 한 번에 하나만 돈다. 도는 동안 들어온 요청은 기억해 두었다가 끝난 뒤 빈틈을 다시 확인한다.
+  const fetchAfter = useCallback(async (roomId: string, afterSeq: number): Promise<void> => {
+    if (!token) return;
+    if (fetchingAfterRef.current.has(roomId)) {
+      refetchRequestedRef.current.add(roomId);
+      return;
+    }
+    fetchingAfterRef.current.add(roomId);
+    try {
+      let cursor = afterSeq;
+      for (;;) {
+        const page = await getMessages(token, roomId, { afterSeq: cursor }, 50);
+        updateRoom(roomId, (list) => mergeMessages(list, page.messages.map(toMessage)));
+        if (!page.hasMore || page.messages.length === 0) break;
+        cursor = page.messages[page.messages.length - 1].seq;
+      }
+    } catch (error) {
+      console.error('[Message] 빠진 메시지 조회 실패:', error);
+    } finally {
+      fetchingAfterRef.current.delete(roomId);
+    }
+    if (refetchRequestedRef.current.delete(roomId)) {
+      const gap = gapAfterSeq(messagesByRoomRef.current[roomId] ?? []);
+      if (gap != null) await fetchAfter(roomId, gap);
+    }
+  }, [token, updateRoom]);
+
+  // 목록에 빈 순번이 보이면 그 자리부터 다시 받는다(실시간 프레임 유실, 서버 간 전달 지연 등).
+  // 서버 순번은 빈틈이 없으므로 한 번 받으면 채워진다. 그래도 같은 빈틈이 남으면(서버 이상) 목록이
+  // 늘기 전까지 다시 조회하지 않는다 — 조회 결과를 합칠 때마다 이 effect가 다시 돌아 무한 반복되는 것을 막는다.
+  useEffect(() => {
+    for (const [roomId, list] of Object.entries(messagesByRoom)) {
+      const afterSeq = gapAfterSeq(list);
+      if (afterSeq == null) continue;
+      const attempt = `${afterSeq}:${list[list.length - 1].seq}`;
+      if (lastGapAttemptRef.current.get(roomId) === attempt) continue;
+      lastGapAttemptRef.current.set(roomId, attempt);
+      fetchAfter(roomId, afterSeq);
+    }
+  }, [messagesByRoom, fetchAfter]);
+
   const persistSession = useCallback((nextToken: string, nextUser: User) => {
     const session: StoredSession = { token: nextToken, user: nextUser };
     localStorage.setItem(SESSION_KEY, JSON.stringify(session));
@@ -129,7 +192,7 @@ export default function App() {
     setToken(null);
     setUser(null);
     setChannels([]);
-    setMessages([]);
+    setMessagesByRoom({});
     setPresences([]);
     setOnlineMemberIds(new Set());
     typingExpiryRef.current.forEach((t) => clearTimeout(t));
@@ -253,8 +316,8 @@ export default function App() {
         try {
           const counts = await getUnreadCounts(token);
           if (cancelled) return;
-          setUnread(Object.fromEntries(counts.map((c) => [String(c.chatroomId), { count: c.unreadCount, replies: c.replyCount }])));
-          setRoomLastRead(Object.fromEntries(counts.map((c) => [String(c.chatroomId), c.lastReadMessageId])));
+          setUnread(fromSnapshots(counts));
+          setRoomLastRead(Object.fromEntries(counts.map((c) => [String(c.chatroomId), c.lastReadSeq])));
         } catch (unreadError) {
           console.error('[Unread] 안읽음 개수 조회 실패(무시하고 계속):', unreadError);
         }
@@ -309,31 +372,27 @@ export default function App() {
         const page = await getMessages(token, selectedChannelId);
         if (!cancelled) {
           const mapped = page.messages.map(toMessage);
-          setMessages((prev) => {
-            const otherRooms = prev.filter((message) => message.channelId !== selectedChannelId);
-            return [...otherRooms, ...mapped];
-          });
+          updateRoom(selectedChannelId, (list) => replaceWithPage(list, mapped));
           setPageState((prev) => ({
             ...prev,
-            [selectedChannelId]: {
-              oldestId: page.messages.length ? page.messages[0].messageId : null,
-              hasMore: page.hasMore,
-              loading: false,
-            },
+            [selectedChannelId]: { hasMore: page.hasMore, loading: false },
           }));
-          // 입장 시 읽음 처리 → 배지 0. (구분선용 lastRead 스냅샷은 App의 roomLastRead를 갱신하지 않아 세션 동안 고정)
+          const newestSeq = mapped.length ? mapped[mapped.length - 1].seq : null;
+          // 입장 시 읽음 처리 → 배지 0. 본 페이지의 마지막 순번까지만 읽는다(그 뒤 도착분은 아래 실시간 처리가 맡는다).
+          // (구분선용 lastRead 스냅샷은 ChatArea가 입장 시점 값으로 고정)
           // 읽음 처리 실패는 사용자가 조치할 수 없고 다음 입장에서 회복되므로 알리지 않는다.
           // 여기서 새어나가면 "메시지를 불러오지 못했어요"로 잘못 표시된다.
           try {
-            await markRoomRead(token, selectedChannelId);
-            setUnread((prev) => ({ ...prev, [selectedChannelId]: { count: 0, replies: 0 } }));
+            await markRoomRead(token, selectedChannelId, newestSeq ?? undefined);
+            if (newestSeq != null) {
+              setUnread((prev) => markReadUpTo(prev, selectedChannelId, newestSeq));
+            }
           } catch (readError) {
             console.error('[Unread] 입장 시 읽음 처리 실패(무시하고 계속):', readError);
           }
           // 다음 입장 때 낡은 구분선이 뜨지 않도록 경계를 전진 (현재 화면은 ChatArea가 입장 시점 값으로 고정)
-          const newestId = page.messages.length ? page.messages[page.messages.length - 1].messageId : null;
-          if (newestId != null) {
-            setRoomLastRead((prev) => ({ ...prev, [selectedChannelId]: newestId }));
+          if (newestSeq != null) {
+            setRoomLastRead((prev) => ({ ...prev, [selectedChannelId]: newestSeq }));
           }
         }
       } catch (error) {
@@ -349,7 +408,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [token, selectedChannelId, notify]);
+  }, [token, selectedChannelId, notify, updateRoom]);
 
   useEffect(() => {
     if (!token || !user) return;
@@ -360,7 +419,7 @@ export default function App() {
     setReconnectGaveUp(false);   // 로컬 시도 횟수와 배너 상태가 어긋나지 않게 함께 초기화한다
 
     const readMarker = createReadMarker(
-      (roomId) => markRoomRead(token, roomId).catch((e) => console.error('[Unread] 읽음 처리 실패:', e)),
+      (roomId, seq) => markRoomRead(token, roomId, seq).catch((e) => console.error('[Unread] 읽음 처리 실패:', e)),
       (roomId) => selectedChannelRef.current === roomId,
     );
     readMarkerRef.current = readMarker;
@@ -394,11 +453,15 @@ export default function App() {
           const room = selectedChannelRef.current;
           if (room && joinedRoomsRef.current.has(room)) {
             client.subscribe(room);
+            // 끊긴 동안 놓친 메시지를 마지막으로 받은 순번 다음부터 따라잡는다.
+            // (아직 불러오지 않은 방이면 입장 처리가 최신 페이지를 받는다)
+            const list = messagesByRoomRef.current[room] ?? [];
+            if (list.length > 0) fetchAfter(room, list[list.length - 1].seq);
           }
           // 재연결 중 놓쳤을 수 있는 안읽음 이벤트를 보정 (경계는 건드리지 않음)
           getUnreadCounts(token)
             .then((counts) => {
-              setUnread(Object.fromEntries(counts.map((c) => [String(c.chatroomId), { count: c.unreadCount, replies: c.replyCount }])));
+              setUnread(fromSnapshots(counts));
             })
             .catch((e) => console.error('[Unread] 재연결 후 안읽음 재조회 실패:', e));
           // 끊긴 동안 강퇴·삭제당했을 수 있다. 그 통지는 재연결 시 구독 거부로만 드러나므로
@@ -407,31 +470,18 @@ export default function App() {
         },
         onMessage: (backendMessage) => {
           const nextMessage = toMessage(backendMessage);
-          setMessages((prev) => {
-            const idx = prev.findIndex((message) => message.id === nextMessage.id);
-            if (idx >= 0) {
-              const copy = [...prev];
-              copy[idx] = nextMessage; // 수정/삭제 등 기존 메시지 제자리 갱신
-              return copy;
-            }
-            // 로드 안 된 메시지: 이 방에서 가장 새 id보다 클 때만 새 메시지로 append.
-            // 더 오래된 id면 로드되지 않은 옛 메시지의 수정/삭제이므로 무시(페이지네이션으로 최신 상태를 받음).
-            const roomMax = prev.reduce(
-              (mx, m) => (m.channelId === nextMessage.channelId ? Math.max(mx, Number(m.id)) : mx),
-              0,
-            );
-            if (Number(nextMessage.id) > roomMax) return [...prev, nextMessage];
-            return prev;
-          });
+          const roomId = nextMessage.channelId;
+          // 순번 자리에 넣는다. 같은 순번이면 수정·삭제로 덮어쓰고, 불러온 범위보다 오래된 순번은 버린다.
+          // 빈 순번이 생기면 위의 effect가 서버에서 채운다.
+          updateRoom(roomId, (list) => insertLive(list, nextMessage));
 
           // 보는 중 도착한 메시지도 읽음 처리(스펙). 1초 스로틀 — 메시지마다 쓰기 금지.
-          const roomId = String(backendMessage.chatroomId);
           if (roomId === selectedChannelRef.current && token) {
             // 보는 중 도착 = 읽은 것. 다음 입장 때 낡은 구분선이 뜨지 않도록 로컬 경계도 전진시킨다.
             // (현재 열려 있는 화면은 ChatArea가 입장 시점 스냅샷을 ref로 고정해두므로 영향 없음)
-            setRoomLastRead((prev) => ({ ...prev, [roomId]: Number(backendMessage.messageId) }));
-
-            readMarker.mark(roomId);
+            setRoomLastRead((prev) => ({ ...prev, [roomId]: Math.max(prev[roomId] ?? 0, nextMessage.seq) }));
+            setUnread((prev) => markReadUpTo(prev, roomId, nextMessage.seq));
+            readMarker.mark(roomId, nextMessage.seq);
           }
         },
         onPresence: (roomId, ids) => {
@@ -458,13 +508,10 @@ export default function App() {
             timers.delete(memberId);
           }
         },
-        onUnread: ({ chatroomId, replyToMe }) => {
+        onUnread: ({ chatroomId, seq, replyToMe }) => {
           const roomId = String(chatroomId);
           if (roomId === selectedChannelRef.current) return; // 지금 보는 방은 무시
-          setUnread((prev) => {
-            const cur = prev[roomId] ?? { count: 0, replies: 0 };
-            return { ...prev, [roomId]: { count: cur.count + 1, replies: cur.replies + (replyToMe ? 1 : 0) } };
-          });
+          setUnread((prev) => applyUnreadNotice(prev, roomId, seq, replyToMe));
         },
         onAuthzError: ({ code, message, destination }) => {
           // 입력 거부는 방 접근 문제가 아니므로 구독·선택 상태를 건드리지 않는다.
@@ -536,7 +583,7 @@ export default function App() {
     if (!sentOverStomp) {
       const saved = await sendMessage(token, selectedChannelId, text, replyToId, imageUrl);
       const nextMessage = toMessage(saved);
-      setMessages((prev) => [...prev, nextMessage]);
+      updateRoom(selectedChannelId, (list) => insertLive(list, nextMessage));
     }
   };
 
@@ -576,25 +623,18 @@ export default function App() {
 
   const loadOlderMessages = useCallback(async (roomId: string) => {
     const st = pageStateRef.current[roomId];
-    if (!token || !st || !st.hasMore || st.loading || st.oldestId == null) return;
+    const oldestSeq = messagesByRoomRef.current[roomId]?.[0]?.seq;
+    if (!token || !st || !st.hasMore || st.loading || oldestSeq == null) return;
     setPageState((prev) => ({ ...prev, [roomId]: { ...prev[roomId], loading: true } }));
     try {
-      const page = await getMessages(token, roomId, st.oldestId);
-      const mapped = page.messages.map(toMessage);
-      setMessages((prev) => [...mapped, ...prev]); // prepend older (before는 exclusive라 중복 없음)
-      setPageState((prev) => ({
-        ...prev,
-        [roomId]: {
-          oldestId: page.messages.length ? page.messages[0].messageId : prev[roomId].oldestId,
-          hasMore: page.hasMore,
-          loading: false,
-        },
-      }));
+      const page = await getMessages(token, roomId, { beforeSeq: oldestSeq });
+      updateRoom(roomId, (list) => mergeMessages(list, page.messages.map(toMessage)));
+      setPageState((prev) => ({ ...prev, [roomId]: { hasMore: page.hasMore, loading: false } }));
     } catch (error) {
       notify(toUserMessage(error, '이전 메시지를 불러오지 못했어요.'));
       setPageState((prev) => ({ ...prev, [roomId]: { ...prev[roomId], loading: false } }));
     }
-  }, [token, notify]);
+  }, [token, notify, updateRoom]);
 
   // 실패를 ChatArea로 전파한다(전송과 동일한 방식) — 실패 시 입력·수정 상태 복원은
   // ChatArea가 담당하므로 여기서 삼키면 안 된다.
@@ -602,7 +642,7 @@ export default function App() {
     if (!token || !selectedChannelId) return;
     const updated = await updateMessage(token, selectedChannelId, messageId, content);
     const mapped = toMessage(updated);
-    setMessages((prev) => prev.map((m) => (m.id === mapped.id ? mapped : m)));
+    updateRoom(selectedChannelId, (list) => mergeMessages(list, [mapped]));
   };
 
   const handleDeleteMessage = async (messageId: string) => {
@@ -610,7 +650,7 @@ export default function App() {
     try {
       const deleted = await deleteMessage(token, selectedChannelId, messageId);
       const mapped = toMessage(deleted);
-      setMessages((prev) => prev.map((m) => (m.id === mapped.id ? mapped : m)));
+      updateRoom(selectedChannelId, (list) => mergeMessages(list, [mapped]));
     } catch (error) {
       notify(toUserMessage(error, '메시지 삭제에 실패했어요.'));
     }
@@ -674,7 +714,7 @@ export default function App() {
           <div className="flex w-full h-full sage-chat-enter">
             <ChatArea
               channel={activeChannel}
-              messages={messages}
+              messages={messagesByRoom[selectedChannelId] ?? []}
               presences={presences}
               currentUser={user}
               token={token ?? ''}
@@ -701,14 +741,7 @@ export default function App() {
                 // 이미 더 불러온 과거 메시지는 그대로 두고 최신 구간만 덮어쓴다.
                 getMessages(token, selectedChannelId)
                   .then((page) => {
-                    const mapped = page.messages.map(toMessage);
-                    setMessages((prev) => {
-                      const mappedIds = new Set(mapped.map((m) => m.id));
-                      const kept = prev.filter(
-                        (m) => m.channelId !== selectedChannelId || !mappedIds.has(m.id)
-                      );
-                      return [...kept, ...mapped];
-                    });
+                    updateRoom(selectedChannelId, (list) => mergeMessages(list, page.messages.map(toMessage)));
                   })
                   .catch((e) => console.error('[Image] 만료된 이미지 갱신 실패:', e));
               }}
@@ -717,7 +750,7 @@ export default function App() {
               loadingOlder={pageState[selectedChannelId]?.loading ?? false}
               onEditMessage={handleEditMessage}
               onDeleteMessage={handleDeleteMessage}
-              unreadFromId={roomLastRead[selectedChannelId] ?? null}
+              unreadFromSeq={roomLastRead[selectedChannelId] ?? null}
             />
           </div>
         ) : (
@@ -750,7 +783,7 @@ export default function App() {
               }
             }}
             onLogout={handleLogout}
-            unread={unread}
+            unread={toBadges(unread)}
             currentUser={user}
             token={token ?? ''}
             onOpenSettings={() => setSettingsOpen(true)}

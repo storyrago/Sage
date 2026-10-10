@@ -32,7 +32,7 @@ interface ChatAreaProps {
   loadingOlder?: boolean;
   onEditMessage?: (messageId: string, content: string) => Promise<void>;
   onDeleteMessage?: (messageId: string) => void;
-  unreadFromId?: number | null;
+  unreadFromSeq?: number | null; // 입장 시점의 읽은 순번
   onImageExpired?: () => void;
 }
 
@@ -60,7 +60,7 @@ export default function ChatArea({
   loadingOlder,
   onEditMessage,
   onDeleteMessage,
-  unreadFromId,
+  unreadFromSeq,
   onImageExpired
 }: ChatAreaProps) {
   const [inputText, setInputText] = useState('');
@@ -85,7 +85,7 @@ export default function ChatArea({
   const scrolledChannelRef = useRef<string>('');   // 이 채널에 초기 스크롤(맨아래) 했는지
   const prevScrollHeightRef = useRef(0);
   const pendingPrependRef = useRef(false);
-  // 입장 시점 스냅샷: 경계(boundary)와 천장(ceiling = 입장 순간 로드된 최신 메시지 id)을 고정한다.
+  // 입장 시점 스냅샷: 경계(boundary)와 천장(ceiling = 입장 순간 로드된 최신 메시지 seq)을 고정한다.
   // 천장이 있어야 "보는 중 도착한 새 메시지" 위에 구분선이 생기지 않는다.
   const unreadSnapshotRef = useRef<{ channelId: string; boundary: number | null; ceiling: number } | null>(null);
 
@@ -95,8 +95,8 @@ export default function ChatArea({
   if (channelMessages.length > 0 && unreadSnapshotRef.current?.channelId !== channel.id) {
     unreadSnapshotRef.current = {
       channelId: channel.id,
-      boundary: unreadFromId ?? null,
-      ceiling: channelMessages.reduce((mx, m) => Math.max(mx, Number(m.id)), 0),
+      boundary: unreadFromSeq ?? null,
+      ceiling: channelMessages.reduce((mx, m) => Math.max(mx, m.seq), 0),
     };
   }
   const unreadSnap = unreadSnapshotRef.current?.channelId === channel.id ? unreadSnapshotRef.current : null;
@@ -173,7 +173,7 @@ export default function ChatArea({
     if (!el) return;
     if (scrolledChannelRef.current !== channel.id) {
       const firstUnread = unreadSnap?.boundary != null
-        ? channelMessages.find((m) => Number(m.id) > unreadSnap.boundary! && Number(m.id) <= unreadSnap.ceiling)
+        ? channelMessages.find((m) => m.seq > unreadSnap.boundary! && m.seq <= unreadSnap.ceiling)
         : undefined;
       if (firstUnread) {
         document.getElementById(`message-bubble-${firstUnread.id}`)?.scrollIntoView({ block: 'start' });
@@ -533,9 +533,9 @@ export default function ChatArea({
           const parentMsg = msg.replyToId ? messages.find(m => m.id === msg.replyToId) : null;
           const isFirstUnread =
             unreadSnap?.boundary != null &&
-            Number(msg.id) > unreadSnap.boundary &&
-            Number(msg.id) <= unreadSnap.ceiling &&
-            (i === 0 || Number(channelMessages[i - 1].id) <= unreadSnap.boundary);
+            msg.seq > unreadSnap.boundary &&
+            msg.seq <= unreadSnap.ceiling &&
+            (i === 0 || channelMessages[i - 1].seq <= unreadSnap.boundary);
 
           return (
             <div key={msg.id}>

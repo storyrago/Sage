@@ -38,7 +38,7 @@ class MessageSeqCursorTest {
     }
 
     private MessageService.MessagePage page(Long beforeSeq, Long afterSeq, int limit) {
-        return messageService.getMessages(room.getId(), member.getId(), null, beforeSeq, afterSeq, limit);
+        return messageService.getMessages(room.getId(), member.getId(), beforeSeq, afterSeq, limit);
     }
 
     @Test
@@ -92,14 +92,10 @@ class MessageSeqCursorTest {
     }
 
     @Test
-    void 커서를_두_개_이상_주면_INVALID_INPUT_VALUE() {
+    void 커서를_두_개_주면_INVALID_INPUT_VALUE() {
         roomWith(3);
 
         assertThatThrownBy(() -> page(2L, 1L, 30))
-                .isInstanceOf(CustomException.class)
-                .extracting("errorCode")
-                .isEqualTo(ErrorCode.INVALID_INPUT_VALUE);
-        assertThatThrownBy(() -> messageService.getMessages(room.getId(), member.getId(), 1L, null, 1L, 30))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.INVALID_INPUT_VALUE);
@@ -110,7 +106,7 @@ class MessageSeqCursorTest {
         roomWith(3);
         Member outsider = memberService.create("cursor-out@e.com", "1234", "out");
 
-        assertThatThrownBy(() -> messageService.getMessages(room.getId(), outsider.getId(), null, null, 0L, 30))
+        assertThatThrownBy(() -> messageService.getMessages(room.getId(), outsider.getId(), null, 0L, 30))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.NOT_JOINED_ROOM);

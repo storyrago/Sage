@@ -33,23 +33,23 @@ public class MessagePaginationTest {
             messageService.create(i + "번", null, member.getId(), room.getId(), null);
         }
 
-        MessageService.MessagePage p1 = messageService.getMessages(room.getId(), member.getId(), null, 30);
+        MessageService.MessagePage p1 = messageService.getMessages(room.getId(), member.getId(), null, null, 30);
         assertThat(p1.messages()).hasSize(30);
         assertThat(p1.hasMore()).isTrue();
         assertThat(p1.messages().get(0).getContent()).isEqualTo("41번");
         assertThat(p1.messages().get(29).getContent()).isEqualTo("70번");
-        assertThat(p1.messages().get(0).getId()).isLessThan(p1.messages().get(29).getId());
+        assertThat(p1.messages().get(0).getSeq()).isLessThan(p1.messages().get(29).getSeq());
 
-        Long before2 = p1.messages().get(0).getId();
-        MessageService.MessagePage p2 = messageService.getMessages(room.getId(), member.getId(), before2, 30);
+        Long before2 = p1.messages().get(0).getSeq();
+        MessageService.MessagePage p2 = messageService.getMessages(room.getId(), member.getId(), before2, null, 30);
         assertThat(p2.messages()).hasSize(30);
         assertThat(p2.hasMore()).isTrue();
         assertThat(p2.messages().get(0).getContent()).isEqualTo("11번");
         assertThat(p2.messages().get(29).getContent()).isEqualTo("40번");
         assertThat(p2.messages()).noneMatch(m -> m.getContent().equals("41번"));
 
-        Long before3 = p2.messages().get(0).getId();
-        MessageService.MessagePage p3 = messageService.getMessages(room.getId(), member.getId(), before3, 30);
+        Long before3 = p2.messages().get(0).getSeq();
+        MessageService.MessagePage p3 = messageService.getMessages(room.getId(), member.getId(), before3, null, 30);
         assertThat(p3.messages()).hasSize(10);
         assertThat(p3.hasMore()).isFalse();
         assertThat(p3.messages().get(0).getContent()).isEqualTo("1번");
@@ -64,7 +64,7 @@ public class MessagePaginationTest {
         messageService.create("secret", null, owner.getId(), room.getId(), null);
         Member outsider = memberService.create("out@email.com", "1234", "out");
 
-        assertThatThrownBy(() -> messageService.getMessages(room.getId(), outsider.getId(), null, 30))
+        assertThatThrownBy(() -> messageService.getMessages(room.getId(), outsider.getId(), null, null, 30))
                 .isInstanceOf(CustomException.class);
     }
 
@@ -75,7 +75,7 @@ public class MessagePaginationTest {
         chatRoomMemberService.join(member.getId(), room.getId(), null);
         messageService.create("hi", null, member.getId(), room.getId(), null);
 
-        MessageService.MessagePage p = messageService.getMessages(room.getId(), member.getId(), null, 30);
+        MessageService.MessagePage p = messageService.getMessages(room.getId(), member.getId(), null, null, 30);
         assertThat(p.messages().get(0).getMember().getNickname()).isEqualTo("fjnick");
     }
 }

@@ -51,7 +51,7 @@ public class MessageServiceTest {
 
         // when
         List<Message> messages =
-                messageService.getMessages(chatRoom.getId(), member.getId(), null, 30).messages();
+                messageService.getMessages(chatRoom.getId(), member.getId(), null, null, 30).messages();
 
         // then
         assertThat(messages.size()).isEqualTo(3);
