@@ -15,19 +15,19 @@ describe('createReadMarker', () => {
     const send = vi.fn();
     const { mark } = createReadMarker(send, () => true);
 
-    mark('room-1');
+    mark('room-1', 1);
 
     expect(send).toHaveBeenCalledTimes(1);
-    expect(send).toHaveBeenCalledWith('room-1');
+    expect(send).toHaveBeenCalledWith('room-1', 1);
   });
 
   it('창 안의 호출은 즉시 보내지 않고, 창이 끝날 때 한 번 보충된다', () => {
     const send = vi.fn();
     const { mark } = createReadMarker(send, () => true);
 
-    mark('room-1');
+    mark('room-1', 1);
     vi.advanceTimersByTime(500);
-    mark('room-1');
+    mark('room-1', 1);
 
     expect(send).toHaveBeenCalledTimes(1); // 창 안이라 아직 보내지 않음
 
@@ -39,13 +39,13 @@ describe('createReadMarker', () => {
     const send = vi.fn();
     const { mark } = createReadMarker(send, () => true);
 
-    mark('room-1');
+    mark('room-1', 1);
     vi.advanceTimersByTime(200);
-    mark('room-1');
+    mark('room-1', 1);
     vi.advanceTimersByTime(200);
-    mark('room-1');
+    mark('room-1', 1);
     vi.advanceTimersByTime(200);
-    mark('room-1');
+    mark('room-1', 1);
 
     expect(send).toHaveBeenCalledTimes(1);
 
@@ -58,9 +58,9 @@ describe('createReadMarker', () => {
     let viewing = true;
     const { mark } = createReadMarker(send, () => viewing);
 
-    mark('room-1');
+    mark('room-1', 1);
     vi.advanceTimersByTime(300);
-    mark('room-1');
+    mark('room-1', 1);
     viewing = false;
 
     vi.advanceTimersByTime(MARK_READ_THROTTLE_MS);
@@ -71,24 +71,24 @@ describe('createReadMarker', () => {
     const send = vi.fn();
     const { mark } = createReadMarker(send, () => true);
 
-    mark('room-1');
+    mark('room-1', 1);
     vi.advanceTimersByTime(300);
-    mark('room-2');
+    mark('room-2', 1);
     vi.advanceTimersByTime(300);
-    mark('room-3');
+    mark('room-3', 1);
 
     vi.advanceTimersByTime(MARK_READ_THROTTLE_MS);
     expect(send).toHaveBeenCalledTimes(2);
-    expect(send).toHaveBeenNthCalledWith(2, 'room-3');
+    expect(send).toHaveBeenNthCalledWith(2, 'room-3', 1);
   });
 
   it('창이 끝난 뒤의 호출은 다시 즉시 보낸다', () => {
     const send = vi.fn();
     const { mark } = createReadMarker(send, () => true);
 
-    mark('room-1');
+    mark('room-1', 1);
     vi.advanceTimersByTime(MARK_READ_THROTTLE_MS);
-    mark('room-1');
+    mark('room-1', 1);
 
     expect(send).toHaveBeenCalledTimes(2);
   });
@@ -97,9 +97,9 @@ describe('createReadMarker', () => {
     const send = vi.fn();
     const { mark, cancel } = createReadMarker(send, () => true);
 
-    mark('room-1');
+    mark('room-1', 1);
     vi.advanceTimersByTime(300);
-    mark('room-1');
+    mark('room-1', 1);
     cancel();
 
     vi.advanceTimersByTime(MARK_READ_THROTTLE_MS);
@@ -110,22 +110,22 @@ describe('createReadMarker', () => {
     const send = vi.fn();
     const { mark, flush } = createReadMarker(send, () => true);
 
-    mark('room-1');
+    mark('room-1', 1);
     vi.advanceTimersByTime(300);
-    mark('room-1');
+    mark('room-1', 1);
     flush();
 
     expect(send).toHaveBeenCalledTimes(2);
-    expect(send).toHaveBeenNthCalledWith(2, 'room-1');
+    expect(send).toHaveBeenNthCalledWith(2, 'room-1', 1);
   });
 
   it('flush()는 그 방을 보고 있지 않아도 보낸다', () => {
     const send = vi.fn();
     const { mark, flush } = createReadMarker(send, () => false);
 
-    mark('room-1');
+    mark('room-1', 1);
     vi.advanceTimersByTime(300);
-    mark('room-1');
+    mark('room-1', 1);
     flush();
 
     expect(send).toHaveBeenCalledTimes(2);
@@ -135,7 +135,7 @@ describe('createReadMarker', () => {
     const send = vi.fn();
     const { mark, flush } = createReadMarker(send, () => true);
 
-    mark('room-1');
+    mark('room-1', 1);
     flush();
 
     expect(send).toHaveBeenCalledTimes(1);
@@ -145,9 +145,9 @@ describe('createReadMarker', () => {
     const send = vi.fn();
     const { mark, flush } = createReadMarker(send, () => true);
 
-    mark('room-1');
+    mark('room-1', 1);
     vi.advanceTimersByTime(300);
-    mark('room-1');
+    mark('room-1', 1);
     flush();
 
     vi.advanceTimersByTime(MARK_READ_THROTTLE_MS);
@@ -158,12 +158,39 @@ describe('createReadMarker', () => {
     const send = vi.fn();
     const { mark, flush } = createReadMarker(send, () => true);
 
-    mark('room-1');
+    mark('room-1', 1);
     vi.advanceTimersByTime(300);
-    mark('room-1');
+    mark('room-1', 1);
     flush();
-    mark('room-1');
+    mark('room-1', 1);
 
     expect(send).toHaveBeenCalledTimes(2); // flush 직후 mark는 억제됨
+  });
+
+  it('창 안에서 억제된 호출은 그 방의 가장 큰 순번으로 보충한다', () => {
+    const send = vi.fn();
+    const { mark } = createReadMarker(send, () => true);
+
+    mark('room-1', 3);
+    vi.advanceTimersByTime(200);
+    mark('room-1', 5);
+    mark('room-1', 4); // 늦게 처리된 작은 순번
+    vi.advanceTimersByTime(MARK_READ_THROTTLE_MS);
+
+    expect(send).toHaveBeenNthCalledWith(1, 'room-1', 3);
+    expect(send).toHaveBeenNthCalledWith(2, 'room-1', 5);
+  });
+
+  it('보충 대기 중 다른 방으로 바뀌면 새 방의 순번으로 보낸다', () => {
+    const send = vi.fn();
+    const { mark, flush } = createReadMarker(send, () => true);
+
+    mark('room-1', 9);
+    vi.advanceTimersByTime(100);
+    mark('room-1', 10);
+    mark('room-2', 2);
+    flush();
+
+    expect(send).toHaveBeenLastCalledWith('room-2', 2);
   });
 });
