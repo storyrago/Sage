@@ -95,6 +95,10 @@ export default function App() {
   const readMarkerRef = useRef<ReturnType<typeof createReadMarker> | null>(null);
   // 빈 순번을 채우는 중인 방. 같은 방의 조회가 겹치지 않게 한다.
   const fetchingAfterRef = useRef<Set<string>>(new Set());
+  // 조회 중에 들어온 요청. 끝난 뒤 한 번 더 확인한다.
+  const refetchRequestedRef = useRef<Set<string>>(new Set());
+  // 방마다 마지막으로 채우려 한 빈틈(afterSeq:목록 끝 seq). 같은 빈틈은 목록이 늘기 전까지 다시 조회하지 않는다.
+  const lastGapAttemptRef = useRef<Map<string, string>>(new Map());
 
   const { theme, toggleTheme } = useTheme();
 
@@ -132,9 +136,13 @@ export default function App() {
   }, []);
 
   // afterSeq 다음부터 서버의 최신까지 받아 합친다. 빈 순번 채우기와 재접속 따라잡기에 쓴다.
-  // 방마다 한 번에 하나만 돈다. 도는 동안 새로 생긴 빈틈은 끝난 뒤 아래 effect가 다시 잡는다.
-  const fetchAfter = useCallback(async (roomId: string, afterSeq: number) => {
-    if (!token || fetchingAfterRef.current.has(roomId)) return;
+  // 방마다 한 번에 하나만 돈다. 도는 동안 들어온 요청은 기억해 두었다가 끝난 뒤 빈틈을 다시 확인한다.
+  const fetchAfter = useCallback(async (roomId: string, afterSeq: number): Promise<void> => {
+    if (!token) return;
+    if (fetchingAfterRef.current.has(roomId)) {
+      refetchRequestedRef.current.add(roomId);
+      return;
+    }
     fetchingAfterRef.current.add(roomId);
     try {
       let cursor = afterSeq;
@@ -149,13 +157,23 @@ export default function App() {
     } finally {
       fetchingAfterRef.current.delete(roomId);
     }
+    if (refetchRequestedRef.current.delete(roomId)) {
+      const gap = gapAfterSeq(messagesByRoomRef.current[roomId] ?? []);
+      if (gap != null) await fetchAfter(roomId, gap);
+    }
   }, [token, updateRoom]);
 
   // 목록에 빈 순번이 보이면 그 자리부터 다시 받는다(실시간 프레임 유실, 서버 간 전달 지연 등).
+  // 서버 순번은 빈틈이 없으므로 한 번 받으면 채워진다. 그래도 같은 빈틈이 남으면(서버 이상) 목록이
+  // 늘기 전까지 다시 조회하지 않는다 — 조회 결과를 합칠 때마다 이 effect가 다시 돌아 무한 반복되는 것을 막는다.
   useEffect(() => {
     for (const [roomId, list] of Object.entries(messagesByRoom)) {
       const afterSeq = gapAfterSeq(list);
-      if (afterSeq != null) fetchAfter(roomId, afterSeq);
+      if (afterSeq == null) continue;
+      const attempt = `${afterSeq}:${list[list.length - 1].seq}`;
+      if (lastGapAttemptRef.current.get(roomId) === attempt) continue;
+      lastGapAttemptRef.current.set(roomId, attempt);
+      fetchAfter(roomId, afterSeq);
     }
   }, [messagesByRoom, fetchAfter]);
 
