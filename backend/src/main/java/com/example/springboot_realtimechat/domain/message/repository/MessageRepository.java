@@ -30,9 +30,6 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     @Query("SELECT m FROM Message m LEFT JOIN FETCH m.member WHERE m.chatRoom = :room ORDER BY m.seq DESC")
     List<Message> findLatestByChatRoom(@Param("room") ChatRoom room, Pageable pageable);
 
-    @Query("SELECT m FROM Message m LEFT JOIN FETCH m.member WHERE m.chatRoom = :room AND m.id < :before ORDER BY m.id DESC")
-    List<Message> findOlderByChatRoom(@Param("room") ChatRoom room, @Param("before") Long before, Pageable pageable);
-
     // 과거 스크롤용. 최신 → 과거(seq DESC)로 읽고 서비스가 뒤집는다.
     @Query("SELECT m FROM Message m LEFT JOIN FETCH m.member WHERE m.chatRoom = :room AND m.seq < :beforeSeq ORDER BY m.seq DESC")
     List<Message> findBeforeSeq(@Param("room") ChatRoom room, @Param("beforeSeq") long beforeSeq, Pageable pageable);

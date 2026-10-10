@@ -77,7 +77,7 @@ class AccountDeletionTest {
         assertThat(kept.getContent()).isEqualTo("남을 내용");
         assertThat(kept.getMember()).isNull();
 
-        MessageService.MessagePage page = messageService.getMessages(room.getId(), other.getId(), null, 30);
+        MessageService.MessagePage page = messageService.getMessages(room.getId(), other.getId(), null, null, 30);
         assertThat(page.messages()).extracting(Message::getId).contains(message.getId());
     }
 

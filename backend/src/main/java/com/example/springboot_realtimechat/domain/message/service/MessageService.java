@@ -109,15 +109,9 @@ public class MessageService {
                 .orElseThrow(() -> new CustomException(ErrorCode.MESSAGE_NOT_FOUND));
     }
 
-    public MessagePage getMessages(Long chatroomId, Long memberId, Long before, int limit) {
-        return getMessages(chatroomId, memberId, before, null, null, limit);
-    }
-
-    /** 커서는 before(id)·beforeSeq·afterSeq 중 하나만 줄 수 있다. 결과는 항상 오래된 → 최신 순이다. */
-    public MessagePage getMessages(Long chatroomId, Long memberId, Long before, Long beforeSeq, Long afterSeq,
-                                   int limit) {
-        int cursors = (before != null ? 1 : 0) + (beforeSeq != null ? 1 : 0) + (afterSeq != null ? 1 : 0);
-        if (cursors > 1) {
+    /** 커서는 beforeSeq·afterSeq 중 하나만 줄 수 있다. 결과는 항상 오래된 → 최신 순이다. */
+    public MessagePage getMessages(Long chatroomId, Long memberId, Long beforeSeq, Long afterSeq, int limit) {
+        if (beforeSeq != null && afterSeq != null) {
             throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
         }
         ChatRoom chatRoom = chatRoomService.getChatRoomById(chatroomId);
@@ -130,14 +124,9 @@ public class MessageService {
             boolean hasMore = asc.size() > limit;
             return new MessagePage(hasMore ? new ArrayList<>(asc.subList(0, limit)) : asc, hasMore);
         }
-        List<Message> desc;
-        if (beforeSeq != null) {
-            desc = messageRepository.findBeforeSeq(chatRoom, beforeSeq, pageable);
-        } else if (before != null) {
-            desc = messageRepository.findOlderByChatRoom(chatRoom, before, pageable);
-        } else {
-            desc = messageRepository.findLatestByChatRoom(chatRoom, pageable);
-        }
+        List<Message> desc = (beforeSeq != null)
+                ? messageRepository.findBeforeSeq(chatRoom, beforeSeq, pageable)
+                : messageRepository.findLatestByChatRoom(chatRoom, pageable);
         boolean hasMore = desc.size() > limit;
         List<Message> page = hasMore ? new ArrayList<>(desc.subList(0, limit)) : new ArrayList<>(desc);
         Collections.reverse(page); // 오름차순(오래된 → 최신)
