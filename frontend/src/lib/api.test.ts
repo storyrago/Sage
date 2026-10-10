@@ -10,6 +10,8 @@ import {
   uploadImage,
   getMessages,
   markRoomRead,
+  sendMessage,
+  SEND_TIMEOUT_MS,
 } from './api';
 
 const base: BackendMessage = {
@@ -283,5 +285,42 @@ describe('markRoomRead', () => {
     await markRoomRead('tok', '3');
 
     expect(fetchMock.mock.calls[0][1].body).toBeUndefined();
+  });
+});
+
+describe('sendMessage', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it('clientMessageId를 본문에 싣는다', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ ...base, seq: 5, clientMessageId: 'c-1' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await sendMessage('tok', '3', { content: '안녕', replyToId: '9', clientMessageId: 'c-1' });
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain('/api/chatrooms/3/messages');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body)).toEqual({ content: '안녕', replyToId: 9, imageUrl: null, clientMessageId: 'c-1' });
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('시간 안에 응답이 없으면 AbortError로 끝난다', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', vi.fn((_url: string, init?: RequestInit) => new Promise((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+    })));
+
+    const sending = sendMessage('tok', '3', { content: 'x', clientMessageId: 'c-2' });
+    const assertion = expect(sending).rejects.toMatchObject({ name: 'AbortError' });
+    await vi.advanceTimersByTimeAsync(SEND_TIMEOUT_MS);
+    await assertion;
   });
 });
