@@ -7,7 +7,6 @@ import com.example.springboot_realtimechat.events.MessageEvent;
 
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
@@ -19,7 +18,6 @@ import org.springframework.stereotype.Component;
  * 생성·수정·삭제 모두 메시지 전체 상태를 보내고 프론트는 id로 덮어쓰므로, 같은 이벤트가 두 번 와도 무해하다.
  */
 @Component
-@ConditionalOnProperty(name = "app.message.delivery", havingValue = "kafka")
 @RequiredArgsConstructor
 public class RealtimeMessageDelivery {
 

@@ -27,7 +27,6 @@ import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.verify;
 
 @SpringBootTest(properties = {
-        "app.outbox.enabled=true",
         "app.outbox.schema-registry-url=mock://" + OutboxMessageEventRecorderTest.SCOPE
 })
 @Transactional

@@ -13,7 +13,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.header.Header;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.annotation.BackOff;
 import org.springframework.kafka.annotation.DltHandler;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -32,7 +31,6 @@ import java.util.List;
  */
 @Slf4j
 @Component
-@ConditionalOnProperty(name = "app.message.delivery", havingValue = "kafka")
 @RequiredArgsConstructor
 public class MessageImageCleanupConsumer {
 

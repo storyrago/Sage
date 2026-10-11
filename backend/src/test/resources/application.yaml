@@ -27,6 +27,12 @@ spring:
     listener:
       concurrency: 3
       observation-enabled: true
+      # 일반 테스트는 브로커 없이 배선만 본다. 소비자 컨테이너를 띄우지 않는다.
+      # 실제 소비는 cdc 태그 테스트가 컨테이너 위에서 본다(그쪽은 KafkaTestNodes가 실제 앱을 띄운다).
+      auto-startup: false
+    admin:
+      # 기동 시 토픽 생성을 위해 브로커에 접속하지 않는다. cdc 테스트는 CdcTestEnvironment가 토픽을 미리 만든다.
+      auto-create: false
   flyway:
     # 테스트는 H2 create-drop로 스키마 생성, Flyway 미개입.
     # 마이그레이션 SQL과 ddl-auto: validate는 CI의 "마이그레이션·스키마 검증" 스텝에서
@@ -55,3 +61,6 @@ aws:
 
 app:
   frontend-url: http://localhost:5173
+  outbox:
+    # DefaultSchemaRegistryInitializer가 기동 전에 스키마를 등록해 두는 모의 레지스트리.
+    schema-registry-url: mock://sage-test

@@ -2,7 +2,6 @@ package com.example.springboot_realtimechat.global.kafka;
 
 import com.example.springboot_realtimechat.domain.message.event.SchemaRegistryUnavailableException;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.retrytopic.RetryTopicConfigurationSupport;
 
@@ -12,7 +11,6 @@ import org.springframework.kafka.retrytopic.RetryTopicConfigurationSupport;
  * (C1 순서 보장 소비자와 같은 정책·백오프). 넘기면 장애 동안의 모든 이벤트가 재시도 단계를 거쳐 DLT로 쏟아진다.
  */
 @Configuration
-@ConditionalOnProperty(name = "app.message.delivery", havingValue = "kafka")
 public class KafkaRetryTopicConfig extends RetryTopicConfigurationSupport {
 
     @Override

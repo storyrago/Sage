@@ -6,7 +6,6 @@ import com.example.springboot_realtimechat.global.outbox.OutboxWriter;
 
 import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -18,7 +17,6 @@ import java.util.UUID;
  * 이벤트를 쓸 수 없고 그때는 메시지 변경까지 롤백된다.
  */
 @Component
-@ConditionalOnProperty(prefix = "app.outbox", name = "enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class OutboxMessageEventRecorder implements MessageEventRecorder {
 

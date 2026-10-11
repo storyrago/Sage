@@ -8,7 +8,6 @@ import io.confluent.kafka.schemaregistry.client.SchemaRegistryClientFactory;
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig;
 import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import io.confluent.kafka.serializers.KafkaAvroSerializerConfig;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,9 +15,8 @@ import org.springframework.context.annotation.Configuration;
 import java.util.List;
 import java.util.Map;
 
-/** 스위치가 켜졌을 때만 레지스트리 클라이언트와 직렬화기를 만든다. 꺼져 있으면 레지스트리에 접속하지 않는다. */
+/** 레지스트리 클라이언트와 직렬화기를 만든다. 기동할 때 스키마 등록 여부를 확인한다. */
 @Configuration
-@ConditionalOnProperty(prefix = "app.outbox", name = "enabled", havingValue = "true")
 @EnableConfigurationProperties(OutboxProperties.class)
 public class OutboxConfig {
 

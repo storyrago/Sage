@@ -53,7 +53,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 컨테이너 네 개를 띄우므로 기본 test 태스크에서 빼고 ./gradlew cdcTest로 돌린다.
  */
 @Tag("cdc")
-@SpringBootTest(properties = "app.outbox.enabled=true")
+@SpringBootTest
 class OutboxCdcIntegrationTest {
 
     @DynamicPropertySource

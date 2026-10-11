@@ -48,14 +48,14 @@ public final class KafkaTestNodes {
                 "--spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver",
                 "--spring.flyway.enabled=true",
                 "--spring.jpa.hibernate.ddl-auto=validate",
-                "--app.outbox.enabled=true",
                 "--app.outbox.schema-registry-url=" + CdcTestEnvironment.schemaRegistryUrl(),
-                "--app.message.delivery=kafka",
                 "--app.message.node-id=" + nodeId,
                 "--spring.kafka.bootstrap-servers=" + CdcTestEnvironment.bootstrapServers(),
                 // 운영은 latest. 테스트는 할당 직후 위치를 잡는 사이에 보낸 이벤트를 놓치지 않도록 처음부터 읽는다.
                 // 앞선 테스트의 이벤트도 받지만, 검증은 각 테스트가 만든 방·키만 본다.
-                "--spring.kafka.consumer.auto-offset-reset=earliest"));
+                "--spring.kafka.consumer.auto-offset-reset=earliest",
+                // 테스트 설정(application.yaml)은 브로커 없는 일반 테스트를 위해 소비자를 끈다. 이 앱은 실제로 소비해야 한다.
+                "--spring.kafka.listener.auto-startup=true"));
         args.addAll(List.of(extraArgs));
         return new SpringApplicationBuilder(SpringbootRealtimechatApplication.class)
                 .web(WebApplicationType.SERVLET)

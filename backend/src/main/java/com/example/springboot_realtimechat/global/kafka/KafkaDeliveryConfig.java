@@ -15,7 +15,6 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.header.Header;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -31,20 +30,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.UUID;
 
-/** 메시지 전파를 Kafka 경로로 돌렸을 때만 켜지는 소비 기반(노드 id, 역직렬화, 실패 처리). */
+/** 메시지 이벤트 소비 기반(노드 id, 역직렬화, 실패 처리). */
 @Slf4j
 @Configuration
-@ConditionalOnProperty(name = "app.message.delivery", havingValue = "kafka")
 public class KafkaDeliveryConfig {
 
     public static final String DEAD_LETTER_COUNTER = "sage.kafka.dead.letters";
-
-    public KafkaDeliveryConfig(@Value("${app.outbox.enabled:false}") boolean outboxEnabled) {
-        // Kafka 경로에서는 컨트롤러가 방송하지 않는다. outbox까지 꺼져 있으면 메시지가 어디로도 전파되지 않는다.
-        if (!outboxEnabled) {
-            throw new IllegalStateException("app.message.delivery=kafka에는 app.outbox.enabled=true가 필요하다");
-        }
-    }
 
     @Bean
     public MessageDeliveryNode messageDeliveryNode(@Value("${app.message.node-id:}") String nodeId) {

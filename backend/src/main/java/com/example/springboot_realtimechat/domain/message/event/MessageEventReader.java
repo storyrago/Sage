@@ -9,7 +9,6 @@ import org.apache.kafka.common.errors.AuthenticationException;
 import org.apache.kafka.common.errors.AuthorizationException;
 import org.apache.kafka.common.errors.RetriableException;
 import org.apache.kafka.common.errors.SerializationException;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.net.SocketException;
@@ -18,7 +17,6 @@ import java.net.UnknownHostException;
 
 /** 토픽에서 받은 바이트(레지스트리 와이어 포맷)를 MessageEvent로 읽는다. 소비자들이 공유한다. */
 @Component
-@ConditionalOnProperty(name = "app.message.delivery", havingValue = "kafka")
 @RequiredArgsConstructor
 public class MessageEventReader {
 

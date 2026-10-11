@@ -26,7 +26,6 @@ import static org.mockito.Mockito.doThrow;
 
 // 클래스 레벨 @Transactional을 걸지 않는다 — 서비스 트랜잭션이 실제로 롤백됐는지 새 조회로 확인해야 한다.
 @SpringBootTest(properties = {
-        "app.outbox.enabled=true",
         "app.outbox.schema-registry-url=mock://" + OutboxAtomicityTest.SCOPE
 })
 class OutboxAtomicityTest {
