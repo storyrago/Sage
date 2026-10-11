@@ -10,7 +10,7 @@ RATES="${RATES:-50 200}"
 MODES="${MODES:-redis kafka}"
 WARMUP_S="${WARMUP_S:-60}"
 DURATION_S="${DURATION_S:-120}"
-P99_LIMIT_MS="${P99_LIMIT_MS:-1000}"
+P99_LIMIT_MS="${P99_LIMIT_MS:-150}"
 # 실행 이름 끝에 붙는 묶음 표식. 같은 매트릭스를 다시 돌려도 회원 이메일·결과 파일이 겹치지 않는다.
 STAMP="${STAMP:-$(date +%m%d%H%M)}"
 

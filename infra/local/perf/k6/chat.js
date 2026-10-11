@@ -15,7 +15,8 @@ const RATE = Number(__ENV.RATE || 50);
 const WARMUP_S = Number(__ENV.WARMUP_S || 60);
 const DURATION_S = Number(__ENV.DURATION_S || 120);
 const RUN_NAME = __ENV.RUN_NAME || 'run';
-const P99_LIMIT_MS = Number(__ENV.P99_LIMIT_MS || 1000);
+// 측정 구간 종단 지연 p99 합격선. kafka 모드 관측 최댓값(약 69ms, 커넥터 poll 50ms)의 약 2배 — 500ms 폴링 같은 퇴행을 실패로 잡는다.
+const P99_LIMIT_MS = Number(__ENV.P99_LIMIT_MS || 150);
 const SENDERS = 10;
 const RECEIVERS = 20;
 const PASSWORD = 'demo1234';
