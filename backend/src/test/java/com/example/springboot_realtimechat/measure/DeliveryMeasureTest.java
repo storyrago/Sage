@@ -13,8 +13,10 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.RepetitionInfo;
 import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.kafka.config.KafkaListenerEndpointRegistry;
 import org.springframework.messaging.simp.user.SimpUserRegistry;
 
 import java.sql.Connection;
@@ -35,17 +37,21 @@ import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * 두 전파 모드를 같은 본문으로 잰다. 서버 2대(A·B)에 실제 STOMP 구독자를 하나씩 붙이고, REST로 보낸다.
- * 결과는 "[measure] ..." 줄로 출력하고, 보장을 주장하는 모드(kafka)만 단언한다.
+ * outbox → Debezium → Kafka 전파 경로의 순서·무손실·지연을 잰다. redis 경로와의 비교는 태그 e1-baseline에서 재현한다.
+ * 서버 2대(A·B)에 실제 STOMP 구독자를 하나씩 붙이고, REST로 보낸다. 결과는 "[measure] ..." 줄로 출력한다.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-abstract class DeliveryMeasurement {
+@Tag("measure")
+class DeliveryMeasureTest {
 
     static final int ORDER_MESSAGES = 200;
     static final int ORDER_THREADS = 16;
     static final int OUTAGE_PHASE_MESSAGES = 20;
-    // 복구 뒤 두 모드에 똑같이 주는 회복 시간. RedisMessageListenerContainer의 재구독 간격 기본값이 5초라 그 두 배.
+    // 복구 뒤 주는 회복 시간. E1 측정(redis 비교, 태그 e1-baseline)과 같은 값을 유지한다.
     static final Duration RECOVERY_GRACE = Duration.ofSeconds(10);
+
+    /** 출력 줄의 mode 값. E1 결과(redis·kafka 비교)와 같은 형식으로 남긴다. */
+    private static final String MODE = "kafka";
 
     ConfigurableApplicationContext nodeA;
     ConfigurableApplicationContext nodeB;
@@ -55,25 +61,28 @@ abstract class DeliveryMeasurement {
     final List<StompSubscriber> openSubscribers = new ArrayList<>();
     private int memberSequence;
 
-    /** app.message.delivery 값. */
-    abstract String mode();
+    /** 모든 파티션이 실시간 전달 소비자에 할당될 때까지 기다린다. */
+    private void awaitReady(ConfigurableApplicationContext node) {
+        KafkaListenerEndpointRegistry registry = node.getBean(KafkaListenerEndpointRegistry.class);
+        Awaitility.await().atMost(Duration.ofSeconds(60)).until(() ->
+                registry.getListenerContainer("realtimeDelivery").getAssignedPartitions().size()
+                        == CdcTestEnvironment.TOPIC_PARTITIONS);
+    }
 
-    /** 서버가 메시지를 받아 전달할 준비가 될 때까지 기다린다(kafka: 파티션 할당). */
-    abstract void awaitReady(ConfigurableApplicationContext node);
+    /** 전파 계층(binlog → Kafka 커넥터)을 끊는다. */
+    private void cutPropagation() throws Exception {
+        CdcTestEnvironment.pauseConnector();
+    }
 
-    /** 전파 계층을 끊는다(redis: 앱↔Redis 연결, kafka: binlog→Kafka 커넥터). */
-    abstract void cutPropagation() throws Exception;
-
-    abstract void restorePropagation() throws Exception;
-
-    /** 이 모드가 순서·무손실을 보장한다고 주장하는가 — 그렇다면 측정값을 단언한다. */
-    abstract boolean assertsGuarantees();
+    private void restorePropagation() throws Exception {
+        CdcTestEnvironment.resumeConnector();
+    }
 
     @BeforeAll
     void startNodes() throws Exception {
         MeasureEnvironment.start();
-        nodeA = MeasureNodes.start("measure-" + mode() + "-a", mode());
-        nodeB = MeasureNodes.start("measure-" + mode() + "-b", mode());
+        nodeA = MeasureNodes.start("measure-" + MODE + "-a");
+        nodeB = MeasureNodes.start("measure-" + MODE + "-b");
         awaitReady(nodeA);
         awaitReady(nodeB);
         author = newMember();
@@ -94,7 +103,7 @@ abstract class DeliveryMeasurement {
         if (nodeA != null) nodeA.close();
     }
 
-    /** 첫 메시지가 두 구독자에게 도착할 때까지 기다린다. 커넥터·소비자·Redis 구독이 모두 살아 있다는 확인이다. */
+    /** 첫 메시지가 두 구독자에게 도착할 때까지 기다린다. 커넥터·소비자가 모두 살아 있다는 확인이다. */
     private void warmUp() throws Exception {
         Room room = newRoom();
         assertThat(RestSender.send(MeasureNodes.port(nodeA), authorTokenA, room.id(), "warm-up")).isEqualTo(200);
@@ -133,14 +142,12 @@ abstract class DeliveryMeasurement {
                     .toList();
             System.out.printf("[measure] mode=%s scenario=order run=%d committed=%d restFailures=%d status=%s "
                             + "A{%s} B{%s}%n",
-                    mode(), repetition.getCurrentRepetition(), committed, failures, statusCounts,
+                    MODE, repetition.getCurrentRepetition(), committed, failures, statusCounts,
                     stats.get(0).summary(), stats.get(1).summary());
 
-            if (assertsGuarantees()) {
-                assertThat(failures).isZero();
-                assertThat(committed).isEqualTo(ORDER_MESSAGES);
-                assertThat(stats).allSatisfy(s -> assertThat(s.perfect()).as(s.summary()).isTrue());
-            }
+            assertThat(failures).isZero();
+            assertThat(committed).isEqualTo(ORDER_MESSAGES);
+            assertThat(stats).allSatisfy(s -> assertThat(s.perfect()).as(s.summary()).isTrue());
         } finally {
             pool.shutdown();
             if (!pool.awaitTermination(5, TimeUnit.SECONDS)) {
@@ -189,19 +196,15 @@ abstract class DeliveryMeasurement {
             System.out.printf("[measure] mode=%s scenario=outage run=%d subscriber=%s committed=%d "
                             + "restFailures(before/during/after)=%d/%d/%d status(before/during/after)=%s/%s/%s "
                             + "before{%s} during{%s} after{%s} all{%s}%n",
-                    mode(), repetition.getCurrentRepetition(), i == 0 ? "A" : "B", committed,
+                    MODE, repetition.getCurrentRepetition(), i == 0 ? "A" : "B", committed,
                     before.failures(), during.failures(), after.failures(),
                     before.statusCounts(), during.statusCounts(), after.statusCounts(),
                     beforeStats.summary(), duringStats.summary(), afterStats.summary(), all.summary());
-            if (assertsGuarantees()) {
-                assertThat(all.perfect()).as(all.summary()).isTrue();
-            }
+            assertThat(all.perfect()).as(all.summary()).isTrue();
         }
 
-        if (assertsGuarantees()) {
-            assertThat(before.failures() + during.failures() + after.failures()).isZero();
-            assertThat(committed).isEqualTo(3L * OUTAGE_PHASE_MESSAGES);
-        }
+        assertThat(before.failures() + during.failures() + after.failures()).isZero();
+        assertThat(committed).isEqualTo(3L * OUTAGE_PHASE_MESSAGES);
     }
 
     /** 순차 전송 한 구간의 결과 — 실패 건수와 상태 코드 분포. */
@@ -284,7 +287,7 @@ abstract class DeliveryMeasurement {
 
     private Member newMember() {
         memberSequence++;
-        String email = "measure-" + mode() + "-" + memberSequence + "-" + UUID.randomUUID() + "@e.com";
+        String email = "measure-" + MODE + "-" + memberSequence + "-" + UUID.randomUUID() + "@e.com";
         return nodeA.getBean(MemberService.class).create(email, "1234", "측정" + memberSequence);
     }
 

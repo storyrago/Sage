@@ -59,8 +59,6 @@ dependencies {
 	testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
 	testImplementation 'org.testcontainers:testcontainers-mysql'
 	testImplementation 'org.testcontainers:testcontainers-kafka'
-	//측정 테스트에서 Redis 연결을 끊었다 잇는 네트워크 장애 주입(Toxiproxy). 버전은 Boot BOM
-	testImplementation 'org.testcontainers:testcontainers-toxiproxy'
 
 	//swagger 문서화
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9'

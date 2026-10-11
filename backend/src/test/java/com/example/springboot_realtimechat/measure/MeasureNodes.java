@@ -9,16 +9,13 @@ import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
 
-/**
- * 측정용 앱 서버를 띄운다. 두 모드는 app.message.delivery만 다르다 — outbox는 둘 다 켜서 쓰기 비용을 같게 맞춘다.
- * (KafkaTestNodes는 delivery=kafka로 고정돼 있고, 같은 인자를 두 번 주면 값이 "kafka,redis"로 합쳐져 재사용하지 않는다.)
- */
+/** 측정용 앱 서버를 띄운다. 실제 MySQL·Kafka·레지스트리 컨테이너에 붙고, 텍스트 메시지만 보낸다. */
 final class MeasureNodes {
 
     private MeasureNodes() {
     }
 
-    static ConfigurableApplicationContext start(String nodeId, String delivery) {
+    static ConfigurableApplicationContext start(String nodeId) {
         // 서명 URL 계산에 필요한 자격 증명(접속하지 않는다). 텍스트 메시지만 보내므로 S3는 호출되지 않는다.
         System.setProperty("aws.accessKeyId", "test");
         System.setProperty("aws.secretAccessKey", "test");
@@ -35,9 +32,7 @@ final class MeasureNodes {
                         // 테스트 설정은 SQL을 출력한다. 수백 건을 보내는 측정에서는 출력 자체가 부하가 된다.
                         "--spring.jpa.show-sql=false",
                         "--spring.jpa.properties.hibernate.format_sql=false",
-                        "--app.outbox.enabled=true",
                         "--app.outbox.schema-registry-url=" + CdcTestEnvironment.schemaRegistryUrl(),
-                        "--app.message.delivery=" + delivery,
                         "--app.message.node-id=" + nodeId,
                         "--spring.kafka.bootstrap-servers=" + CdcTestEnvironment.bootstrapServers(),
                         // 할당 직후 위치를 잡는 사이에 보낸 이벤트를 놓치지 않도록 처음부터 읽는다(KafkaTestNodes와 같은 이유).

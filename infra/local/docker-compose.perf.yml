@@ -1,5 +1,5 @@
 # 성능 측정 구성. 기본 CDC 스택(docker-compose.yml)에 덮어써서 쓴다 — perf/scripts/compose.sh.
-# 앱 2대는 같은 조건(CPU·메모리 고정)으로 띄우고, 전파 모드는 APP_MESSAGE_DELIVERY 하나로만 바꾼다.
+# 앱 2대는 같은 조건(CPU·메모리 고정)으로 띄운다.
 
 x-perf-app: &perf-app
   build: ../../backend
@@ -26,9 +26,7 @@ x-perf-app-env: &perf-app-env
   SPRING_DATASOURCE_PASSWORD: "1111"
   SPRING_DATA_REDIS_HOST: redis
   SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka-1:19092,kafka-2:19092,kafka-3:19092
-  APP_OUTBOX_ENABLED: "true"
   APP_OUTBOX_SCHEMA_REGISTRY_URL: http://schema-registry:8081
-  APP_MESSAGE_DELIVERY: ${APP_MESSAGE_DELIVERY:-kafka}
   JWT_SECRET: perf-local-secret-0123456789abcdef0123456789
   # 서명 URL 계산용 더미 자격 증명. 텍스트 메시지만 보내므로 S3를 호출하지 않는다.
   AWS_ACCESS_KEY_ID: perf
