@@ -35,6 +35,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    # 테스트가 띄우는 앱은 입력 중 표시·접속 상태용 Redis 리스너를 기동 시 연결한다. 나머지 컨테이너는 Testcontainers가 띄운다.
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+
     steps:
       - uses: actions/checkout@v4
 
