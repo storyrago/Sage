@@ -1,0 +1,17 @@
+global:
+  # 측정 구간이 2분이라 촘촘히 긁는다.
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: sage-app
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["app-1:8091", "app-2:8091"]
+  # 브로커 기준 consumer group lag. 앱 쪽 lag 지표는 소비자가 살아 있을 때만 나오므로 브로커 기준을 따로 본다.
+  - job_name: kafka-exporter
+    static_configs:
+      - targets: ["kafka-exporter:9308"]
+  - job_name: kafka-connect
+    static_configs:
+      - targets: ["connect:9404"]
