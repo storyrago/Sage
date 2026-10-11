@@ -38,16 +38,30 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      # 앱은 기동할 때 스키마 레지스트리에서 메시지 이벤트 스키마를 확인하고 Kafka 소비자를 띄운다.
+      # 로컬과 같은 구성(infra/local)으로 Kafka 3대와 레지스트리를 띄운다. 이미지 받는 시간을 빌드와 겹치려고 먼저 시작만 한다.
+      # MySQL은 위 서비스 컨테이너를 쓰므로 이 스택의 mysql·connect는 띄우지 않는다.
+      - name: Kafka·스키마 레지스트리 시작
+        working-directory: infra/local
+        run: docker compose up -d kafka-1 kafka-2 kafka-3 schema-registry
+
       - name: Build & Test                 # ③ 빌드 + 테스트 (이제 -x test 없이!)
         working-directory: backend
         run: |
           chmod +x gradlew
           ./gradlew build
 
+      - name: 토픽·스키마 등록
+        working-directory: infra/local
+        run: |
+          docker compose up -d --wait kafka-1 kafka-2 kafka-3 schema-registry
+          ./scripts/create-topics.sh > /dev/null
+          ./scripts/register-schema.sh
+
       # 테스트는 H2 create-drop이라 V*.sql과 ddl-auto: validate가 CI에서 한 번도 실행되지 않는다.
       # 빌드된 jar를 위 MySQL 서비스 컨테이너로 실제 기동해, 마이그레이션이 만든 스키마와
       # 엔티티 매핑이 맞는지 배포 전에 확인한다(배포 헬스체크와 같은 readiness 경로).
-      # datasource·redis 기본값이 이미 서비스 컨테이너 주소와 같으므로 JWT_SECRET만 채운다.
+      # datasource·redis·Kafka·레지스트리 기본값이 이미 서비스 컨테이너와 로컬 스택 주소와 같으므로 JWT_SECRET만 채운다.
       - name: 마이그레이션·스키마 검증 (실제 MySQL 기동)
         working-directory: backend
         env:
