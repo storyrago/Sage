@@ -37,6 +37,8 @@ final class MeasureNodes {
                         "--spring.kafka.bootstrap-servers=" + CdcTestEnvironment.bootstrapServers(),
                         // 할당 직후 위치를 잡는 사이에 보낸 이벤트를 놓치지 않도록 처음부터 읽는다(KafkaTestNodes와 같은 이유).
                         "--spring.kafka.consumer.auto-offset-reset=earliest",
+                        // 테스트 설정은 일반 테스트를 위해 소비자를 끈다. 측정 앱은 실제로 소비해야 한다(KafkaTestNodes와 같은 이유).
+                        "--spring.kafka.listener.auto-startup=true",
                         "--spring.data.redis.host=" + MeasureEnvironment.redisHost(),
                         "--spring.data.redis.port=" + MeasureEnvironment.redisPort());
     }
