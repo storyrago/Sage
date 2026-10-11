@@ -26,9 +26,6 @@ public class ChatRoomMember {
     @JoinColumn(name = "chatroom_id")
     private ChatRoom chatRoom;
 
-    @Column(name = "last_read_message_id")
-    private Long lastReadMessageId;
-
     @Column(name = "last_read_seq", nullable = false)
     private long lastReadSeq;
 
@@ -48,8 +45,7 @@ public class ChatRoomMember {
      * 새 멤버십의 시작 위치. 이미 저장된 행은 동시 요청에 안전한
      * ChatRoomMemberRepository.advanceLastRead로만 옮긴다.
      */
-    public void startReadingAt(long seq, Long messageId) {
+    public void startReadingAt(long seq) {
         this.lastReadSeq = seq;
-        this.lastReadMessageId = messageId;
     }
 }

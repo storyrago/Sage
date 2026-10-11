@@ -98,7 +98,7 @@ public class MessageService {
         // 재전송(위의 기존 메시지 반환)은 여기까지 오지 않으므로 이벤트가 중복되지 않는다.
         messageEventRecorder.record(MessageEventType.CREATED, saved);
         // 보낸 사람은 자기 메시지까지 읽은 것으로 본다. 방 잠금 아래라 잠금 순서는 chatrooms → chatroom_members다.
-        chatRoomMemberRepository.advanceLastRead(memberId, chatroomId, saved.getSeq(), saved.getId());
+        chatRoomMemberRepository.advanceLastRead(memberId, chatroomId, saved.getSeq());
         return saved;
     }
 
