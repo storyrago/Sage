@@ -1,0 +1,113 @@
+# 성능 측정 구성. 기본 CDC 스택(docker-compose.yml)에 덮어써서 쓴다 — perf/scripts/compose.sh.
+# 앱 2대는 같은 조건(CPU·메모리 고정)으로 띄우고, 전파 모드는 APP_MESSAGE_DELIVERY 하나로만 바꾼다.
+
+x-perf-app: &perf-app
+  build: ../../backend
+  image: sage-app:perf
+  depends_on:
+    mysql: { condition: service_healthy }
+    redis: { condition: service_healthy }
+    schema-registry: { condition: service_healthy }
+    connect: { condition: service_healthy }
+  cpus: 2
+  mem_limit: 1g
+  healthcheck:
+    # perf 프로필은 health를 관리 포트(8091)로 옮긴다.
+    test: ["CMD", "curl", "-sf", "http://localhost:8091/actuator/health/readiness"]
+    interval: 5s
+    timeout: 3s
+    retries: 40
+    start_period: 20s
+
+x-perf-app-env: &perf-app-env
+  SPRING_PROFILES_ACTIVE: perf
+  SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/spring_realtimechat_service
+  SPRING_DATASOURCE_USERNAME: root
+  SPRING_DATASOURCE_PASSWORD: "1111"
+  SPRING_DATA_REDIS_HOST: redis
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka-1:19092,kafka-2:19092,kafka-3:19092
+  APP_OUTBOX_ENABLED: "true"
+  APP_OUTBOX_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+  APP_MESSAGE_DELIVERY: ${APP_MESSAGE_DELIVERY:-kafka}
+  JWT_SECRET: perf-local-secret-0123456789abcdef0123456789
+  # 서명 URL 계산용 더미 자격 증명. 텍스트 메시지만 보내므로 S3를 호출하지 않는다.
+  AWS_ACCESS_KEY_ID: perf
+  AWS_SECRET_ACCESS_KEY: perf
+  # 컨테이너 메모리 한도(1g) 안에서 힙을 정한다.
+  JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=75
+
+services:
+  connect:
+    build: ./connect
+    image: sage-connect:perf
+    environment:
+      KAFKA_OPTS: -javaagent:/kafka/etc/jmx_prometheus_javaagent.jar=9404:/kafka/etc/jmx-exporter.yml
+
+  redis:
+    image: redis:7
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  app-1:
+    <<: *perf-app
+    environment:
+      <<: *perf-app-env
+      APP_MESSAGE_NODE_ID: app-1
+    ports:
+      - "18080:8080"
+
+  app-2:
+    <<: *perf-app
+    environment:
+      <<: *perf-app-env
+      APP_MESSAGE_NODE_ID: app-2
+    ports:
+      - "18090:8080"
+
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:v1.9.0
+    command: ["--kafka.server=kafka-1:19092", "--kafka.server=kafka-2:19092", "--kafka.server=kafka-3:19092"]
+    depends_on:
+      kafka-1: { condition: service_healthy }
+      kafka-2: { condition: service_healthy }
+      kafka-3: { condition: service_healthy }
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      # k6가 결과를 밀어 넣는다(experimental-prometheus-rw)
+      - --web.enable-remote-write-receiver
+    volumes:
+      - ./perf/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.6.0
+    environment:
+      # 로컬 전용. 로그인 없이 본다.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    volumes:
+      - ./perf/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./perf/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+  k6:
+    image: grafana/k6:1.0.0
+    # up으로는 뜨지 않는다. run-matrix.sh가 compose run으로 실행한다.
+    profiles: [tools]
+    environment:
+      K6_PROMETHEUS_RW_SERVER_URL: http://prometheus:9090/api/v1/write
+      K6_PROMETHEUS_RW_TREND_STATS: p(50),p(95),p(99),max
+    volumes:
+      - ./perf/k6:/scripts:ro
+      - ./perf/results:/results

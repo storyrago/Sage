@@ -26,6 +26,7 @@
     "transforms.outbox.route.by.field": "aggregatetype",
     "transforms.outbox.route.topic.replacement": "chat.${routedByValue}.events",
     "transforms.outbox.table.field.event.key": "aggregateid",
-    "transforms.outbox.table.fields.additional.placement": "type:header:eventType"
+    "transforms.outbox.table.fields.additional.placement": "type:header:eventType",
+    "poll.interval.ms": "50"
   }
 }

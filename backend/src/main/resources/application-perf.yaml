@@ -1,0 +1,18 @@
+# 로컬 성능 측정 스택(infra/local/docker-compose.perf.yml) 전용 프로필. 운영·기본 설정은 바꾸지 않는다.
+management:
+  server:
+    # 지표는 서비스 포트(8080)가 아니라 관리 포트로만 노출한다. compose는 이 포트를 호스트에 열지 않고
+    # 같은 네트워크의 Prometheus만 긁어 간다. health도 이 포트로 옮겨 가므로 컨테이너 헬스체크도 이 포트를 본다.
+    port: ${MANAGEMENT_SERVER_PORT:8091}
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  metrics:
+    tags:
+      application: sage
+    distribution:
+      # Prometheus에서 histogram_quantile로 서버 쪽 p95·p99를 계산하려면 버킷이 필요하다.
+      percentiles-histogram:
+        http.server.requests: true
+        spring.kafka.listener: true
