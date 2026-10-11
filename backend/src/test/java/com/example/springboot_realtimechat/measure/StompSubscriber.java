@@ -65,7 +65,7 @@ final class StompSubscriber implements AutoCloseable {
             @Override
             public void handleFrame(StompHeaders headers, Object payload) {
                 JsonNode node = JSON.readTree((byte[]) payload);
-                received.add(new Received(node.get("seq").asLong(), node.get("content").asString()));
+                received.add(new Received(node.get("seq").asLong(), node.path("content").asString("")));
             }
         };
     }
