@@ -30,20 +30,18 @@ public interface ChatRoomMemberRepository extends JpaRepository<ChatRoomMember, 
     @Modifying(flushAutomatically = true)
     @Query("""
         UPDATE ChatRoomMember cm
-        SET cm.lastReadSeq = :seq, cm.lastReadMessageId = :messageId
+        SET cm.lastReadSeq = :seq
         WHERE cm.member.id = :memberId
           AND cm.chatRoom.id = :chatRoomId
           AND cm.lastReadSeq < :seq
     """)
     int advanceLastRead(@Param("memberId") Long memberId,
                         @Param("chatRoomId") Long chatRoomId,
-                        @Param("seq") long seq,
-                        @Param("messageId") Long messageId);
+                        @Param("seq") long seq);
 
     // 안읽음 수는 방 최신 순번 − 읽은 순번으로 서비스가 계산한다. 여기서는 답장 수만 센다.
     @Query("""
         SELECT cm.chatRoom.id AS chatroomId,
-               cm.lastReadMessageId AS lastReadMessageId,
                cm.lastReadSeq AS lastReadSeq,
                r.lastMessageSeq AS lastMessageSeq,
                COUNT(p) AS replyCount
@@ -59,7 +57,7 @@ public interface ChatRoomMemberRepository extends JpaRepository<ChatRoomMember, 
            AND p.member = cm.member
         WHERE cm.member.id = :memberId
           AND r.deletedAt IS NULL
-        GROUP BY cm.chatRoom.id, cm.lastReadMessageId, cm.lastReadSeq, r.lastMessageSeq
+        GROUP BY cm.chatRoom.id, cm.lastReadSeq, r.lastMessageSeq
     """)
     List<UnreadCountProjection> findUnreadCountsByMemberId(@Param("memberId") Long memberId);
 

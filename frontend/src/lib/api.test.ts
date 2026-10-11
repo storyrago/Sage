@@ -133,7 +133,7 @@ describe('getUnreadCounts', () => {
   it('replyCount를 그대로 파싱해서 돌려준다', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
-        JSON.stringify([{ chatroomId: 3, unreadCount: 5, replyCount: 2, lastReadMessageId: 10 }]),
+        JSON.stringify([{ chatroomId: 3, unreadCount: 5, replyCount: 2, lastMessageSeq: 7, lastReadSeq: 2 }]),
         { status: 200, headers: { 'Content-Type': 'application/json' } },
       ),
     );

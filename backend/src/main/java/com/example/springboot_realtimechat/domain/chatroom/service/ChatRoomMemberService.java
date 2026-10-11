@@ -11,7 +11,6 @@ import com.example.springboot_realtimechat.domain.chatroom.repository.ChatRoomMe
 import com.example.springboot_realtimechat.domain.member.entity.Member;
 import com.example.springboot_realtimechat.domain.member.repository.MemberRepository;
 import com.example.springboot_realtimechat.domain.member.service.MemberService;
-import com.example.springboot_realtimechat.domain.message.repository.MessageRepository;
 import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
 
@@ -34,7 +33,6 @@ public class ChatRoomMemberService {
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final MemberService memberService;
     private final ChatRoomService chatRoomService;
-    private final MessageRepository messageRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final RoomAccess roomAccess;
     private final ChatRoomBanRepository chatRoomBanRepository;
@@ -65,7 +63,7 @@ public class ChatRoomMemberService {
         long latestSeq = chatRoom.getLastMessageSeq();
         if (latestSeq > 0) {
             // 들어오기 전 메시지는 읽은 것으로 시작한다.
-            chatRoomMember.startReadingAt(latestSeq, messageRepository.findIdByChatRoomAndSeq(chatRoom, latestSeq));
+            chatRoomMember.startReadingAt(latestSeq);
         }
         ChatRoomMember saved;
         try{
@@ -178,7 +176,6 @@ public class ChatRoomMemberService {
                         p.getChatroomId(),
                         Math.max(0, p.getLastMessageSeq() - p.getLastReadSeq()),
                         p.getReplyCount(),
-                        p.getLastReadMessageId(),
                         p.getLastMessageSeq(),
                         p.getLastReadSeq()))
                 .toList();
@@ -201,8 +198,7 @@ public class ChatRoomMemberService {
         if (target <= 0) {
             return;
         }
-        chatRoomMemberRepository.advanceLastRead(memberId, chatRoomId, target,
-                messageRepository.findIdByChatRoomAndSeq(chatRoom, target));
+        chatRoomMemberRepository.advanceLastRead(memberId, chatRoomId, target);
     }
 
 }

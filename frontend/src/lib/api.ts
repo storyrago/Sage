@@ -210,7 +210,6 @@ export interface UnreadCount {
   chatroomId: number;
   unreadCount: number;
   replyCount: number;
-  lastReadMessageId: number | null;
   lastMessageSeq: number;
   lastReadSeq: number;
 }
