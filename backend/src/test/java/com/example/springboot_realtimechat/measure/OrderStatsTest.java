@@ -53,4 +53,39 @@ class OrderStatsTest {
         assertThat(new OrderStats(3, 1, 2, 0).summary())
                 .isEqualTo("received=3 inversions=1 missing=2 duplicates=0");
     }
+
+    // ---- 기대 집합(컬렉션) 오버로드 — 시나리오 2 구간 경계를 접두어로 나누기 위해 추가 ----
+
+    @Test
+    void 기대_집합에_속한_것만_빠짐없이_받으면_완전하다() {
+        OrderStats stats = OrderStats.of(List.of(1L, 3L, 5L), List.of(1L, 3L, 5L));
+
+        assertThat(stats).isEqualTo(new OrderStats(3, 0, 0, 0));
+        assertThat(stats.perfect()).isTrue();
+    }
+
+    @Test
+    void 기대_집합이_연속되지_않아도_누락을_센다() {
+        // 기대 집합 {10,20,30} 중 20을 못 받았다.
+        OrderStats stats = OrderStats.of(List.of(10L, 30L), List.of(10L, 20L, 30L));
+
+        assertThat(stats.missing()).isEqualTo(1);
+        assertThat(stats.received()).isEqualTo(2);
+    }
+
+    @Test
+    void 기대_집합_밖의_seq는_컬렉션_오버로드에서도_세지_않는다() {
+        // 다른 구간 seq(4)가 받은 목록에 섞여도 이 구간 기대 집합 {5,10,15}만으로 판정한다.
+        OrderStats stats = OrderStats.of(List.of(5L, 4L, 10L, 15L), List.of(5L, 10L, 15L));
+
+        assertThat(stats).isEqualTo(new OrderStats(3, 0, 0, 0));
+    }
+
+    @Test
+    void 기대_집합_오버로드에서도_역전과_중복을_받은_순서대로_센다() {
+        OrderStats stats = OrderStats.of(List.of(10L, 5L, 5L, 15L), List.of(5L, 10L, 15L));
+
+        assertThat(stats.inversions()).isEqualTo(1);
+        assertThat(stats.duplicates()).isEqualTo(1);
+    }
 }
