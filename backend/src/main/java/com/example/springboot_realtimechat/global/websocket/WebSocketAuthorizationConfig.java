@@ -44,8 +44,7 @@ public class WebSocketAuthorizationConfig {
                                            "/sub/chatrooms/{chatroomId}/typing",
                                            "/sub/chatrooms/{chatroomId}/presence").access(roomMember)
 
-                .simpMessageDestMatchers("/pub/chatrooms/{chatroomId}/messages",
-                                         "/pub/chatrooms/{chatroomId}/typing").access(roomMember)
+                .simpMessageDestMatchers("/pub/chatrooms/{chatroomId}/typing").access(roomMember)
 
                 .anyMessage().denyAll();
 

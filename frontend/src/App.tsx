@@ -49,7 +49,7 @@ interface StoredSession {
 
 const SESSION_KEY = 'chat_auth_session';
 
-// /sub/chatrooms/{id}, /sub/chatrooms/{id}/typing, /pub/chatrooms/{id}/messages 등에서 방 id를 뽑는다
+// /sub/chatrooms/{id}, /sub/chatrooms/{id}/typing, /pub/chatrooms/{id}/typing 등에서 방 id를 뽑는다
 const ROOM_DESTINATION = /^\/(?:sub|pub)\/chatrooms\/(\d+)(?:\/|$)/;
 
 function roomIdFromDestination(destination?: string): string | null {

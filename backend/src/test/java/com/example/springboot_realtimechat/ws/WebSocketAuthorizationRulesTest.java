@@ -82,14 +82,12 @@ class WebSocketAuthorizationRulesTest {
     }
 
     @Test
-    void 멤버는_방에_전송한다() {
-        assertThat(granted(loggedIn(), frame(SimpMessageType.MESSAGE, "/pub/chatrooms/1/messages"))).isTrue();
+    void 멤버는_방에_입력_중_신호를_보낸다() {
         assertThat(granted(loggedIn(), frame(SimpMessageType.MESSAGE, "/pub/chatrooms/1/typing"))).isTrue();
     }
 
     @Test
-    void 비멤버는_방에_전송하지_못한다() {
-        assertThat(granted(loggedIn(), frame(SimpMessageType.MESSAGE, "/pub/chatrooms/2/messages"))).isFalse();
+    void 비멤버는_방에_입력_중_신호를_보내지_못한다() {
         assertThat(granted(loggedIn(), frame(SimpMessageType.MESSAGE, "/pub/chatrooms/2/typing"))).isFalse();
     }
 
@@ -148,5 +146,11 @@ class WebSocketAuthorizationRulesTest {
     @Test
     void 미인증은_방을_구독하지_못한다() {
         assertThat(granted(anonymous(), frame(SimpMessageType.SUBSCRIBE, "/sub/chatrooms/1"))).isFalse();
+    }
+
+    @Test
+    void 메시지_전송_목적지는_멤버여도_거부한다() {
+        // 메시지는 REST로만 보낸다.
+        assertThat(granted(loggedIn(), frame(SimpMessageType.MESSAGE, "/pub/chatrooms/1/messages"))).isFalse();
     }
 }

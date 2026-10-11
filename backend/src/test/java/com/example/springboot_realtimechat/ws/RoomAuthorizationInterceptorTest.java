@@ -115,7 +115,7 @@ class RoomAuthorizationInterceptorTest {
     @Test
     void 인가_실패해도_세션은_유지된다_예외를_던지지_않는다() {
         decide(false);
-        Message<?> message = frame(StompCommand.SEND, "/pub/chatrooms/2/messages", loggedIn());
+        Message<?> message = frame(StompCommand.SEND, "/pub/chatrooms/2/typing", loggedIn());
 
         assertThat(interceptor.preSend(message, channel)).isNull();
     }
