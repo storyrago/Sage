@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 // 백필 SQL은 MySQL에서 돌므로 CI와 같은 MySQL 8.0에서 V11까지 올린 뒤 포인터를 바꾸고 V12를 적용해 확인한다.
 // 시드(V8): 방1 메시지 id 1~3 = seq 1~3(작성자 2,1,2), 방2 메시지 id 4~9 = seq 1~6(작성자 2,1,2,2,1,2).
+// V13은 V12가 백필에 쓴 last_read_message_id를 지운다. 첫 테스트는 target 11에서 그 컬럼을 고친 뒤 끝까지 올린다.
 class LastReadSeqMigrationTest {
 
     private static MySQLContainer mysql;
@@ -87,6 +88,20 @@ class LastReadSeqMigrationTest {
                 rs.next();
                 assertThat(rs.getLong("last_read_seq")).isZero();
             }
+        }
+    }
+
+    @Test
+    void 끝까지_올리면_메시지_id_읽음_컬럼이_없다() throws Exception {
+        flyway("latest").migrate();
+        try (Connection c = connect(); Statement s = c.createStatement();
+             ResultSet rs = s.executeQuery("""
+                     SELECT COUNT(*) FROM information_schema.COLUMNS
+                     WHERE TABLE_SCHEMA = DATABASE()
+                       AND TABLE_NAME = 'chatroom_members'
+                       AND COLUMN_NAME = 'last_read_message_id'""")) {
+            rs.next();
+            assertThat(rs.getInt(1)).isZero();
         }
     }
 }
