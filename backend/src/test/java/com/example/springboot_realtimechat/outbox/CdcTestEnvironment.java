@@ -249,6 +249,9 @@ public final class CdcTestEnvironment {
     }
 
     private static void changeConnectorState(String action, String expectedState) throws Exception {
+        if (connectorName == null) {
+            throw new IllegalStateException("start() 전에 호출");
+        }
         HttpResponse<String> response = HTTP.send(HttpRequest.newBuilder(
                                 URI.create(connectUrl() + "/connectors/" + connectorName + "/" + action))
                         .PUT(HttpRequest.BodyPublishers.noBody())

@@ -24,6 +24,8 @@ import java.sql.ResultSet;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -106,34 +108,44 @@ abstract class DeliveryMeasurement {
         Room room = newRoom();
 
         ExecutorService pool = Executors.newFixedThreadPool(ORDER_THREADS);
-        List<Future<Integer>> results = new ArrayList<>();
-        for (int i = 0; i < ORDER_MESSAGES; i++) {
-            int index = i;
-            boolean toA = index % 2 == 0;
-            results.add(pool.submit(() -> RestSender.send(
-                    MeasureNodes.port(toA ? nodeA : nodeB), toA ? authorTokenA : authorTokenB,
-                    room.id(), "order-" + index)));
-        }
-        int failures = 0;
-        for (Future<Integer> result : results) {
-            if (result.get(60, TimeUnit.SECONDS) != 200) failures++;
-        }
-        pool.shutdown();
+        try {
+            List<Future<Integer>> results = new ArrayList<>();
+            for (int i = 0; i < ORDER_MESSAGES; i++) {
+                int index = i;
+                boolean toA = index % 2 == 0;
+                results.add(pool.submit(() -> RestSender.send(
+                        MeasureNodes.port(toA ? nodeA : nodeB), toA ? authorTokenA : authorTokenB,
+                        room.id(), "order-" + index)));
+            }
+            int failures = 0;
+            Map<Integer, Integer> statusCounts = new TreeMap<>();
+            for (Future<Integer> result : results) {
+                int status = result.get(60, TimeUnit.SECONDS);
+                statusCounts.merge(status, 1, Integer::sum);
+                if (status != 200) failures++;
+            }
 
-        long committed = committedMaxSeq(room.id());
-        awaitReceived(room.subscribers(), committed, Duration.ofSeconds(60));
+            long committed = committedMaxSeq(room.id());
+            awaitReceived(room.subscribers(), committed, Duration.ofSeconds(60));
 
-        List<OrderStats> stats = room.subscribers().stream()
-                .map(s -> OrderStats.of(s.seqs(), 1, committed))
-                .toList();
-        System.out.printf("[measure] mode=%s scenario=order run=%d committed=%d restFailures=%d A{%s} B{%s}%n",
-                mode(), repetition.getCurrentRepetition(), committed, failures,
-                stats.get(0).summary(), stats.get(1).summary());
+            List<OrderStats> stats = room.subscribers().stream()
+                    .map(s -> OrderStats.of(s.seqs(), 1, committed))
+                    .toList();
+            System.out.printf("[measure] mode=%s scenario=order run=%d committed=%d restFailures=%d status=%s "
+                            + "A{%s} B{%s}%n",
+                    mode(), repetition.getCurrentRepetition(), committed, failures, statusCounts,
+                    stats.get(0).summary(), stats.get(1).summary());
 
-        if (assertsGuarantees()) {
-            assertThat(failures).isZero();
-            assertThat(committed).isEqualTo(ORDER_MESSAGES);
-            assertThat(stats).allSatisfy(s -> assertThat(s.perfect()).as(s.summary()).isTrue());
+            if (assertsGuarantees()) {
+                assertThat(failures).isZero();
+                assertThat(committed).isEqualTo(ORDER_MESSAGES);
+                assertThat(stats).allSatisfy(s -> assertThat(s.perfect()).as(s.summary()).isTrue());
+            }
+        } finally {
+            pool.shutdown();
+            if (!pool.awaitTermination(5, TimeUnit.SECONDS)) {
+                pool.shutdownNow();
+            }
         }
     }
 
@@ -142,60 +154,98 @@ abstract class DeliveryMeasurement {
         Room room = newRoom();
 
         // 1구간: 정상
-        int failuresBefore = sendSequentially(room, "before");
+        PhaseResult before = sendSequentially(room, "before");
         long endOfBefore = committedMaxSeq(room.id());
         awaitReceived(room.subscribers(), endOfBefore, Duration.ofSeconds(30));
 
         // 2구간: 전파 계층 차단 중
-        int failuresDuring;
-        long endOfDuring;
+        PhaseResult during;
         cutPropagation();
         try {
-            failuresDuring = sendSequentially(room, "during");
-            endOfDuring = committedMaxSeq(room.id());
+            during = sendSequentially(room, "during");
         } finally {
             restorePropagation();
         }
         Thread.sleep(RECOVERY_GRACE.toMillis());
 
         // 3구간: 복구 후
-        int failuresAfter = sendSequentially(room, "after");
+        PhaseResult after = sendSequentially(room, "after");
         long committed = committedMaxSeq(room.id());
+        // 늦은 커밋(클라이언트 타임아웃 뒤 서버가 뒤늦게 커밋한 건)을 놓치지 않으려고, 구간별 기대 seq는
+        // MAX(seq) 스냅샷이 아니라 이 시점에 DB에 실제로 커밋된 본문 접두어로 읽는다.
         awaitReceived(room.subscribers(), committed, Duration.ofSeconds(60));
 
+        List<Long> expectedBefore = expectedSeqsByPrefix(room.id(), "before-%");
+        List<Long> expectedDuring = expectedSeqsByPrefix(room.id(), "during-%");
+        List<Long> expectedAfter = expectedSeqsByPrefix(room.id(), "after-%");
+
         for (int i = 0; i < room.subscribers().size(); i++) {
-            List<Long> seqs = room.subscribers().get(i).seqs();
-            OrderStats before = OrderStats.of(seqs, 1, endOfBefore);
-            OrderStats during = OrderStats.of(seqs, endOfBefore + 1, endOfDuring);
-            OrderStats after = OrderStats.of(seqs, endOfDuring + 1, committed);
+            List<StompSubscriber.Received> items = room.subscribers().get(i).received();
+            List<Long> seqs = items.stream().map(StompSubscriber.Received::seq).toList();
+            OrderStats beforeStats = OrderStats.of(receivedByPrefix(items, "before-"), expectedBefore);
+            OrderStats duringStats = OrderStats.of(receivedByPrefix(items, "during-"), expectedDuring);
+            OrderStats afterStats = OrderStats.of(receivedByPrefix(items, "after-"), expectedAfter);
             OrderStats all = OrderStats.of(seqs, 1, committed);
             System.out.printf("[measure] mode=%s scenario=outage run=%d subscriber=%s committed=%d "
-                            + "restFailures(before/during/after)=%d/%d/%d "
+                            + "restFailures(before/during/after)=%d/%d/%d status(before/during/after)=%s/%s/%s "
                             + "before{%s} during{%s} after{%s} all{%s}%n",
                     mode(), repetition.getCurrentRepetition(), i == 0 ? "A" : "B", committed,
-                    failuresBefore, failuresDuring, failuresAfter,
-                    before.summary(), during.summary(), after.summary(), all.summary());
+                    before.failures(), during.failures(), after.failures(),
+                    before.statusCounts(), during.statusCounts(), after.statusCounts(),
+                    beforeStats.summary(), duringStats.summary(), afterStats.summary(), all.summary());
             if (assertsGuarantees()) {
                 assertThat(all.perfect()).as(all.summary()).isTrue();
             }
         }
 
         if (assertsGuarantees()) {
-            assertThat(failuresBefore + failuresDuring + failuresAfter).isZero();
+            assertThat(before.failures() + during.failures() + after.failures()).isZero();
             assertThat(committed).isEqualTo(3L * OUTAGE_PHASE_MESSAGES);
         }
     }
 
-    /** 순차로 보낸다(seq = 보낸 순서). 두 서버에 번갈아 보내고, 200이 아닌 응답 수를 돌려준다. */
-    private int sendSequentially(Room room, String phase) {
+    /** 순차 전송 한 구간의 결과 — 실패 건수와 상태 코드 분포. */
+    record PhaseResult(int failures, Map<Integer, Integer> statusCounts) {
+    }
+
+    /** 순차로 보낸다(seq = 보낸 순서). 두 서버에 번갈아 보내고, 실패 수와 상태 코드 분포를 돌려준다. */
+    private PhaseResult sendSequentially(Room room, String phase) {
         int failures = 0;
+        Map<Integer, Integer> statusCounts = new TreeMap<>();
         for (int i = 0; i < OUTAGE_PHASE_MESSAGES; i++) {
             boolean toA = i % 2 == 0;
             int status = RestSender.send(MeasureNodes.port(toA ? nodeA : nodeB),
                     toA ? authorTokenA : authorTokenB, room.id(), phase + "-" + i);
+            statusCounts.merge(status, 1, Integer::sum);
             if (status != 200) failures++;
         }
-        return failures;
+        return new PhaseResult(failures, statusCounts);
+    }
+
+    /** 받은 것 중 본문이 그 구간 접두어로 시작하는 것의 seq만 도착 순서대로 뽑는다. */
+    private static List<Long> receivedByPrefix(List<StompSubscriber.Received> items, String prefix) {
+        return items.stream()
+                .filter(r -> r.content().startsWith(prefix))
+                .map(StompSubscriber.Received::seq)
+                .toList();
+    }
+
+    /** DB에 실제로 커밋된, 본문이 이 접두어(LIKE 패턴)로 시작하는 메시지의 seq를 seq 순으로 읽는다. */
+    private static List<Long> expectedSeqsByPrefix(long roomId, String contentLikePattern) throws Exception {
+        try (Connection c = DriverManager.getConnection(
+                     CdcTestEnvironment.jdbcUrl(), CdcTestEnvironment.username(), CdcTestEnvironment.password());
+             PreparedStatement s = c.prepareStatement(
+                     "SELECT seq FROM messages WHERE chatroom_id = ? AND content LIKE ? ORDER BY seq")) {
+            s.setLong(1, roomId);
+            s.setString(2, contentLikePattern);
+            try (ResultSet rs = s.executeQuery()) {
+                List<Long> seqs = new ArrayList<>();
+                while (rs.next()) {
+                    seqs.add(rs.getLong(1));
+                }
+                return seqs;
+            }
+        }
     }
 
     // ---- 공용 도우미 ----
@@ -215,9 +265,9 @@ abstract class DeliveryMeasurement {
 
         StompSubscriber subscriberA = StompSubscriber.connect(
                 MeasureNodes.port(nodeA), MeasureNodes.token(nodeA, readerA), room.getId());
+        openSubscribers.add(subscriberA);
         StompSubscriber subscriberB = StompSubscriber.connect(
                 MeasureNodes.port(nodeB), MeasureNodes.token(nodeB, readerB), room.getId());
-        openSubscribers.add(subscriberA);
         openSubscribers.add(subscriberB);
         String destination = "/sub/chatrooms/" + room.getId();
         awaitSubscribed(nodeA, destination);
