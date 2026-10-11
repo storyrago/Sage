@@ -13,7 +13,6 @@ import com.example.springboot_realtimechat.domain.message.entity.Message;
 import com.example.springboot_realtimechat.domain.message.service.MessageResponseFactory;
 import com.example.springboot_realtimechat.domain.message.service.MessageService;
 import com.example.springboot_realtimechat.global.jwt.JwtTokenProvider;
-import com.example.springboot_realtimechat.global.redis.RedisPublisher;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,7 +52,6 @@ class MessageImageUrlSigningTest {
     @Autowired JwtTokenProvider jwtTokenProvider;
 
     @MockitoBean S3Service s3Service;
-    @MockitoBean RedisPublisher redisPublisher;
 
     private static final String BUCKET_PREFIX = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/";
 

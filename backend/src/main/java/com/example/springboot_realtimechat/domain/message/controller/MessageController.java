@@ -7,7 +7,6 @@ import com.example.springboot_realtimechat.domain.message.dto.MessageUpdateReque
 import com.example.springboot_realtimechat.domain.message.entity.Message;
 import com.example.springboot_realtimechat.domain.message.service.MessageResponseFactory;
 import com.example.springboot_realtimechat.domain.message.service.MessageService;
-import com.example.springboot_realtimechat.domain.message.delivery.MessageBroadcaster;
 import com.example.springboot_realtimechat.global.auth.CustomUserDetails;
 
 import jakarta.validation.Valid;
@@ -17,12 +16,15 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * 메시지 생성·수정·삭제는 MessageService가 같은 트랜잭션에 outbox 이벤트를 남긴다.
+ * 방 전체로의 실시간 전파는 그 이벤트를 읽는 소비자(RealtimeMessageDelivery)가 맡으므로 여기서는 응답만 돌려준다.
+ */
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/chatrooms/{chatroomId}/messages")
 public class MessageController {
     private final MessageService messageService;
-    private final MessageBroadcaster messageBroadcaster;
     private final MessageResponseFactory messageResponseFactory;
 
     @PostMapping
@@ -37,9 +39,7 @@ public class MessageController {
                 chatroomId,
                 messageRequest.getReplyToId(),
                 messageRequest.getClientMessageId());
-        MessageResponse response = messageResponseFactory.of(message);
-        messageBroadcaster.broadcast(response); // 새 메시지를 방 전체에 실시간 전파
-        return response;
+        return messageResponseFactory.of(message);
     }
 
     @GetMapping
@@ -65,9 +65,7 @@ public class MessageController {
             @AuthenticationPrincipal CustomUserDetails customUserDetails,
             @Valid @RequestBody MessageUpdateRequest request) {
         Message message = messageService.update(chatroomId, messageId, customUserDetails.getMemberId(), request.getContent());
-        MessageResponse response = messageResponseFactory.of(message);
-        messageBroadcaster.broadcast(response); // 수정 결과를 방 전체에 실시간 전파
-        return response;
+        return messageResponseFactory.of(message);
     }
 
     @DeleteMapping("/{messageId}")
@@ -76,8 +74,6 @@ public class MessageController {
             @PathVariable Long messageId,
             @AuthenticationPrincipal CustomUserDetails customUserDetails) {
         Message message = messageService.delete(chatroomId, messageId, customUserDetails.getMemberId());
-        MessageResponse response = messageResponseFactory.of(message);
-        messageBroadcaster.broadcast(response); // 삭제 상태를 방 전체에 실시간 전파
-        return response;
+        return messageResponseFactory.of(message);
     }
 }

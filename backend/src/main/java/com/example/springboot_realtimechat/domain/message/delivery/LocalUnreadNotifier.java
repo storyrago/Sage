@@ -11,7 +11,6 @@ import com.example.springboot_realtimechat.events.MessageEventType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.user.SimpUserRegistry;
@@ -26,7 +25,6 @@ import java.util.List;
  */
 @Slf4j
 @Component
-@ConditionalOnProperty(name = "app.message.delivery", havingValue = "kafka")
 @RequiredArgsConstructor
 public class LocalUnreadNotifier {
 

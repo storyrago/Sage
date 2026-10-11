@@ -18,11 +18,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(properties = {
-        "app.message.delivery=kafka",
         "app.message.node-id=test-node",
-        "app.outbox.enabled=true",
-        "app.outbox.schema-registry-url=mock://" + ImageCleanupConsumerWiringTest.SCOPE,
-        "spring.kafka.listener.auto-startup=false"
+        "app.outbox.schema-registry-url=mock://" + ImageCleanupConsumerWiringTest.SCOPE
 })
 class ImageCleanupConsumerWiringTest {
 

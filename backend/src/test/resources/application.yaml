@@ -61,9 +61,6 @@ aws:
 
 app:
   frontend-url: http://localhost:5173
-  message:
-    delivery: kafka
   outbox:
-    enabled: true
     # DefaultSchemaRegistryInitializer가 기동 전에 스키마를 등록해 두는 모의 레지스트리.
     schema-registry-url: mock://sage-test

@@ -2,11 +2,8 @@ package com.example.springboot_realtimechat.domain.message.controller;
 
 import com.example.springboot_realtimechat.domain.member.entity.Member;
 import com.example.springboot_realtimechat.domain.member.service.MemberService;
-import com.example.springboot_realtimechat.domain.message.delivery.MessageBroadcaster;
 import com.example.springboot_realtimechat.domain.message.dto.MessageRequest;
-import com.example.springboot_realtimechat.domain.message.dto.MessageResponse;
 import com.example.springboot_realtimechat.domain.message.entity.Message;
-import com.example.springboot_realtimechat.domain.message.service.MessageResponseFactory;
 import com.example.springboot_realtimechat.domain.message.service.MessageService;
 import com.example.springboot_realtimechat.domain.presence.dto.TypingRequest;
 import com.example.springboot_realtimechat.domain.presence.dto.TypingResponse;
@@ -38,8 +35,6 @@ public class ChatMessageController {
     private final MessageService messageService;
     private final MemberService memberService;
     private final RedisPublisher redisPublisher;
-    private final MessageBroadcaster messageBroadcaster;
-    private final MessageResponseFactory messageResponseFactory;
     private final SimpMessagingTemplate messagingTemplate;
 
     @MessageMapping("/chatrooms/{chatroomId}/messages")
@@ -56,8 +51,6 @@ public class ChatMessageController {
                 chatroomId,
                 messageRequest.getReplyToId(),
                 messageRequest.getClientMessageId());
-        MessageResponse messageResponse = messageResponseFactory.of(message);
-        messageBroadcaster.broadcast(messageResponse);
     }
 
     @MessageMapping("/chatrooms/{chatroomId}/typing")

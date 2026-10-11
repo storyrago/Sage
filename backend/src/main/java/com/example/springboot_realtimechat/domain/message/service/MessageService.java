@@ -4,7 +4,6 @@ import com.example.springboot_realtimechat.domain.chatroom.entity.ChatRoom;
 import com.example.springboot_realtimechat.domain.chatroom.repository.ChatRoomMemberRepository;
 import com.example.springboot_realtimechat.domain.chatroom.service.ChatRoomService;
 import com.example.springboot_realtimechat.domain.chatroom.service.RoomAccess;
-import com.example.springboot_realtimechat.domain.image.event.MessageImageRelease;
 import com.example.springboot_realtimechat.domain.image.service.ImageUploads;
 import com.example.springboot_realtimechat.domain.image.service.S3Service;
 import com.example.springboot_realtimechat.domain.member.entity.Member;
@@ -34,7 +33,6 @@ public class MessageService {
     private final MessageRepository messageRepository;
     private final MemberService memberService;
     private final ChatRoomService chatRoomService;
-    private final MessageImageRelease messageImageRelease;
     private final RoomAccess roomAccess;
     private final S3Service s3Service;
     private final MessageEventRecorder messageEventRecorder;
@@ -165,11 +163,8 @@ public class MessageService {
         String imageUrl = message.getImageUrl();        // softDelete가 참조를 지우기 전에 읽는다
         String dereferencedImageUrl = (imageUrl == null || imageUrl.isBlank()) ? null : imageUrl;
         message.softDelete();
+        // 끊긴 이미지는 이 삭제 이벤트를 읽는 MessageImageCleanupConsumer가 정리한다(커밋되면 반드시, 롤백되면 전혀).
         messageEventRecorder.record(MessageEventType.DELETED, message, dereferencedImageUrl);
-
-        if (dereferencedImageUrl != null) {
-            messageImageRelease.release(dereferencedImageUrl);
-        }
         return message;
     }
 

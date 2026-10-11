@@ -48,9 +48,7 @@ public final class KafkaTestNodes {
                 "--spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver",
                 "--spring.flyway.enabled=true",
                 "--spring.jpa.hibernate.ddl-auto=validate",
-                "--app.outbox.enabled=true",
                 "--app.outbox.schema-registry-url=" + CdcTestEnvironment.schemaRegistryUrl(),
-                "--app.message.delivery=kafka",
                 "--app.message.node-id=" + nodeId,
                 "--spring.kafka.bootstrap-servers=" + CdcTestEnvironment.bootstrapServers(),
                 // 운영은 latest. 테스트는 할당 직후 위치를 잡는 사이에 보낸 이벤트를 놓치지 않도록 처음부터 읽는다.
