@@ -191,10 +191,10 @@ public final class CdcTestEnvironment {
                 .containsEntry("server_id", "223344");
     }
 
-    /** infra/local/scripts/register-schema.sh와 같은 절차: 호환성 BACKWARD 고정 후 정규화 등록. */
+    /** infra/local/scripts/register-schema.sh와 같은 절차: 호환성 BACKWARD_TRANSITIVE 고정 후 정규화 등록. */
     private static void registerSchema() throws Exception {
         SchemaRegistryClient client = registryClient();
-        client.updateCompatibility(MessageEventSchema.SUBJECT, "BACKWARD");
+        client.updateCompatibility(MessageEventSchema.SUBJECT, "BACKWARD_TRANSITIVE");
         client.register(MessageEventSchema.SUBJECT, new AvroSchema(MessageEventSchema.SCHEMA), true);
     }
 
