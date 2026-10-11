@@ -30,7 +30,7 @@
       "type": "timeseries", "title": "consumer group lag (브로커 기준)",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "refId": "A", "expr": "sum by (consumergroup) (kafka_consumergroup_lag{topic=\"chat.message.events\"})", "legendFormat": "{{consumergroup}}" }]
+      "targets": [{ "refId": "A", "expr": "sum by (consumergroup) (kafka_consumergroup_lag{topic=\"chat.message.events\", consumergroup=~\"sage-(realtime|unread)-app-.*|sage-image-cleanup\"})", "legendFormat": "{{consumergroup}}" }]
     },
     {
       "type": "timeseries", "title": "DB 커넥션 (사용 중 / 대기)",

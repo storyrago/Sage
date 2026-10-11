@@ -44,7 +44,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "percentunit" } },
-      "targets": [{ "refId": "A", "expr": "k6_http_req_failed_rate{name=\"send\"}", "legendFormat": "{{testid}}" }]
+      "targets": [{ "refId": "A", "expr": "sum by (testid) (k6_http_reqs_total{name=\"send\", phase=\"measure\", expected_response=\"false\"}) / sum by (testid) (k6_http_reqs_total{name=\"send\", phase=\"measure\"})", "legendFormat": "{{testid}}" }]
     }
   ]
 }
