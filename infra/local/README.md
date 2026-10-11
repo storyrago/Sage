@@ -17,13 +17,15 @@
 cd infra/local
 docker compose up -d                 # 모든 서비스가 healthy가 될 때까지 기다린다
 ./scripts/create-topics.sh           # chat.message.events + DLT·이미지 정리 재시도 토픽 (RF 3, min ISR 2)
-./scripts/register-schema.sh         # subject 호환성 BACKWARD + 스키마 등록
+./scripts/register-schema.sh         # subject 호환성 BACKWARD_TRANSITIVE + 스키마 등록
 ./scripts/register-connector.sh      # Debezium 커넥터 등록(이미 있으면 설정 갱신)
 ```
 
 커넥터 설정(`connect/outbox-connector.json`)의 `poll.interval.ms`는 50ms다. Debezium 기본값 500ms는 binlog에 새 이벤트가 없을 때 다음 확인까지 기다리는 시간이라, 부하가 낮으면 메시지 전달 지연이 그만큼(최대 0.5초) 늘어난다. 낮춘 대가로 빈 확인이 잦아져 DB 부하가 조금 는다.
 
 스키마(`backend/src/main/resources/avro/message-event.avsc`)가 바뀐 코드를 받았으면 `./scripts/register-schema.sh`를 다시 실행해 새 버전을 등록한다. 앱은 자기 스키마가 등록돼 있지 않으면 기동하지 않는다. 호환되지 않는 변경은 이 단계에서 거부된다(HTTP 409).
+
+스키마를 바꿀 때는 바꾸기 전 `.avsc`를 `backend/src/test/resources/avro/history/message-event-vN.avsc`로 복사해 둔다. 단위 테스트(`MessageEventSchemaCompatibilityTest`)와 CI(`register-schema.sh --with-history`)가 기준본 전부와 비교한다.
 
 앱은 이 스택이 떠 있어야 기동한다(기동할 때 스키마 레지스트리에서 메시지 이벤트 스키마를 확인한다). Redis도 별도로 떠 있어야 한다(입력 중 표시·접속 상태·토큰 거부목록용):
 

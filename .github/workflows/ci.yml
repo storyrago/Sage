@@ -51,12 +51,13 @@ jobs:
           chmod +x gradlew
           ./gradlew build
 
+      # 기준본을 먼저 등록해, 빈 레지스트리에서도 과거 버전과의 호환성(BACKWARD_TRANSITIVE)을 실제 레지스트리가 판정하게 한다.
       - name: 토픽·스키마 등록
         working-directory: infra/local
         run: |
           docker compose up -d --wait kafka-1 kafka-2 kafka-3 schema-registry
           ./scripts/create-topics.sh > /dev/null
-          ./scripts/register-schema.sh
+          ./scripts/register-schema.sh --with-history
 
       # 테스트는 H2 create-drop이라 V*.sql과 ddl-auto: validate가 CI에서 한 번도 실행되지 않는다.
       # 빌드된 jar를 위 MySQL 서비스 컨테이너로 실제 기동해, 마이그레이션이 만든 스키마와
