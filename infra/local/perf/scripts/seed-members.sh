@@ -11,6 +11,7 @@ for i in $(seq 1 "$COUNT"); do
   values+="('perf-${RUN_NAME}-${i}@perf.local','${HASH}','perf${i}','LOCAL',NOW(6),NOW(6)),"
 done
 
-"$(dirname "$0")/compose.sh" exec -T mysql mysql -uroot -p1111 spring_realtimechat_service \
-  -e "INSERT INTO members (email, password, nickname, provider, created_at, onboarded_at) VALUES ${values%,};" 2>/dev/null
+# 비밀번호는 환경 변수로 넘긴다(명령줄 -p는 경고를 stderr로 낸다). 실패(예: 같은 실행 이름의 중복 이메일)는 그대로 보이게 둔다.
+"$(dirname "$0")/compose.sh" exec -T -e MYSQL_PWD=1111 mysql mysql -uroot spring_realtimechat_service \
+  -e "INSERT INTO members (email, password, nickname, provider, created_at, onboarded_at) VALUES ${values%,};"
 echo "[perf] 회원 ${COUNT}명 삽입: perf-${RUN_NAME}-*"

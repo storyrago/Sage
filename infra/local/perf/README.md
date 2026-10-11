@@ -26,10 +26,10 @@ perf/scripts/compose.sh up -d --wait app-1 app-2 kafka-exporter prometheus grafa
 perf/scripts/run-matrix.sh            # 기본: 3회 × (hot, spread) × (50, 200 msg/s) × (redis, kafka), 실행당 약 4분
 ```
 
-환경 변수로 줄일 수 있다: `RUNS`, `SHAPES`, `RATES`, `MODES`, `WARMUP_S`, `DURATION_S`, `P99_LIMIT_MS`.
+환경 변수로 줄일 수 있다(`STAMP`는 실행 이름 끝의 묶음 표식, 기본 실행 시각): `STAMP`, `RUNS`, `SHAPES`, `RATES`, `MODES`, `WARMUP_S`, `DURATION_S`, `P99_LIMIT_MS`.
 
 - 실행마다: 앱 정지 → CDC 유휴 대기 → 소비자 오프셋을 토픽 끝으로 → 앱 2대 새로 기동 → 새 회원 30명·새 방 → 워밍업 60초(결과 제외) → 측정 120초.
-- 결과: 콘솔의 `[perf]` 줄, `perf/results/<모드>-<형태>-r<도착률>-<회차>.json`(k6 요약), Grafana 대시보드 3개.
+- 결과: 콘솔의 `[perf]` 줄, `perf/results/<모드>-<형태>-r<도착률>-<회차>-<묶음 표식>.json`(k6 요약), Grafana 대시보드 3개.
 - 종단 지연 = 보낸 쪽이 본문에 넣은 시각 → 다른 받는 사람이 STOMP로 받은 시각. 송수신이 한 k6 프로세스라 시계가 같다.
 
 ## 한계
