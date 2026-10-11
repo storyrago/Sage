@@ -1,0 +1,50 @@
+{
+  "uid": "sage-k6",
+  "title": "Sage · k6 부하",
+  "schemaVersion": 39,
+  "time": { "from": "now-30m", "to": "now" },
+  "refresh": "5s",
+  "panels": [
+    {
+      "type": "timeseries", "title": "종단 지연 p99 (보낸 시각 → 상대 구독자 수신)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [{ "refId": "A", "expr": "k6_e2e_latency_p99{phase=\"measure\"}", "legendFormat": "{{testid}}" }]
+    },
+    {
+      "type": "timeseries", "title": "종단 지연 p50 / p95",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [
+        { "refId": "A", "expr": "k6_e2e_latency_p50{phase=\"measure\"}", "legendFormat": "{{testid}} p50" },
+        { "refId": "B", "expr": "k6_e2e_latency_p95{phase=\"measure\"}", "legendFormat": "{{testid}} p95" }
+      ]
+    },
+    {
+      "type": "timeseries", "title": "전송 API 응답 p99 (k6 측)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [{ "refId": "A", "expr": "k6_http_req_duration_p99{name=\"send\", phase=\"measure\"}", "legendFormat": "{{testid}}" }]
+    },
+    {
+      "type": "timeseries", "title": "전송률 / 수신률 (건/초)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps" } },
+      "targets": [
+        { "refId": "A", "expr": "sum by (testid) (rate(k6_http_reqs_total{name=\"send\"}[30s]))", "legendFormat": "{{testid}} 전송" },
+        { "refId": "B", "expr": "sum by (testid) (rate(k6_e2e_received_total[30s]))", "legendFormat": "{{testid}} 수신" }
+      ]
+    },
+    {
+      "type": "timeseries", "title": "전송 실패율",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percentunit" } },
+      "targets": [{ "refId": "A", "expr": "k6_http_req_failed_rate{name=\"send\"}", "legendFormat": "{{testid}}" }]
+    }
+  ]
+}
