@@ -21,6 +21,8 @@ docker compose up -d                 # 모든 서비스가 healthy가 될 때까
 ./scripts/register-connector.sh      # Debezium 커넥터 등록(이미 있으면 설정 갱신)
 ```
 
+커넥터 설정(`connect/outbox-connector.json`)의 `poll.interval.ms`는 50ms다. Debezium 기본값 500ms는 binlog에 새 이벤트가 없을 때 다음 확인까지 기다리는 시간이라, 부하가 낮으면 메시지 전달 지연이 그만큼(최대 0.5초) 늘어난다. 낮춘 대가로 빈 확인이 잦아져 DB 부하가 조금 는다.
+
 스키마(`backend/src/main/resources/avro/message-event.avsc`)가 바뀐 코드를 받았으면 `./scripts/register-schema.sh`를 다시 실행해 새 버전을 등록한다. 앱은 자기 스키마가 등록돼 있지 않으면 기동하지 않는다. 호환되지 않는 변경은 이 단계에서 거부된다(HTTP 409).
 
 앱은 스위치를 켜고 띄운다(Redis는 기존처럼 별도로 떠 있어야 한다):
