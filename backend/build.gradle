@@ -57,6 +57,8 @@ dependencies {
 	testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
 	testImplementation 'org.testcontainers:testcontainers-mysql'
 	testImplementation 'org.testcontainers:testcontainers-kafka'
+	//측정 테스트에서 Redis 연결을 끊었다 잇는 네트워크 장애 주입(Toxiproxy). 버전은 Boot BOM
+	testImplementation 'org.testcontainers:testcontainers-toxiproxy'
 
 	//swagger 문서화
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9'
@@ -117,8 +119,9 @@ tasks.named('compileJava') { dependsOn 'generateAvroJava' }
 
 tasks.named('test') {
 	//cdc 태그 테스트는 컨테이너 4종(MySQL·Kafka·스키마 레지스트리·Debezium Connect)을 띄워 무겁다 — cdcTest로 따로 돌린다
+	//measure 태그는 전파 경로 전후 측정이다 — measureTest로 수동 실행한다
 	useJUnitPlatform {
-		excludeTags 'cdc'
+		excludeTags 'cdc', 'measure'
 	}
 	//측정용 테스트(CrossNodeMessageOrderTest) opt-in 스위치를 JVM 시스템 프로퍼티로 전달한다.
 	//-Dmeasure=true로 테스트 프로세스는 포크되므로 명시적으로 중계해야 한다.
@@ -132,6 +135,21 @@ tasks.register('cdcTest', Test) {
 	classpath = sourceSets.test.runtimeClasspath
 	useJUnitPlatform {
 		includeTags 'cdc'
+	}
+	shouldRunAfter tasks.named('test')
+}
+
+tasks.register('measureTest', Test) {
+	description = 'redis·kafka 전파 경로의 순서·유실을 실제 컨테이너와 STOMP 구독자로 측정한다(수동 실행).'
+	group = 'verification'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform {
+		includeTags 'measure'
+	}
+	//측정 결과([measure] 줄)를 콘솔에서 바로 보게 한다
+	testLogging {
+		showStandardStreams = true
 	}
 	shouldRunAfter tasks.named('test')
 }
