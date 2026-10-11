@@ -37,7 +37,7 @@ import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * outbox → Debezium → Kafka 전파 경로의 순서·무손실·지연을 잰다. redis 경로와의 비교는 태그 e1-baseline에서 재현한다.
+ * outbox → Debezium → Kafka 전파 경로의 순서·무손실·지연을 잰다. redis 경로와의 비교는 태그 before-redis-removal에서 재현한다.
  * 서버 2대(A·B)에 실제 STOMP 구독자를 하나씩 붙이고, REST로 보낸다. 결과는 "[measure] ..." 줄로 출력한다.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -47,7 +47,7 @@ class DeliveryMeasureTest {
     static final int ORDER_MESSAGES = 200;
     static final int ORDER_THREADS = 16;
     static final int OUTAGE_PHASE_MESSAGES = 20;
-    // 복구 뒤 주는 회복 시간. E1 측정(redis 비교, 태그 e1-baseline)과 같은 값을 유지한다.
+    // 복구 뒤 주는 회복 시간. E1 측정(redis 비교, 태그 before-redis-removal)과 같은 값을 유지한다.
     static final Duration RECOVERY_GRACE = Duration.ofSeconds(10);
 
     /** 출력 줄의 mode 값. E1 결과(redis·kafka 비교)와 같은 형식으로 남긴다. */

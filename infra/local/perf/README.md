@@ -1,6 +1,6 @@
 # 성능 측정 스택
 
-메시지 전파 경로(outbox → Debezium → Kafka)에 부하를 걸어 종단 지연·처리량·오류율을 잰다. redis 경로와의 비교(E1)는 태그 `e1-baseline`에서 재현한다. 기본 CDC 스택(`../docker-compose.yml`)에 `../docker-compose.perf.yml`을 덮어써서 쓴다 — 항상 `perf/scripts/compose.sh`로 부른다.
+메시지 전파 경로(outbox → Debezium → Kafka)에 부하를 걸어 종단 지연·처리량·오류율을 잰다. redis 경로와의 비교(E1)는 태그 `before-redis-removal`에서 재현한다. 기본 CDC 스택(`../docker-compose.yml`)에 `../docker-compose.perf.yml`을 덮어써서 쓴다 — 항상 `perf/scripts/compose.sh`로 부른다.
 
 | 구성 | 주소 |
 |---|---|

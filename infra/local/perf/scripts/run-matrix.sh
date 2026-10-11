@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 부하 형태 × 도착률을 반복한다. 매 실행 전에 상태를 초기화하고 앱 2대를 새로 띄운다.
-# 임계값을 넘겨도 결과는 저장하고 다음 실행으로 간다. redis 경로와의 비교는 태그 e1-baseline에서 재현한다.
+# 임계값을 넘겨도 결과는 저장하고 다음 실행으로 간다. redis 경로와의 비교는 태그 before-redis-removal에서 재현한다.
 set -euo pipefail
 cd "$(dirname "$0")/../.."   # infra/local
 SCRIPTS=perf/scripts
