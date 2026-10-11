@@ -106,6 +106,7 @@ public final class CdcTestEnvironment {
                     .waitingFor(Wait.forHttp("/connectors").forStatusCode(200).withStartupTimeout(Duration.ofMinutes(3)));
 
     private static boolean started;
+    private static String connectorName;
 
     private CdcTestEnvironment() {
     }
@@ -226,14 +227,44 @@ public final class CdcTestEnvironment {
                 HttpResponse.BodyHandlers.ofString());
         assertThat(created.statusCode()).as(created.body()).isEqualTo(201);
 
-        String name = connector.get("name").asString();
+        connectorName = connector.get("name").asString();
         Awaitility.await().pollInSameThread().atMost(Duration.ofMinutes(1)).pollInterval(Duration.ofSeconds(1)).until(() -> {
             JsonNode status = JSON.readTree(HTTP.send(
-                    HttpRequest.newBuilder(URI.create(connectUrl() + "/connectors/" + name + "/status")).GET().build(),
+                    HttpRequest.newBuilder(URI.create(connectUrl() + "/connectors/" + connectorName + "/status")).GET().build(),
                     HttpResponse.BodyHandlers.ofString()).body());
             return "RUNNING".equals(status.path("connector").path("state").asString())
                     && status.path("tasks").size() == 1
                     && "RUNNING".equals(status.path("tasks").get(0).path("state").asString());
+        });
+    }
+
+    /** 커넥터를 멈춘다(binlog 읽기 중단). 측정 테스트가 "전파 계층 일시 장애"를 흉내 낼 때 쓴다. */
+    public static void pauseConnector() throws Exception {
+        changeConnectorState("pause", "PAUSED");
+    }
+
+    /** 멈춘 커넥터를 다시 돌린다. 멈춘 동안 쌓인 binlog를 이어서 읽는다. */
+    public static void resumeConnector() throws Exception {
+        changeConnectorState("resume", "RUNNING");
+    }
+
+    private static void changeConnectorState(String action, String expectedState) throws Exception {
+        if (connectorName == null) {
+            throw new IllegalStateException("start() 전에 호출");
+        }
+        HttpResponse<String> response = HTTP.send(HttpRequest.newBuilder(
+                                URI.create(connectUrl() + "/connectors/" + connectorName + "/" + action))
+                        .PUT(HttpRequest.BodyPublishers.noBody())
+                        .build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode()).as(response.body()).isEqualTo(202);
+        Awaitility.await().pollInSameThread().atMost(Duration.ofSeconds(30)).pollInterval(Duration.ofMillis(200)).until(() -> {
+            JsonNode status = JSON.readTree(HTTP.send(
+                    HttpRequest.newBuilder(URI.create(connectUrl() + "/connectors/" + connectorName + "/status")).GET().build(),
+                    HttpResponse.BodyHandlers.ofString()).body());
+            return expectedState.equals(status.path("connector").path("state").asString())
+                    && status.path("tasks").size() == 1
+                    && expectedState.equals(status.path("tasks").get(0).path("state").asString());
         });
     }
 
