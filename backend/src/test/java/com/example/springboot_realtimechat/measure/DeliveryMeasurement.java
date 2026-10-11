@@ -41,6 +41,9 @@ abstract class DeliveryMeasurement {
 
     static final int ORDER_MESSAGES = 200;
     static final int ORDER_THREADS = 16;
+    static final int OUTAGE_PHASE_MESSAGES = 20;
+    // 복구 뒤 두 모드에 똑같이 주는 회복 시간. RedisMessageListenerContainer의 재구독 간격 기본값이 5초라 그 두 배.
+    static final Duration RECOVERY_GRACE = Duration.ofSeconds(10);
 
     ConfigurableApplicationContext nodeA;
     ConfigurableApplicationContext nodeB;
@@ -132,6 +135,67 @@ abstract class DeliveryMeasurement {
             assertThat(committed).isEqualTo(ORDER_MESSAGES);
             assertThat(stats).allSatisfy(s -> assertThat(s.perfect()).as(s.summary()).isTrue());
         }
+    }
+
+    @RepeatedTest(3)
+    void 전파_계층_일시_장애_중_유실(RepetitionInfo repetition) throws Exception {
+        Room room = newRoom();
+
+        // 1구간: 정상
+        int failuresBefore = sendSequentially(room, "before");
+        long endOfBefore = committedMaxSeq(room.id());
+        awaitReceived(room.subscribers(), endOfBefore, Duration.ofSeconds(30));
+
+        // 2구간: 전파 계층 차단 중
+        int failuresDuring;
+        long endOfDuring;
+        cutPropagation();
+        try {
+            failuresDuring = sendSequentially(room, "during");
+            endOfDuring = committedMaxSeq(room.id());
+        } finally {
+            restorePropagation();
+        }
+        Thread.sleep(RECOVERY_GRACE.toMillis());
+
+        // 3구간: 복구 후
+        int failuresAfter = sendSequentially(room, "after");
+        long committed = committedMaxSeq(room.id());
+        awaitReceived(room.subscribers(), committed, Duration.ofSeconds(60));
+
+        for (int i = 0; i < room.subscribers().size(); i++) {
+            List<Long> seqs = room.subscribers().get(i).seqs();
+            OrderStats before = OrderStats.of(seqs, 1, endOfBefore);
+            OrderStats during = OrderStats.of(seqs, endOfBefore + 1, endOfDuring);
+            OrderStats after = OrderStats.of(seqs, endOfDuring + 1, committed);
+            OrderStats all = OrderStats.of(seqs, 1, committed);
+            System.out.printf("[measure] mode=%s scenario=outage run=%d subscriber=%s committed=%d "
+                            + "restFailures(before/during/after)=%d/%d/%d "
+                            + "before{%s} during{%s} after{%s} all{%s}%n",
+                    mode(), repetition.getCurrentRepetition(), i == 0 ? "A" : "B", committed,
+                    failuresBefore, failuresDuring, failuresAfter,
+                    before.summary(), during.summary(), after.summary(), all.summary());
+            if (assertsGuarantees()) {
+                assertThat(all.perfect()).as(all.summary()).isTrue();
+            }
+        }
+
+        if (assertsGuarantees()) {
+            assertThat(failuresBefore + failuresDuring + failuresAfter).isZero();
+            assertThat(committed).isEqualTo(3L * OUTAGE_PHASE_MESSAGES);
+        }
+    }
+
+    /** 순차로 보낸다(seq = 보낸 순서). 두 서버에 번갈아 보내고, 200이 아닌 응답 수를 돌려준다. */
+    private int sendSequentially(Room room, String phase) {
+        int failures = 0;
+        for (int i = 0; i < OUTAGE_PHASE_MESSAGES; i++) {
+            boolean toA = i % 2 == 0;
+            int status = RestSender.send(MeasureNodes.port(toA ? nodeA : nodeB),
+                    toA ? authorTokenA : authorTokenB, room.id(), phase + "-" + i);
+            if (status != 200) failures++;
+        }
+        return failures;
     }
 
     // ---- 공용 도우미 ----
