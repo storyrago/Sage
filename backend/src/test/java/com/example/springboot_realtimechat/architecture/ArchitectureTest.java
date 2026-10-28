@@ -1,0 +1,50 @@
+package com.example.springboot_realtimechat.architecture;
+
+import com.tngtech.archunit.core.importer.ImportOption;
+import com.tngtech.archunit.junit.AnalyzeClasses;
+import com.tngtech.archunit.junit.ArchTest;
+import com.tngtech.archunit.lang.ArchRule;
+
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static com.tngtech.archunit.library.Architectures.layeredArchitecture;
+import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
+import static com.tngtech.archunit.library.freeze.FreezingArchRule.freeze;
+
+/**
+ * 도메인 사이 의존은 위에서 아래로만 흐른다.
+ * 이미 있는 위반은 archunit_store에 얼려 두고 새 위반만 막는다. 고친 위반은 저장소에서 자동으로 빠진다.
+ */
+@AnalyzeClasses(packages = ArchitectureTest.ROOT, importOptions = ImportOption.DoNotIncludeTests.class)
+class ArchitectureTest {
+
+    static final String ROOT = "com.example.springboot_realtimechat";
+
+    @ArchTest
+    static final ArchRule 도메인_사이에_순환이_없다 = freeze(
+            slices().matching(ROOT + ".domain.(*)..").should().beFreeOfCycles());
+
+    @ArchTest
+    static final ArchRule 도메인_의존은_위에서_아래로만_흐른다 = freeze(
+            layeredArchitecture().consideringOnlyDependenciesInLayers()
+                    .optionalLayer("application").definedBy(ROOT + ".application..")
+                    .layer("auth").definedBy(ROOT + ".domain.auth..")
+                    .layer("message").definedBy(ROOT + ".domain.message..")
+                    .layer("presence").definedBy(ROOT + ".domain.presence..")
+                    .layer("chatroom").definedBy(ROOT + ".domain.chatroom..")
+                    .layer("member").definedBy(ROOT + ".domain.member..")
+                    .layer("image").definedBy(ROOT + ".domain.image..")
+                    .whereLayer("application").mayNotBeAccessedByAnyLayer()
+                    .whereLayer("auth").mayOnlyBeAccessedByLayers("application")
+                    .whereLayer("message").mayOnlyBeAccessedByLayers("application", "auth")
+                    .whereLayer("presence").mayOnlyBeAccessedByLayers("application", "auth", "message")
+                    .whereLayer("chatroom").mayOnlyBeAccessedByLayers("application", "auth", "message", "presence")
+                    .whereLayer("member").mayOnlyBeAccessedByLayers(
+                            "application", "auth", "message", "presence", "chatroom")
+                    .whereLayer("image").mayOnlyBeAccessedByLayers(
+                            "application", "auth", "message", "presence", "chatroom", "member"));
+
+    @ArchTest
+    static final ArchRule global은_domain을_모른다 = freeze(
+            noClasses().that().resideInAPackage(ROOT + ".global..")
+                    .should().dependOnClassesThat().resideInAPackage(ROOT + ".domain.."));
+}
