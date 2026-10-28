@@ -2,6 +2,7 @@ package com.example.springboot_realtimechat.architecture;
 
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
+import com.tngtech.archunit.junit.ArchIgnore;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 
@@ -19,9 +20,12 @@ class ArchitectureTest {
 
     static final String ROOT = "com.example.springboot_realtimechat";
 
+    // 순환 위반은 순환에 걸린 의존 전체가 한 덩어리라, 의존 하나만 줄어도 얼린 위반과 달라져 새 위반으로 잡힌다.
+    // 그래서 얼리지 않는다. 순환은 모두 계층 위반이기도 해서 그동안은 아래 계층 규칙이 막는다. 순환이 0이 되면 켠다.
+    @ArchIgnore(reason = "도메인 순환이 남아 있다. 0이 되면 켠다")
     @ArchTest
-    static final ArchRule 도메인_사이에_순환이_없다 = freeze(
-            slices().matching(ROOT + ".domain.(*)..").should().beFreeOfCycles());
+    static final ArchRule 도메인_사이에_순환이_없다 =
+            slices().matching(ROOT + ".domain.(*)..").should().beFreeOfCycles();
 
     @ArchTest
     static final ArchRule 도메인_의존은_위에서_아래로만_흐른다 = freeze(
