@@ -61,9 +61,7 @@ public class MessageService {
         // 같은 방 안에서 순번 순서 = 커밋 순서가 된다. 잠금 순서는 위임·나가기·강퇴와 같은 chatrooms → chatroom_members다.
         ChatRoom chatRoom = chatRoomService.getChatRoomByIdForUpdate(chatroomId);
 
-        if (!roomAccess.isMember(memberId, chatroomId)) {
-            throw new CustomException(ErrorCode.NOT_JOINED_ROOM);
-        }
+        roomAccess.requireMember(memberId, chatroomId);
 
         // 재전송 확인은 방 잠금 아래에서 한다. 같은 방으로 동시에 들어온 재전송은 잠금에서 줄을 서므로
         // 뒤쪽이 앞쪽의 커밋을 반드시 본다.
@@ -113,9 +111,7 @@ public class MessageService {
             throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
         }
         ChatRoom chatRoom = chatRoomService.getChatRoomById(chatroomId);
-        if (!roomAccess.isMember(memberId, chatroomId)) {
-            throw new CustomException(ErrorCode.NOT_JOINED_ROOM);
-        }
+        roomAccess.requireMember(memberId, chatroomId);
         Pageable pageable = PageRequest.of(0, limit + 1);
         if (afterSeq != null) {
             List<Message> asc = messageRepository.findAfterSeq(chatRoom, afterSeq, pageable);
@@ -133,13 +129,10 @@ public class MessageService {
 
     @Transactional
     public Message update(Long chatroomId, Long messageId, Long memberId, String content) {
-        requireMember(memberId, chatroomId);
+        roomAccess.requireMember(memberId, chatroomId);
         Message message = getMessageById(messageId); // MESSAGE_NOT_FOUND on miss
         requireSameRoom(message, chatroomId);
-        // 작성자가 없는 메시지(탈퇴자)는 아무도 수정·삭제할 수 없다.
-        if (message.getMember() == null || !message.getMember().getId().equals(memberId)) {
-            throw new CustomException(ErrorCode.NOT_MESSAGE_OWNER);
-        }
+        message.requireEditableBy(memberId);
         if (message.isDeleted()) {
             throw new CustomException(ErrorCode.MESSAGE_NOT_FOUND); // 삭제된 메시지는 수정 불가
         }
@@ -153,13 +146,10 @@ public class MessageService {
 
     @Transactional
     public Message delete(Long chatroomId, Long messageId, Long memberId) {
-        requireMember(memberId, chatroomId);
+        roomAccess.requireMember(memberId, chatroomId);
         Message message = getMessageById(messageId);
         requireSameRoom(message, chatroomId);
-        // 작성자가 없는 메시지(탈퇴자)는 아무도 수정·삭제할 수 없다.
-        if (message.getMember() == null || !message.getMember().getId().equals(memberId)) {
-            throw new CustomException(ErrorCode.NOT_MESSAGE_OWNER);
-        }
+        message.requireEditableBy(memberId);
         String imageUrl = message.getImageUrl();        // softDelete가 참조를 지우기 전에 읽는다
         String dereferencedImageUrl = (imageUrl == null || imageUrl.isBlank()) ? null : imageUrl;
         message.softDelete();
@@ -172,12 +162,6 @@ public class MessageService {
     private void requireSameRoom(Message message, Long chatroomId) {
         if (!message.getChatRoom().getId().equals(chatroomId)) {
             throw new CustomException(ErrorCode.MESSAGE_NOT_FOUND);
-        }
-    }
-
-    private void requireMember(Long memberId, Long chatroomId) {
-        if (!roomAccess.isMember(memberId, chatroomId)) {
-            throw new CustomException(ErrorCode.NOT_JOINED_ROOM);
         }
     }
 }

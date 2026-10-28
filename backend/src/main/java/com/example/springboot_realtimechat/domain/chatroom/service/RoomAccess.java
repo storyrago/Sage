@@ -1,6 +1,8 @@
 package com.example.springboot_realtimechat.domain.chatroom.service;
 
 import com.example.springboot_realtimechat.domain.chatroom.repository.ChatRoomMemberRepository;
+import com.example.springboot_realtimechat.global.exception.CustomException;
+import com.example.springboot_realtimechat.global.exception.ErrorCode;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,5 +27,13 @@ public class RoomAccess {
             return false;
         }
         return chatRoomMemberRepository.existsActiveMembership(memberId, chatRoomId);
+    }
+
+    /** 멤버가 아니면 거부한다. 서비스의 멤버 확인은 모두 이 메서드를 쓴다. */
+    @Transactional(readOnly = true)
+    public void requireMember(Long memberId, Long chatRoomId) {
+        if (!isMember(memberId, chatRoomId)) {
+            throw new CustomException(ErrorCode.NOT_JOINED_ROOM);
+        }
     }
 }

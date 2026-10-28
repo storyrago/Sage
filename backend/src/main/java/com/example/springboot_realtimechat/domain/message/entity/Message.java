@@ -2,6 +2,8 @@ package com.example.springboot_realtimechat.domain.message.entity;
 
 import com.example.springboot_realtimechat.domain.chatroom.entity.ChatRoom;
 import com.example.springboot_realtimechat.domain.member.entity.Member;
+import com.example.springboot_realtimechat.global.exception.CustomException;
+import com.example.springboot_realtimechat.global.exception.ErrorCode;
 
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -82,5 +84,12 @@ public class Message {
 
     public boolean isDeleted() {
         return deletedAt != null;
+    }
+
+    /** 작성자 본인만 수정·삭제할 수 있다. 작성자가 없는 메시지(탈퇴자)는 아무도 못 한다. */
+    public void requireEditableBy(Long memberId) {
+        if (member == null || !member.getId().equals(memberId)) {
+            throw new CustomException(ErrorCode.NOT_MESSAGE_OWNER);
+        }
     }
 }
