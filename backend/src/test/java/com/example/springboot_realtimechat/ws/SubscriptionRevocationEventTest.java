@@ -7,6 +7,7 @@ import com.example.springboot_realtimechat.domain.chatroom.service.ChatRoomServi
 import com.example.springboot_realtimechat.domain.image.event.ImageCleanupListener;
 import com.example.springboot_realtimechat.domain.member.entity.Member;
 import com.example.springboot_realtimechat.domain.member.event.MemberDeletedEvent;
+import com.example.springboot_realtimechat.application.account.AccountWithdrawalService;
 import com.example.springboot_realtimechat.domain.member.service.MemberService;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
 
@@ -28,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SubscriptionRevocationEventTest {
 
     @Autowired MemberService memberService;
+    @Autowired AccountWithdrawalService accountWithdrawalService;
     @Autowired ChatRoomService chatRoomService;
     @Autowired ChatRoomMemberService chatRoomMemberService;
     @Autowired ApplicationEvents events;
@@ -48,7 +50,7 @@ class SubscriptionRevocationEventTest {
     void 회원이_탈퇴하면_MemberDeletedEvent가_발행된다() {
         Member member = memberService.create("delete-event@e.com", "1234", "delete");
 
-        memberService.delete(member.getId());
+        accountWithdrawalService.withdraw(member.getId());
 
         assertThat(events.stream(MemberDeletedEvent.class).toList())
                 .containsExactly(new MemberDeletedEvent(member.getId()));

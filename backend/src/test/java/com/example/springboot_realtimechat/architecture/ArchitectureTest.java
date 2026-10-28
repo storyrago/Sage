@@ -1,5 +1,7 @@
 package com.example.springboot_realtimechat.architecture;
 
+import com.example.springboot_realtimechat.domain.member.service.MemberService;
+
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchIgnore;
@@ -51,4 +53,15 @@ class ArchitectureTest {
     static final ArchRule global은_domain을_모른다 = freeze(
             noClasses().that().resideInAPackage(ROOT + ".global..")
                     .should().dependOnClassesThat().resideInAPackage(ROOT + ".domain.."));
+
+    @ArchTest
+    static final ArchRule 회원_도메인은_채팅방과_메시지를_모른다 =
+            noClasses().that().resideInAPackage(ROOT + ".domain.member..")
+                    .should().dependOnClassesThat()
+                    .resideInAnyPackage(ROOT + ".domain.chatroom..", ROOT + ".domain.message..");
+
+    @ArchTest
+    static final ArchRule 회원_행_삭제는_탈퇴_유스케이스만_부른다 =
+            noClasses().that().resideOutsideOfPackage(ROOT + ".application.account..")
+                    .should().callMethod(MemberService.class, "deleteRecord", Long.class);
 }

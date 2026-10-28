@@ -3,6 +3,7 @@ package com.example.springboot_realtimechat.security;
 import com.example.springboot_realtimechat.domain.image.service.S3Service;
 import com.example.springboot_realtimechat.domain.member.entity.Member;
 import com.example.springboot_realtimechat.domain.member.repository.MemberRepository;
+import com.example.springboot_realtimechat.application.account.AccountWithdrawalService;
 import com.example.springboot_realtimechat.domain.member.service.MemberService;
 import com.example.springboot_realtimechat.global.jwt.JwtAuthChannelInterceptor;
 import com.example.springboot_realtimechat.global.jwt.JwtTokenProvider;
@@ -37,6 +38,7 @@ class DeletedMemberTokenTest {
 
     @Autowired MockMvc mockMvc;
     @Autowired MemberService memberService;
+    @Autowired AccountWithdrawalService accountWithdrawalService;
     @Autowired MemberRepository memberRepository;
     @Autowired JwtTokenProvider jwtTokenProvider;
     @Autowired JwtAuthChannelInterceptor interceptor;
@@ -69,7 +71,7 @@ class DeletedMemberTokenTest {
         String token = jwtTokenProvider.createAccessToken(member.getId(), member.getEmail());
         Thread.sleep(1_100L);   // iat는 초 단위다. 무효화 시각이 발급 시각보다 확실히 뒤여야 한다
 
-        memberService.delete(member.getId());
+        accountWithdrawalService.withdraw(member.getId());
 
         mockMvc.perform(get("/api/members/me").header("Authorization", "Bearer " + token))
                 .andExpect(status().isUnauthorized());
@@ -81,7 +83,7 @@ class DeletedMemberTokenTest {
         String token = jwtTokenProvider.createAccessToken(member.getId(), member.getEmail());
         Thread.sleep(1_100L);
 
-        memberService.delete(member.getId());
+        accountWithdrawalService.withdraw(member.getId());
 
         assertThat(connect(token).getUser()).isNull();
     }
@@ -93,7 +95,7 @@ class DeletedMemberTokenTest {
         String stayingToken = jwtTokenProvider.createAccessToken(staying.getId(), staying.getEmail());
         Thread.sleep(1_100L);
 
-        memberService.delete(leaving.getId());
+        accountWithdrawalService.withdraw(leaving.getId());
 
         mockMvc.perform(get("/api/members/me").header("Authorization", "Bearer " + stayingToken))
                 .andExpect(status().isOk());

@@ -158,6 +158,12 @@ public class MessageService {
         return message;
     }
 
+    /** 탈퇴해도 대화는 남긴다. 작성자 참조만 끊는다. */
+    @Transactional
+    public void anonymizeAuthor(Member member) {
+        messageRepository.anonymizeByMember(member);
+    }
+
     /** 전파 목적지는 엔티티의 방이므로 인가도 엔티티의 방을 기준으로 한다. */
     private void requireSameRoom(Message message, Long chatroomId) {
         if (!message.getChatRoom().getId().equals(chatroomId)) {

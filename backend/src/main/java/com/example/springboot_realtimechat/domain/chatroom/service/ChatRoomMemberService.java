@@ -197,4 +197,11 @@ public class ChatRoomMemberService {
         chatRoomMemberRepository.advanceLastRead(memberId, chatRoomId, target);
     }
 
+    /** 탈퇴하는 회원의 차단 기록과 멤버십을 지운다. 회원 행보다 먼저 지워야 외래키가 남지 않는다. */
+    @Transactional
+    public void removeAllOf(Member member) {
+        chatRoomBanRepository.deleteByMemberId(member.getId());
+        chatRoomMemberRepository.deleteByMember(member);
+    }
+
 }
