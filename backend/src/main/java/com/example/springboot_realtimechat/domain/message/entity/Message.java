@@ -65,16 +65,8 @@ public class Message {
         this.replyTo = replyTo;
         this.seq = seq;
         this.clientMessageId = clientMessageId;
-        connect(member, chatRoom);
-    }
-
-    private void connect(Member member, ChatRoom chatRoom) {
         this.member = member;
         this.chatRoom = chatRoom;
-
-        // 동기화
-        member.getMessages().add(this);
-        chatRoom.getMessages().add(this);
     }
 
     public void edit(String content) {
