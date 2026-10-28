@@ -10,7 +10,6 @@ import com.example.springboot_realtimechat.global.auth.CustomUserDetails;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -62,11 +61,5 @@ public class MemberController {
                 request.getImageUrl());
 
         return MemberResponse.from(member);
-    }
-
-    @DeleteMapping("/me")
-    public ResponseEntity<Void> deleteMe(@AuthenticationPrincipal CustomUserDetails customUserDetails){
-        memberService.delete(customUserDetails.getMemberId());
-        return ResponseEntity.noContent().build();
     }
 }
