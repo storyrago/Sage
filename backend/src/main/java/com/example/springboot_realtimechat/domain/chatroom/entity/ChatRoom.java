@@ -1,8 +1,6 @@
 package com.example.springboot_realtimechat.domain.chatroom.entity;
 
-import com.example.springboot_realtimechat.domain.chatroom.service.ChatRoomService;
 import com.example.springboot_realtimechat.domain.member.entity.Member;
-import com.example.springboot_realtimechat.domain.message.entity.Message;
 import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
 
@@ -12,8 +10,6 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
 @Getter
@@ -48,12 +44,6 @@ public class ChatRoom {
     // 이 방에서 마지막으로 발급한 메시지 순번. 방 행 쓰기 잠금 아래에서만 증가시킨다(MessageService.create).
     @Column(name = "last_message_seq", nullable = false)
     private long lastMessageSeq;
-
-    @OneToMany(mappedBy = "chatRoom")
-    private List<ChatRoomMember> chatRoomMembers = new ArrayList<>();
-
-    @OneToMany(mappedBy = "chatRoom")
-    private List<Message> messages = new ArrayList<>();
 
     private ChatRoom(String name, Member owner, boolean isPrivate, String inviteCode) {
         this.name = name;

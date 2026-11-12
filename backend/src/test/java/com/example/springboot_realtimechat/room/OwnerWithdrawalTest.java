@@ -10,6 +10,7 @@ import com.example.springboot_realtimechat.domain.chatroom.service.ChatRoomServi
 import com.example.springboot_realtimechat.domain.image.service.S3Service;
 import com.example.springboot_realtimechat.domain.member.entity.Member;
 import com.example.springboot_realtimechat.domain.member.repository.MemberRepository;
+import com.example.springboot_realtimechat.application.account.AccountWithdrawalService;
 import com.example.springboot_realtimechat.domain.member.service.MemberService;
 import com.example.springboot_realtimechat.domain.message.repository.MessageRepository;
 
@@ -27,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 class OwnerWithdrawalTest {
 
     @Autowired MemberService memberService;
+    @Autowired AccountWithdrawalService accountWithdrawalService;
     @Autowired ChatRoomService chatRoomService;
     @Autowired ChatRoomMemberService chatRoomMemberService;
     @Autowired ChatRoomRepository chatRoomRepository;
@@ -51,7 +53,7 @@ class OwnerWithdrawalTest {
         Member owner = memberService.create("w-owner@e.com", "1234", "주인");
         chatRoomService.create("소유방", true, owner.getId());
 
-        assertThatCode(() -> memberService.delete(owner.getId())).doesNotThrowAnyException();
+        assertThatCode(() -> accountWithdrawalService.withdraw(owner.getId())).doesNotThrowAnyException();
     }
 
     @Test
@@ -62,7 +64,7 @@ class OwnerWithdrawalTest {
         String oldCode = room.getInviteCode();
         chatRoomMemberService.join(guest.getId(), room.getId(), oldCode);
 
-        memberService.delete(owner.getId());
+        accountWithdrawalService.withdraw(owner.getId());
 
         ChatRoom reloaded = chatRoomRepository.findById(room.getId()).orElseThrow();
         assertThat(reloaded.getOwner().getId()).isEqualTo(guest.getId());
@@ -80,7 +82,7 @@ class OwnerWithdrawalTest {
         chatRoomMemberService.join(first.getId(), room.getId(), null);
         chatRoomMemberService.join(second.getId(), room.getId(), null);
 
-        memberService.delete(owner.getId());
+        accountWithdrawalService.withdraw(owner.getId());
 
         ChatRoom reloaded = chatRoomRepository.findById(room.getId()).orElseThrow();
         assertThat(reloaded.getOwner().getId()).isEqualTo(first.getId());
@@ -93,7 +95,7 @@ class OwnerWithdrawalTest {
         ChatRoom room = chatRoomService.create("소유방5", true, owner.getId());
         chatRoomMemberService.join(guest.getId(), room.getId(), room.getInviteCode());
 
-        memberService.delete(owner.getId());
+        accountWithdrawalService.withdraw(owner.getId());
 
         assertThatCode(() -> chatRoomService.reissueInviteCode(room.getId(), guest.getId()))
                 .doesNotThrowAnyException();
@@ -104,7 +106,7 @@ class OwnerWithdrawalTest {
         Member owner = memberService.create("w-owner6@e.com", "1234", "주인6");
         ChatRoom room = chatRoomService.create("소유방6", true, owner.getId());
 
-        memberService.delete(owner.getId());
+        accountWithdrawalService.withdraw(owner.getId());
 
         ChatRoom reloaded = chatRoomRepository.findById(room.getId()).orElseThrow();
         assertThat(reloaded.getDeletedAt()).isNotNull();
@@ -119,7 +121,7 @@ class OwnerWithdrawalTest {
         ChatRoom room = chatRoomService.create("소유방3", false, owner.getId());
         chatRoomBanRepository.save(new ChatRoomBan(room.getId(), banned.getId()));
 
-        assertThatCode(() -> memberService.delete(banned.getId())).doesNotThrowAnyException();
+        assertThatCode(() -> accountWithdrawalService.withdraw(banned.getId())).doesNotThrowAnyException();
         assertThat(chatRoomBanRepository.existsByChatRoomIdAndMemberId(room.getId(), banned.getId()))
                 .isFalse();
     }

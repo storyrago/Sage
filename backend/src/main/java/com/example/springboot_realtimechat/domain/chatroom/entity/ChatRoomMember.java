@@ -30,15 +30,8 @@ public class ChatRoomMember {
     private long lastReadSeq;
 
     public ChatRoomMember(Member member, ChatRoom chatRoom) {
-        connect(member, chatRoom);
-    }
-
-    private void connect(Member member, ChatRoom chatRoom){
         this.member = member;
         this.chatRoom = chatRoom;
-
-        member.getChatRoomMembers().add(this);
-        chatRoom.getChatRoomMembers().add(this);
     }
 
     /**

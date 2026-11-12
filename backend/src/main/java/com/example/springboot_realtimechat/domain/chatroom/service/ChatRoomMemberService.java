@@ -162,9 +162,7 @@ public class ChatRoomMemberService {
     }
 
     public List<ChatRoomMember> getChatRoomMembersById(Long chatRoomId, Long requesterId){
-        if (!roomAccess.isMember(requesterId, chatRoomId)) {
-            throw new CustomException(ErrorCode.NOT_JOINED_ROOM);
-        }
+        roomAccess.requireMember(requesterId, chatRoomId);
         ChatRoom chatRoom = chatRoomService.getChatRoomById(chatRoomId);
 
         return chatRoomMemberRepository.findByChatRoom(chatRoom);
@@ -190,15 +188,20 @@ public class ChatRoomMemberService {
     @Transactional
     public void markRead(Long memberId, Long chatRoomId, Long seq) {
         ChatRoom chatRoom = chatRoomService.getChatRoomById(chatRoomId);
-        if (!roomAccess.isMember(memberId, chatRoomId)) {
-            throw new CustomException(ErrorCode.NOT_JOINED_ROOM);
-        }
+        roomAccess.requireMember(memberId, chatRoomId);
         long latestSeq = chatRoom.getLastMessageSeq();
         long target = seq == null ? latestSeq : Math.min(seq, latestSeq);
         if (target <= 0) {
             return;
         }
         chatRoomMemberRepository.advanceLastRead(memberId, chatRoomId, target);
+    }
+
+    /** 탈퇴하는 회원의 차단 기록과 멤버십을 지운다. 회원 행보다 먼저 지워야 외래키가 남지 않는다. */
+    @Transactional
+    public void removeAllOf(Member member) {
+        chatRoomBanRepository.deleteByMemberId(member.getId());
+        chatRoomMemberRepository.deleteByMember(member);
     }
 
 }
