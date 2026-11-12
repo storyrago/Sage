@@ -49,3 +49,6 @@ frontend/dist/
 
 # 로컬 전용 작업 지침 (레포에 올리지 않는다)
 CLAUDE.md
+
+### 블로그 원고 (GitHub에 올리지 않는다) ###
+docs/blog/

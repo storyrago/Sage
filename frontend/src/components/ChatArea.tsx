@@ -5,6 +5,8 @@ import Avatar from './Avatar';
 import { getRoomMemberProfiles, kickMember, RoomMemberProfile, uploadImage } from '../lib/api';
 import { avatarForId } from '../lib/avatar';
 import { toUserMessage } from '../lib/errors';
+import PendingBubble from './PendingBubble';
+import { PendingMessage } from '../lib/pending';
 import {
   Send, CornerUpLeft, ArrowDown,
   MessageCircle, Hash, Info, Users, X, UserX,
@@ -32,7 +34,10 @@ interface ChatAreaProps {
   loadingOlder?: boolean;
   onEditMessage?: (messageId: string, content: string) => Promise<void>;
   onDeleteMessage?: (messageId: string) => void;
-  unreadFromId?: number | null;
+  unreadFromSeq?: number | null; // 입장 시점의 읽은 순번
+  pending?: PendingMessage[];                                  // 이 방의 확정 전 내 메시지(보낸 순서)
+  onRetryPending?: (clientMessageId: string) => void;
+  onDiscardPending?: (clientMessageId: string) => void;
   onImageExpired?: () => void;
 }
 
@@ -60,7 +65,10 @@ export default function ChatArea({
   loadingOlder,
   onEditMessage,
   onDeleteMessage,
-  unreadFromId,
+  unreadFromSeq,
+  pending = [],
+  onRetryPending,
+  onDiscardPending,
   onImageExpired
 }: ChatAreaProps) {
   const [inputText, setInputText] = useState('');
@@ -85,7 +93,7 @@ export default function ChatArea({
   const scrolledChannelRef = useRef<string>('');   // 이 채널에 초기 스크롤(맨아래) 했는지
   const prevScrollHeightRef = useRef(0);
   const pendingPrependRef = useRef(false);
-  // 입장 시점 스냅샷: 경계(boundary)와 천장(ceiling = 입장 순간 로드된 최신 메시지 id)을 고정한다.
+  // 입장 시점 스냅샷: 경계(boundary)와 천장(ceiling = 입장 순간 로드된 최신 메시지 seq)을 고정한다.
   // 천장이 있어야 "보는 중 도착한 새 메시지" 위에 구분선이 생기지 않는다.
   const unreadSnapshotRef = useRef<{ channelId: string; boundary: number | null; ceiling: number } | null>(null);
 
@@ -95,8 +103,8 @@ export default function ChatArea({
   if (channelMessages.length > 0 && unreadSnapshotRef.current?.channelId !== channel.id) {
     unreadSnapshotRef.current = {
       channelId: channel.id,
-      boundary: unreadFromId ?? null,
-      ceiling: channelMessages.reduce((mx, m) => Math.max(mx, Number(m.id)), 0),
+      boundary: unreadFromSeq ?? null,
+      ceiling: channelMessages.reduce((mx, m) => Math.max(mx, m.seq), 0),
     };
   }
   const unreadSnap = unreadSnapshotRef.current?.channelId === channel.id ? unreadSnapshotRef.current : null;
@@ -173,7 +181,7 @@ export default function ChatArea({
     if (!el) return;
     if (scrolledChannelRef.current !== channel.id) {
       const firstUnread = unreadSnap?.boundary != null
-        ? channelMessages.find((m) => Number(m.id) > unreadSnap.boundary! && Number(m.id) <= unreadSnap.ceiling)
+        ? channelMessages.find((m) => m.seq > unreadSnap.boundary! && m.seq <= unreadSnap.ceiling)
         : undefined;
       if (firstUnread) {
         document.getElementById(`message-bubble-${firstUnread.id}`)?.scrollIntoView({ block: 'start' });
@@ -187,7 +195,7 @@ export default function ChatArea({
         setTimeout(() => scrollToBottom('smooth'), 50);            // 새 메시지, 근처면 따라감
       }
     }
-  }, [channel.id, channelMessages.length]);
+  }, [channel.id, channelMessages.length, pending.length]);
 
   // 이전 메시지 prepend 시 스크롤 위치 보존 (콘텐츠가 위로 늘어 점프하는 것 방지)
   useLayoutEffect(() => {
@@ -259,23 +267,9 @@ export default function ChatArea({
     }
 
     const replyToId = replyMessage?.id;
-    const previousReply = replyMessage;
     setReplyMessage(null);
-    try {
-      await onSendMessage(cleanText, replyToId);
-    } catch (err) {
-      // 전송은 낙관적 렌더가 아니라 실패하면 화면에 아무것도 남지 않는다.
-      // 답장 대상은 항상 복원해 다음 재전송이 조용히 일반 메시지로 바뀌지 않게 한다.
-      setReplyMessage(previousReply);
-      // 대기 중 사용자가 새로 입력을 시작했다면 그 내용을 덮지 않는다.
-      // 대신 보내지 못한 내용을 오류 메시지에 실어 보존한다.
-      if (inputTextRef.current.trim()) {
-        setSendError(`보내지 못했어요: "${cleanText}"`);
-      } else {
-        setInputText(cleanText);
-        setSendError(toUserMessage(err, '메시지를 보내지 못했어요. 다시 시도해 주세요.'));
-      }
-    }
+    // 전송 결과(보내는 중·실패·다시 보내기)는 대기 말풍선이 보여 준다. 실패해도 내용과 답장 대상이 거기 남는다.
+    void onSendMessage(cleanText, replyToId);
   };
 
   const handleUpload = async (file: File) => {
@@ -533,9 +527,9 @@ export default function ChatArea({
           const parentMsg = msg.replyToId ? messages.find(m => m.id === msg.replyToId) : null;
           const isFirstUnread =
             unreadSnap?.boundary != null &&
-            Number(msg.id) > unreadSnap.boundary &&
-            Number(msg.id) <= unreadSnap.ceiling &&
-            (i === 0 || Number(channelMessages[i - 1].id) <= unreadSnap.boundary);
+            msg.seq > unreadSnap.boundary &&
+            msg.seq <= unreadSnap.ceiling &&
+            (i === 0 || channelMessages[i - 1].seq <= unreadSnap.boundary);
 
           return (
             <div key={msg.id}>
@@ -669,6 +663,15 @@ export default function ChatArea({
           );
         })}
 
+        {pending.map((p) => (
+          <PendingBubble
+            key={`pending-${p.clientMessageId}`}
+            pending={p}
+            onRetry={() => onRetryPending?.(p.clientMessageId)}
+            onDiscard={() => onDiscardPending?.(p.clientMessageId)}
+          />
+        ))}
+
         <div ref={messagesEndRef} />
       </div>
 
@@ -788,8 +791,7 @@ export default function ChatArea({
               placeholder="메시지를 입력하세요"
               value={inputText}
               onChange={handleInputChange}
-              // 서버 길이 제약(500자)과 맞춘다. STOMP 전송은 실패해도 예외가 오지 않아
-              // 입력창을 되살릴 수 없으므로, 초과 입력 자체를 막는다.
+              // 서버 길이 제약(500자)과 맞춘다. 초과분은 보내 봐야 거부되므로 입력 자체를 막는다.
               maxLength={500}
               className="bg-transparent flex-1 text-text text-sm outline-none placeholder-text-faint w-full"
             />

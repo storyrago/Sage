@@ -13,13 +13,21 @@ export interface WsAuthzError {
   destination?: string;
 }
 
+// 안읽음 알림. 화면은 seq로 방 최신 순번을 올리기만 하므로 같은 알림이 두 번 와도 배지가 늘지 않는다.
+export interface UnreadNotice {
+  chatroomId: number;
+  messageId: number;
+  seq: number;
+  replyToMe: boolean;
+}
+
 interface StompClientOptions {
   token: string;
   onConnect: () => void;
   onMessage: (message: BackendMessage) => void;
   onPresence?: (roomId: string, onlineMemberIds: string[]) => void;
   onTyping?: (p: { chatroomId: string; memberId: string; nickname: string; typing: boolean }) => void;
-  onUnread?: (evt: { chatroomId: number; messageId: number; replyToMe: boolean }) => void;
+  onUnread?: (evt: UnreadNotice) => void;
   /** 특정 목적지의 거부(인가·입력 검증). 세션은 살아있으므로 재연결하지 않는다. */
   onAuthzError?: (err: WsAuthzError) => void;
   onDisconnect: () => void;
@@ -126,15 +134,6 @@ export class SpringStompClient {
     this.currentRoomPresenceSubscription = undefined;
   }
 
-  send(chatroomId: string, content: string, replyToId?: string, imageUrl?: string) {
-    if (!this.connected) return false;
-    this.write('SEND', {
-      destination: `/pub/chatrooms/${chatroomId}/messages`,
-      'content-type': 'application/json',
-    }, JSON.stringify({ content, replyToId: replyToId ? Number(replyToId) : null, imageUrl: imageUrl ?? null }));
-    return true;
-  }
-
   sendTyping(chatroomId: string, isTyping: boolean) {
     if (!this.connected) return;
     this.write('SEND', {
@@ -188,7 +187,7 @@ export class SpringStompClient {
             typing: p.typing,
           });
         } else if (kind === 'unread') {
-          this.options.onUnread?.(payload as { chatroomId: number; messageId: number; replyToMe: boolean });
+          this.options.onUnread?.(payload as UnreadNotice);
         } else if (kind === 'authzerror') {
           this.options.onAuthzError?.(payload as WsAuthzError);
         } else {

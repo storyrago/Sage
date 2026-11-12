@@ -7,6 +7,7 @@ import com.example.springboot_realtimechat.domain.image.event.ImageDereferencedE
 import com.example.springboot_realtimechat.domain.image.service.S3Service;
 import com.example.springboot_realtimechat.domain.member.entity.Member;
 import com.example.springboot_realtimechat.domain.member.event.MemberDeletedEvent;
+import com.example.springboot_realtimechat.application.account.AccountWithdrawalService;
 import com.example.springboot_realtimechat.domain.member.service.MemberService;
 import com.example.springboot_realtimechat.domain.message.service.MessageService;
 
@@ -29,6 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class MemberDeleteImageCleanupTest {
 
     @Autowired MemberService memberService;
+    @Autowired AccountWithdrawalService accountWithdrawalService;
     @Autowired MessageService messageService;
     @Autowired ChatRoomService chatRoomService;
     @Autowired ChatRoomMemberService chatRoomMemberService;
@@ -54,7 +56,7 @@ class MemberDeleteImageCleanupTest {
         messageService.create(null, IMAGE_A, member.getId(), room.getId(), null);
         messageService.create(null, IMAGE_B, member.getId(), room.getId(), null);
 
-        memberService.delete(member.getId());
+        accountWithdrawalService.withdraw(member.getId());
 
         assertThat(publishedUrls()).containsExactly(PROFILE);
     }
@@ -64,7 +66,7 @@ class MemberDeleteImageCleanupTest {
         Member member = memberService.create("del4@e.com", "1234", "탈퇴자4");
         memberService.updateProfileImage(member.getId(), PROFILE);
 
-        memberService.delete(member.getId());
+        accountWithdrawalService.withdraw(member.getId());
 
         List<Class<?>> order = events.stream(Object.class)
                 .map(Object::getClass)
@@ -77,7 +79,7 @@ class MemberDeleteImageCleanupTest {
     void 이미지가_없는_회원의_탈퇴는_이벤트를_발행하지_않는다() {
         Member member = memberService.create("del3@e.com", "1234", "탈퇴자3");
 
-        memberService.delete(member.getId());
+        accountWithdrawalService.withdraw(member.getId());
 
         assertThat(publishedUrls()).isEmpty();
     }

@@ -1,5 +1,6 @@
 package com.example.springboot_realtimechat.service;
 
+import com.example.springboot_realtimechat.domain.chatroom.dto.UnreadCountResponse;
 import com.example.springboot_realtimechat.domain.chatroom.entity.ChatRoom;
 import com.example.springboot_realtimechat.domain.chatroom.entity.ChatRoomMember;
 import com.example.springboot_realtimechat.domain.chatroom.repository.ChatRoomMemberRepository;
@@ -7,7 +8,6 @@ import com.example.springboot_realtimechat.domain.chatroom.service.ChatRoomMembe
 import com.example.springboot_realtimechat.domain.chatroom.service.ChatRoomService;
 import com.example.springboot_realtimechat.domain.member.entity.Member;
 import com.example.springboot_realtimechat.domain.member.service.MemberService;
-import com.example.springboot_realtimechat.domain.message.entity.Message;
 import com.example.springboot_realtimechat.domain.message.service.MessageService;
 import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
@@ -31,39 +31,103 @@ public class UnreadCountTest {
     @Autowired ChatRoomMemberRepository chatRoomMemberRepository;
     @Autowired EntityManager entityManager;
 
+    private UnreadCountResponse countsFor(Long memberId, Long roomId) {
+        return chatRoomMemberService.getUnreadCounts(memberId).stream()
+                .filter(c -> c.getChatroomId().equals(roomId))
+                .findFirst()
+                .orElseThrow();
+    }
+
     @Test
-    void 가입시_lastRead가_방_최신메시지id로_세팅() {
+    void 가입시_읽은_위치가_방_최신_순번으로_세팅() {
         Member owner = memberService.create("o@e.com", "1234", "owner");
         ChatRoom room = chatRoomService.create("room", false, null);
         chatRoomMemberService.join(owner.getId(), room.getId(), null);
         messageService.create("m1", null, owner.getId(), room.getId(), null);
-        var last = messageService.create("m2", null, owner.getId(), room.getId(), null);
+        messageService.create("m2", null, owner.getId(), room.getId(), null);
 
         Member joiner = memberService.create("j@e.com", "1234", "joiner");
         ChatRoomMember cm = chatRoomMemberService.join(joiner.getId(), room.getId(), null);
 
-        assertThat(cm.getLastReadMessageId()).isEqualTo(last.getId());
+        assertThat(cm.getLastReadSeq()).isEqualTo(2L);
     }
 
     @Test
-    void 안읽음_카운트는_내메시지_삭제_제외하고_lastRead_이후만() {
+    void 안읽음은_최신순번에서_읽은순번을_뺀_값이고_삭제도_포함한다() {
         Member a = memberService.create("a@e.com", "1234", "a");
         Member b = memberService.create("b@e.com", "1234", "b");
         ChatRoom room = chatRoomService.create("room", false, null);
-        chatRoomMemberService.join(a.getId(), room.getId(), null);   // a: lastRead=null(빈 방)
+        chatRoomMemberService.join(a.getId(), room.getId(), null);
         chatRoomMemberService.join(b.getId(), room.getId(), null);
 
-        // b가 5개 보냄. a 입장에서 5개 안읽음이어야(내것 아님, 삭제 아님)
         for (int i = 0; i < 5; i++) messageService.create("b" + i, null, b.getId(), room.getId(), null);
-        // a가 1개 보냄 → a의 안읽음엔 안 셈(내 메시지)
-        messageService.create("mine", null, a.getId(), room.getId(), null);
-        // b의 1개 삭제 → 안읽음에서 빠짐
+        var counts = countsFor(a.getId(), room.getId());
+        assertThat(counts.getUnreadCount()).isEqualTo(5L);
+        assertThat(counts.getLastMessageSeq()).isEqualTo(5L);
+        assertThat(counts.getLastReadSeq()).isZero();
+
+        // 삭제된 메시지도 순번을 차지하므로 센다("삭제된 메시지"도 한 건).
         var del = messageService.create("del", null, b.getId(), room.getId(), null);
         messageService.delete(room.getId(), del.getId(), b.getId());
+        assertThat(countsFor(a.getId(), room.getId()).getUnreadCount()).isEqualTo(6L);
+    }
 
-        var counts = chatRoomMemberService.getUnreadCounts(a.getId());
-        var forRoom = counts.stream().filter(c -> c.getChatroomId().equals(room.getId())).findFirst().orElseThrow();
-        assertThat(forRoom.getUnreadCount()).isEqualTo(5L);  // b0~b4
+    @Test
+    void 메시지를_보내면_그_순번까지_읽은_것으로_본다() {
+        Member a = memberService.create("sa@e.com", "1234", "sa");
+        Member b = memberService.create("sb@e.com", "1234", "sb");
+        ChatRoom room = chatRoomService.create("room", false, null);
+        chatRoomMemberService.join(a.getId(), room.getId(), null);
+        chatRoomMemberService.join(b.getId(), room.getId(), null);
+        for (int i = 0; i < 3; i++) messageService.create("b" + i, null, b.getId(), room.getId(), null);
+
+        messageService.create("mine", null, a.getId(), room.getId(), null);
+        messageService.create("after", null, b.getId(), room.getId(), null);
+
+        var counts = countsFor(a.getId(), room.getId());
+        assertThat(counts.getLastReadSeq()).isEqualTo(4L);
+        assertThat(counts.getUnreadCount()).isEqualTo(1L);
+    }
+
+    @Test
+    void 재전송으로_판정되면_읽은_위치를_바꾸지_않는다() {
+        Member a = memberService.create("ra2@e.com", "1234", "ra2");
+        Member b = memberService.create("rb2@e.com", "1234", "rb2");
+        ChatRoom room = chatRoomService.create("room", false, null);
+        chatRoomMemberService.join(a.getId(), room.getId(), null);
+        chatRoomMemberService.join(b.getId(), room.getId(), null);
+        String clientId = "22222222-2222-2222-2222-222222222222";
+
+        messageService.create("first", null, a.getId(), room.getId(), null, clientId);   // seq 1
+        messageService.create("b1", null, b.getId(), room.getId(), null);                // seq 2
+        messageService.create("b2", null, b.getId(), room.getId(), null);                // seq 3
+        messageService.create("first", null, a.getId(), room.getId(), null, clientId);   // 재전송
+
+        var counts = countsFor(a.getId(), room.getId());
+        assertThat(counts.getLastReadSeq()).isEqualTo(1L);
+        assertThat(counts.getUnreadCount()).isEqualTo(2L);
+    }
+
+    @Test
+    void 순번을_주면_그_위치까지만_읽고_뒤로_가지_않으며_최신을_넘지_않는다() {
+        Member a = memberService.create("qa@e.com", "1234", "qa");
+        Member b = memberService.create("qb@e.com", "1234", "qb");
+        ChatRoom room = chatRoomService.create("room", false, null);
+        chatRoomMemberService.join(a.getId(), room.getId(), null);
+        chatRoomMemberService.join(b.getId(), room.getId(), null);
+        for (int i = 1; i <= 5; i++) messageService.create("b" + i, null, b.getId(), room.getId(), null);
+
+        chatRoomMemberService.markRead(a.getId(), room.getId(), 3L);
+        var counts = countsFor(a.getId(), room.getId());
+        assertThat(counts.getUnreadCount()).isEqualTo(2L);
+        assertThat(counts.getLastReadSeq()).isEqualTo(3L);
+
+        chatRoomMemberService.markRead(a.getId(), room.getId(), 2L);   // 늦게 도착한 옛 요청
+        assertThat(countsFor(a.getId(), room.getId()).getLastReadSeq()).isEqualTo(3L);
+
+        chatRoomMemberService.markRead(a.getId(), room.getId(), 99L);  // 최신(5)을 넘는 값
+        assertThat(countsFor(a.getId(), room.getId()).getLastReadSeq()).isEqualTo(5L);
+        assertThat(countsFor(a.getId(), room.getId()).getUnreadCount()).isZero();
     }
 
     @Test

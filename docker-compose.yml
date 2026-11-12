@@ -1,6 +1,6 @@
 services:
   app:
-    image: ghcr.io/storyrago/realtimechat-backend-app:${IMAGE_TAG:?IMAGE_TAG required}
+    image: ghcr.io/storyrago/sage-app:${IMAGE_TAG:?IMAGE_TAG required}
     build: ./backend
     restart: unless-stopped
     expose:
@@ -36,7 +36,7 @@ services:
         max-file: "3"
 
   web:
-    image: ghcr.io/storyrago/realtimechat-backend-web:${IMAGE_TAG:?IMAGE_TAG required}
+    image: ghcr.io/storyrago/sage-web:${IMAGE_TAG:?IMAGE_TAG required}
     build: ./frontend
     restart: unless-stopped
     ports:

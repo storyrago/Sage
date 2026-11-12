@@ -1,16 +1,11 @@
 package com.example.springboot_realtimechat.domain.member.entity;
 
-import com.example.springboot_realtimechat.domain.chatroom.entity.ChatRoomMember;
-import com.example.springboot_realtimechat.domain.message.entity.Message;
-
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
 @Getter
@@ -51,12 +46,6 @@ public class Member {
 
     @Column(name = "onboarded_at")
     private LocalDateTime onboardedAt;
-
-    @OneToMany(mappedBy = "member")
-    private List<Message> messages = new ArrayList<>();
-
-    @OneToMany(mappedBy = "member")
-    private List<ChatRoomMember> chatRoomMembers = new ArrayList<>();
 
     public Member(String email, String password, String nickname) {
         this.email = email;

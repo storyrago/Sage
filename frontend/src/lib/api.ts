@@ -65,6 +65,8 @@ export interface BackendMessage {
   imageUrl?: string | null;
   editedAt?: string | null;
   deleted?: boolean;
+  seq: number;
+  clientMessageId?: string | null;
 }
 
 // 응답 본문에서 code·message를 뽑아 ApiError로 던진다. 401이면 등록된 처리기를 먼저 부른다.
@@ -186,14 +188,20 @@ export interface PagedMessages {
   hasMore: boolean;
 }
 
+export interface MessageCursor {
+  beforeSeq?: number; // 이 순번 이전(과거 스크롤)
+  afterSeq?: number;  // 이 순번 다음(빈 순번 채우기·재접속 따라잡기)
+}
+
 export async function getMessages(
   token: string,
   chatroomId: string,
-  before?: number,
+  cursor: MessageCursor = {},
   limit = 30,
 ): Promise<PagedMessages> {
   const params = new URLSearchParams();
-  if (before != null) params.set('before', String(before));
+  if (cursor.beforeSeq != null) params.set('beforeSeq', String(cursor.beforeSeq));
+  if (cursor.afterSeq != null) params.set('afterSeq', String(cursor.afterSeq));
   params.set('limit', String(limit));
   return request<PagedMessages>(`/api/chatrooms/${chatroomId}/messages?${params.toString()}`, {}, token);
 }
@@ -202,22 +210,50 @@ export interface UnreadCount {
   chatroomId: number;
   unreadCount: number;
   replyCount: number;
-  lastReadMessageId: number | null;
+  lastMessageSeq: number;
+  lastReadSeq: number;
 }
 
 export async function getUnreadCounts(token: string): Promise<UnreadCount[]> {
   return request<UnreadCount[]>('/api/chatrooms/unread', {}, token);
 }
 
-export async function markRoomRead(token: string, chatroomId: string): Promise<void> {
-  return request<void>(`/api/chatrooms/${chatroomId}/read`, { method: 'POST' }, token);
+// seq까지 읽은 것으로 기록한다. 없으면 서버가 방의 최신 순번까지 읽음 처리한다.
+export async function markRoomRead(token: string, chatroomId: string, seq?: number): Promise<void> {
+  return request<void>(
+    `/api/chatrooms/${chatroomId}/read`,
+    { method: 'POST', ...(seq != null ? { body: JSON.stringify({ seq }) } : {}) },
+    token,
+  );
 }
 
-export async function sendMessage(token: string, chatroomId: string, content: string, replyToId?: string, imageUrl?: string) {
-  return request<BackendMessage>(`/api/chatrooms/${chatroomId}/messages`, {
-    method: 'POST',
-    body: JSON.stringify({ content, replyToId: replyToId ? Number(replyToId) : null, imageUrl: imageUrl ?? null }),
-  }, token);
+// 응답이 곧 확정/실패 신호다. 응답이 오지 않으면 사용자가 다시 보낼 수 있도록 시간 제한을 둔다.
+export const SEND_TIMEOUT_MS = 10000;
+
+export interface SendMessageInput {
+  content: string;
+  replyToId?: string;
+  imageUrl?: string;
+  clientMessageId: string; // 다시 보내도 서버가 같은 메시지로 식별한다
+}
+
+export async function sendMessage(token: string, chatroomId: string, input: SendMessageInput): Promise<BackendMessage> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), SEND_TIMEOUT_MS);
+  try {
+    return await request<BackendMessage>(`/api/chatrooms/${chatroomId}/messages`, {
+      method: 'POST',
+      signal: controller.signal,
+      body: JSON.stringify({
+        content: input.content,
+        replyToId: input.replyToId ? Number(input.replyToId) : null,
+        imageUrl: input.imageUrl ?? null,
+        clientMessageId: input.clientMessageId,
+      }),
+    }, token);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export async function updateMessage(token: string, chatroomId: string, messageId: string, content: string) {
@@ -376,6 +412,8 @@ export function toMessage(message: BackendMessage): Message {
     userAvatar: memberId == null ? avatarForId('deleted') : avatarForId(memberId),
     userPhotoUrl: message.profileImageUrl ?? undefined,
     createdAt: message.createdAt ? Date.parse(message.createdAt) : Date.now(),
+    seq: message.seq,
+    clientMessageId: message.clientMessageId ?? undefined,
     replyToId: message.replyToId != null ? String(message.replyToId) : undefined,
     imageUrl: message.imageUrl ?? undefined,
     edited: message.editedAt != null,

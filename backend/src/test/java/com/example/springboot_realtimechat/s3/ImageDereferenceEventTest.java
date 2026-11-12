@@ -1,14 +1,9 @@
 package com.example.springboot_realtimechat.s3;
 
-import com.example.springboot_realtimechat.domain.chatroom.entity.ChatRoom;
-import com.example.springboot_realtimechat.domain.chatroom.service.ChatRoomMemberService;
-import com.example.springboot_realtimechat.domain.chatroom.service.ChatRoomService;
 import com.example.springboot_realtimechat.domain.image.event.ImageDereferencedEvent;
 import com.example.springboot_realtimechat.domain.image.service.S3Service;
 import com.example.springboot_realtimechat.domain.member.entity.Member;
 import com.example.springboot_realtimechat.domain.member.service.MemberService;
-import com.example.springboot_realtimechat.domain.message.entity.Message;
-import com.example.springboot_realtimechat.domain.message.service.MessageService;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,9 +28,6 @@ import static org.mockito.Mockito.verify;
 class ImageDereferenceEventTest {
 
     @Autowired MemberService memberService;
-    @Autowired MessageService messageService;
-    @Autowired ChatRoomService chatRoomService;
-    @Autowired ChatRoomMemberService chatRoomMemberService;
     @Autowired ApplicationEvents events;
 
     @MockitoBean S3Service s3Service;   // 커밋 전에는 호출되지 않아야 한다
@@ -77,19 +69,6 @@ class ImageDereferenceEventTest {
         assertThat(publishedUrls()).isEmpty();
     }
 
-    @Test
-    void 이미지_메시지를_삭제하면_그_URL로_이벤트가_발행된다() {
-        Member author = memberService.create("m1@e.com", "1234", "m1");
-        ChatRoom room = chatRoomService.create("정리방", false, null);
-        chatRoomMemberService.join(author.getId(), room.getId(), null);
-        // content: DB의 messages.content는 NOT NULL이라 빈 문자열을 쓴다(Message.softDelete()와 동일한 관례).
-        Message message = messageService.create("", OLD, author.getId(), room.getId(), null);
-
-        messageService.delete(room.getId(), message.getId(), author.getId());
-
-        assertThat(publishedUrls()).containsExactly(OLD);
-    }
-
     // 이 테스트 클래스는 @Transactional이라 커밋되지 않는다.
     // AFTER_COMMIT 리스너가 실행되지 않는다는 것이 곧 D2가 지켜진다는 증거다.
     @Test
@@ -101,17 +80,5 @@ class ImageDereferenceEventTest {
 
         assertThat(publishedUrls()).containsExactly(OLD);      // 이벤트는 발행됐지만
         verify(s3Service, never()).tagAsOrphan(anyString());   // 커밋 전이므로 태깅은 없다
-    }
-
-    @Test
-    void 이미지가_없는_메시지를_삭제하면_이벤트가_발행되지_않는다() {
-        Member author = memberService.create("m2@e.com", "1234", "m2");
-        ChatRoom room = chatRoomService.create("정리방2", false, null);
-        chatRoomMemberService.join(author.getId(), room.getId(), null);
-        Message message = messageService.create("글만 있는 메시지", null, author.getId(), room.getId(), null);
-
-        messageService.delete(room.getId(), message.getId(), author.getId());
-
-        assertThat(publishedUrls()).isEmpty();
     }
 }

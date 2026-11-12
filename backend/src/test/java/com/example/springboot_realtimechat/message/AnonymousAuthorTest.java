@@ -63,7 +63,7 @@ class AnonymousAuthorTest {
 
     @Test
     void 작성자가_없는_메시지도_목록에_포함된다() {
-        MessageService.MessagePage page = messageService.getMessages(roomId, reader.getId(), null, 30);
+        MessageService.MessagePage page = messageService.getMessages(roomId, reader.getId(), null, null, 30);
 
         assertThat(page.messages()).extracting(Message::getId).contains(anonymousMessageId);
     }

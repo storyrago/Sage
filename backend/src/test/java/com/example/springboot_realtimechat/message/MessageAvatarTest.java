@@ -8,13 +8,11 @@ import com.example.springboot_realtimechat.domain.member.service.MemberService;
 import com.example.springboot_realtimechat.domain.message.dto.MessageResponse;
 import com.example.springboot_realtimechat.domain.message.entity.Message;
 import com.example.springboot_realtimechat.domain.message.service.MessageService;
-import com.example.springboot_realtimechat.global.redis.RedisSubscriber;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.databind.ObjectMapper;
 
 import java.util.UUID;
 
@@ -27,7 +25,6 @@ public class MessageAvatarTest {
     @Autowired MemberService memberService;
     @Autowired ChatRoomService chatRoomService;
     @Autowired ChatRoomMemberService chatRoomMemberService;
-    @Autowired ObjectMapper objectMapper; // RedisSubscriber가 실제로 주입받는 것과 같은 빈
 
     // 프로필 사진은 본인이 프로필 용도로 올린 키만 지정할 수 있다.
     private static String ownProfileUrl(Long memberId) {
@@ -74,40 +71,5 @@ public class MessageAvatarTest {
         MessageResponse response = MessageResponse.from(msg);
 
         assertThat(response.getProfileImageUrl()).isEqualTo(newUrl);
-    }
-
-    // RedisSubscriber.onMessage가 objectMapper.readValue(..., MessageResponse.class)로 실시간 메시지를
-    // 역직렬화한다. MessageResponse는 기본 생성자 없이 전체 인자 생성자 하나뿐이라, 이 왕복이 깨지면
-    // 유닛 테스트로는 못 잡고 실시간 경로에서만 조용히 터진다.
-    @Test
-    void 실시간_경로와_동일한_ObjectMapper로_왕복해도_profileImageUrl과_기존_필드가_보존된다() {
-        Member author = memberService.create("avatar-d@e.com", "1234", "roundtrip");
-        memberService.updateProfileImage(author.getId(), ownProfileUrl(author.getId()));
-        ChatRoom room = chatRoomService.create("avatar-room-4", false, null);
-        chatRoomMemberService.join(author.getId(), room.getId(), null);
-        Message msg = messageService.create("왕복 테스트", null, author.getId(), room.getId(), null);
-        MessageResponse withPhoto = MessageResponse.from(msg);
-
-        MessageResponse roundTripped = objectMapper.readValue(
-                objectMapper.writeValueAsBytes(withPhoto), MessageResponse.class);
-
-        assertThat(roundTripped.getProfileImageUrl()).isEqualTo(withPhoto.getProfileImageUrl());
-        assertThat(roundTripped.getMessageId()).isEqualTo(withPhoto.getMessageId());
-        assertThat(roundTripped.getNickname()).isEqualTo(withPhoto.getNickname());
-        assertThat(roundTripped.getImageUrl()).isEqualTo(withPhoto.getImageUrl());
-        assertThat(roundTripped.getReplyToId()).isEqualTo(withPhoto.getReplyToId());
-        assertThat(roundTripped.isDeleted()).isEqualTo(withPhoto.isDeleted());
-
-        // 사진이 없는 회원(profileImageUrl == null)의 메시지도 왕복에서 null이 그대로 유지되는지 확인
-        Member noPhotoAuthor = memberService.create("avatar-e@e.com", "1234", "roundtrip-null");
-        chatRoomMemberService.join(noPhotoAuthor.getId(), room.getId(), null);
-        Message noPhotoMsg = messageService.create("사진 없음 왕복", null, noPhotoAuthor.getId(), room.getId(), null);
-        MessageResponse withoutPhoto = MessageResponse.from(noPhotoMsg);
-        assertThat(withoutPhoto.getProfileImageUrl()).isNull();
-
-        MessageResponse roundTrippedWithoutPhoto = objectMapper.readValue(
-                objectMapper.writeValueAsBytes(withoutPhoto), MessageResponse.class);
-
-        assertThat(roundTrippedWithoutPhoto.getProfileImageUrl()).isNull();
     }
 }

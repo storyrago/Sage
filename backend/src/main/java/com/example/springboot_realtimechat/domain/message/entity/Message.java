@@ -2,6 +2,8 @@ package com.example.springboot_realtimechat.domain.message.entity;
 
 import com.example.springboot_realtimechat.domain.chatroom.entity.ChatRoom;
 import com.example.springboot_realtimechat.domain.member.entity.Member;
+import com.example.springboot_realtimechat.global.exception.CustomException;
+import com.example.springboot_realtimechat.global.exception.ErrorCode;
 
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -13,7 +15,10 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @NoArgsConstructor
-@Table(name = "messages")
+@Table(name = "messages", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_messages_room_seq", columnNames = {"chatroom_id", "seq"}),
+        @UniqueConstraint(name = "uk_messages_member_client_id", columnNames = {"member_id", "client_message_id"})
+})
 public class Message {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -47,20 +52,23 @@ public class Message {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
-    public Message(String content, String imageUrl, Member member, ChatRoom chatRoom, Message replyTo) {
+    // 방 안에서 1부터 빈틈없이 증가하는 순번. 클라이언트가 순서 정렬과 누락 감지에 쓴다.
+    @Column(nullable = false, updatable = false)
+    private Long seq;
+
+    // 클라이언트가 전송마다 만든 UUID. 재전송을 같은 메시지로 식별한다. 구버전 클라이언트는 비워 보낸다.
+    @Column(name = "client_message_id", length = 36, updatable = false)
+    private String clientMessageId;
+
+    public Message(String content, String imageUrl, Member member, ChatRoom chatRoom, Message replyTo,
+                   long seq, String clientMessageId) {
         this.content = content;
         this.imageUrl = imageUrl;
         this.replyTo = replyTo;
-        connect(member, chatRoom);
-    }
-
-    private void connect(Member member, ChatRoom chatRoom) {
+        this.seq = seq;
+        this.clientMessageId = clientMessageId;
         this.member = member;
         this.chatRoom = chatRoom;
-
-        // 동기화
-        member.getMessages().add(this);
-        chatRoom.getMessages().add(this);
     }
 
     public void edit(String content) {
@@ -76,5 +84,12 @@ public class Message {
 
     public boolean isDeleted() {
         return deletedAt != null;
+    }
+
+    /** 작성자 본인만 수정·삭제할 수 있다. 작성자가 없는 메시지(탈퇴자)는 아무도 못 한다. */
+    public void requireEditableBy(Long memberId) {
+        if (member == null || !member.getId().equals(memberId)) {
+            throw new CustomException(ErrorCode.NOT_MESSAGE_OWNER);
+        }
     }
 }

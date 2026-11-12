@@ -1,8 +1,6 @@
 package com.example.springboot_realtimechat.domain.chatroom.entity;
 
-import com.example.springboot_realtimechat.domain.chatroom.service.ChatRoomService;
 import com.example.springboot_realtimechat.domain.member.entity.Member;
-import com.example.springboot_realtimechat.domain.message.entity.Message;
 import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
 
@@ -12,8 +10,6 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
 @Getter
@@ -45,11 +41,9 @@ public class ChatRoom {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
-    @OneToMany(mappedBy = "chatRoom")
-    private List<ChatRoomMember> chatRoomMembers = new ArrayList<>();
-
-    @OneToMany(mappedBy = "chatRoom")
-    private List<Message> messages = new ArrayList<>();
+    // 이 방에서 마지막으로 발급한 메시지 순번. 방 행 쓰기 잠금 아래에서만 증가시킨다(MessageService.create).
+    @Column(name = "last_message_seq", nullable = false)
+    private long lastMessageSeq;
 
     private ChatRoom(String name, Member owner, boolean isPrivate, String inviteCode) {
         this.name = name;
@@ -121,5 +115,13 @@ public class ChatRoom {
     public void releaseOwnership() {
         this.owner = null;
         this.inviteCode = null;
+    }
+
+    /**
+     * 다음 메시지 순번을 발급한다. 호출 전에 이 방 행에 쓰기 잠금이 걸려 있어야
+     * 동시 전송끼리 순번이 겹치지 않고, 커밋 순서와 순번 순서가 같아진다.
+     */
+    public long nextMessageSeq() {
+        return ++lastMessageSeq;
     }
 }

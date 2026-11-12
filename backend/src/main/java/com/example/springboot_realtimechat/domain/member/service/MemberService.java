@@ -1,15 +1,11 @@
 package com.example.springboot_realtimechat.domain.member.service;
 
-import com.example.springboot_realtimechat.domain.chatroom.repository.ChatRoomBanRepository;
-import com.example.springboot_realtimechat.domain.chatroom.repository.ChatRoomMemberRepository;
-import com.example.springboot_realtimechat.domain.chatroom.service.ChatRoomService;
 import com.example.springboot_realtimechat.domain.image.event.ImageDereferencedEvent;
 import com.example.springboot_realtimechat.domain.image.service.ImageUploads;
 import com.example.springboot_realtimechat.domain.image.service.S3Service;
 import com.example.springboot_realtimechat.domain.member.entity.Member;
 import com.example.springboot_realtimechat.domain.member.event.MemberDeletedEvent;
 import com.example.springboot_realtimechat.domain.member.repository.MemberRepository;
-import com.example.springboot_realtimechat.domain.message.repository.MessageRepository;
 import com.example.springboot_realtimechat.global.exception.CustomException;
 import com.example.springboot_realtimechat.global.exception.ErrorCode;
 
@@ -25,10 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class MemberService {
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
-    private final ChatRoomMemberRepository chatRoomMemberRepository;
-    private final ChatRoomBanRepository chatRoomBanRepository;
-    private final MessageRepository messageRepository;
-    private final ChatRoomService chatRoomService;
     private final ApplicationEventPublisher eventPublisher;
     private final S3Service s3Service;
 
@@ -83,18 +75,17 @@ public class MemberService {
         return member;
     }
 
+    /**
+     * 회원 행을 지우고 탈퇴 이벤트를 낸다. 채팅방·메시지 쪽 정리는 끝났다고 가정한다 —
+     * 탈퇴는 AccountWithdrawalService.withdraw로만 시작한다(ArchitectureTest가 강제).
+     */
     @Transactional
-    public void delete(Long id){
-        Member member = memberRepository.findById(id)
-                .orElseThrow(()-> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
+    public void deleteRecord(Long id){
+        Member member = getMemberById(id);
 
         // 메시지는 남으므로 그 이미지들은 계속 참조된다. 정리 대상은 프로필 사진뿐이다.
         String profileImageUrl = member.getProfileImageUrl();
 
-        chatRoomService.succeedOwnedRooms(id);
-        chatRoomBanRepository.deleteByMemberId(id);
-        chatRoomMemberRepository.deleteByMember(member);
-        messageRepository.anonymizeByMember(member);
         memberRepository.deleteById(id);
 
         // 보안 동작(구독 회수)을 이미지 정리보다 먼저 실행한다.

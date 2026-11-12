@@ -15,6 +15,16 @@ java {
 
 repositories {
 	mavenCentral()
+	//Confluent 스키마 레지스트리 클라이언트·Avro 직렬화기는 Maven Central에 없다
+	maven {
+		url = 'https://packages.confluent.io/maven/'
+		content { includeGroup 'io.confluent' }
+	}
+}
+
+configurations {
+	//Avro 공식 컴파일러(단독 실행 jar). 생성 코드는 런타임 Avro(kafka-avro-serializer가 끌어오는 1.12.1)와 버전이 같아야 한다
+	avroTools { transitive = false }
 }
 
 dependencies {
@@ -26,6 +36,8 @@ dependencies {
 	//OtlpMetricsExportAutoConfiguration이 OpenTelemetryProperties 빈을 요구한다 — 없으면 enabled 값과 무관하게
 	//레지스트리 빈 자체가 생성되지 않는다(자동설정 클래스가 아예 조건 불충족으로 스킵됨)
 	runtimeOnly 'org.springframework.boot:spring-boot-opentelemetry'
+	//prometheus 레지스트리. 지표는 perf 프로필(로컬 성능 측정 스택)에서만 관리 포트로 노출한다(application-perf.yaml)
+	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'com.mysql:mysql-connector-j'
 
@@ -40,6 +52,16 @@ dependencies {
 	testCompileOnly 'org.projectlombok:lombok'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testAnnotationProcessor 'org.projectlombok:lombok'
+
+	//cross-node 메시지 순서 재현 테스트용 — 실제 Redis 컨테이너로 두 노드의 pub/sub 수신 순서를 관찰한다
+	//버전은 Boot 4 BOM이 관리(testcontainers.version=2.0.4, Docker 29 호환)
+	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+	testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+	testImplementation 'org.testcontainers:testcontainers-mysql'
+	testImplementation 'org.testcontainers:testcontainers-kafka'
+
+	//패키지 의존 규칙(도메인 순환 금지·계층 방향)을 테스트로 검사한다
+	testImplementation 'com.tngtech.archunit:archunit-junit5:1.5.1'
 
 	//swagger 문서화
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9'
@@ -65,12 +87,74 @@ dependencies {
 	//redis
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
+	//메시지 이벤트 소비(실시간 전달·안읽음). 버전은 Boot BOM(spring-kafka 4.0.x, kafka-clients 4.1.x)
+	implementation 'org.springframework.boot:spring-boot-starter-kafka'
+
+	//메시지 이벤트 Avro 직렬화(스키마 레지스트리 와이어 포맷). 8.1.x는 Boot BOM의 kafka-clients 4.1과 같은 계열
+	implementation 'io.confluent:kafka-avro-serializer:8.1.6'
+
+	//Avro 스키마 → SpecificRecord 클래스 생성(generateAvroJava 태스크 전용)
+	avroTools 'org.apache.avro:avro-tools:1.12.1'
+
 	//aws s3
 	implementation 'software.amazon.awssdk:s3:2.31.0'
 }
 
+def avroSchemaDir = layout.projectDirectory.dir('src/main/resources/avro')
+def avroGeneratedDir = layout.buildDirectory.dir('generated/sources/avro/java/main')
+
+//스키마(.avsc)가 계약의 원본이다. 생산자·소비자는 여기서 만든 클래스로 읽고 쓴다.
+//대표 Gradle 플러그인은 관리가 멈춰 Avro 공식 컴파일러를 직접 부른다(생성 결과는 Maven 공식 플러그인과 같다).
+tasks.register('generateAvroJava', JavaExec) {
+	description = 'src/main/resources/avro의 스키마로 SpecificRecord 클래스를 만든다.'
+	group = 'build'
+	classpath = configurations.avroTools
+	mainClass = 'org.apache.avro.tool.Main'
+	inputs.dir(avroSchemaDir)
+	outputs.dir(avroGeneratedDir)
+	//-string: 문자열 필드를 CharSequence(Utf8)가 아니라 java.lang.String으로 만든다
+	args 'compile', '-string', 'schema', avroSchemaDir.asFile.absolutePath, avroGeneratedDir.get().asFile.absolutePath
+	doFirst { delete avroGeneratedDir }
+}
+
+sourceSets.main.java.srcDir(avroGeneratedDir)
+tasks.named('compileJava') { dependsOn 'generateAvroJava' }
+
 tasks.named('test') {
-	useJUnitPlatform()
+	//cdc 태그 테스트는 컨테이너 4종(MySQL·Kafka·스키마 레지스트리·Debezium Connect)을 띄워 무겁다 — cdcTest로 따로 돌린다
+	//measure 태그는 전파 경로 전후 측정이다 — measureTest로 수동 실행한다
+	useJUnitPlatform {
+		excludeTags 'cdc', 'measure'
+	}
+	//측정용 테스트(CrossNodeMessageOrderTest) opt-in 스위치를 JVM 시스템 프로퍼티로 전달한다.
+	//-Dmeasure=true로 테스트 프로세스는 포크되므로 명시적으로 중계해야 한다.
+	systemProperty 'measure', System.getProperty('measure', 'false')
+}
+
+tasks.register('cdcTest', Test) {
+	description = 'outbox → Debezium → Kafka 경로를 실제 컨테이너로 검증한다.'
+	group = 'verification'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform {
+		includeTags 'cdc'
+	}
+	shouldRunAfter tasks.named('test')
+}
+
+tasks.register('measureTest', Test) {
+	description = 'redis·kafka 전파 경로의 순서·유실을 실제 컨테이너와 STOMP 구독자로 측정한다(수동 실행).'
+	group = 'verification'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform {
+		includeTags 'measure'
+	}
+	//측정 결과([measure] 줄)를 콘솔에서 바로 보게 한다
+	testLogging {
+		showStandardStreams = true
+	}
+	shouldRunAfter tasks.named('test')
 }
 
 tasks.named('jar'){

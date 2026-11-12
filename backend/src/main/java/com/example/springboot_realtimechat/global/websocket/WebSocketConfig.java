@@ -24,6 +24,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void configureMessageBroker(MessageBrokerRegistry registry){
         registry.enableSimpleBroker("/sub", "/queue"); // 클라이언트가 구독하는 주소 (/queue: convertAndSendToUser 개인 큐)
         registry.setApplicationDestinationPrefixes("/pub"); // 클라이언트가 보내는 주소
+        // Kafka 소비자는 방 안 순번 순서로 보낸다. 송신 채널의 스레드 풀이 세션별 순서를 섞지 않게 한다.
+        registry.setPreservePublishOrder(true);
     }
 
     @Override

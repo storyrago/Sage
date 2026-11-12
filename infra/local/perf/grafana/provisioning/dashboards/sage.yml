@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: sage
+    folder: Sage
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

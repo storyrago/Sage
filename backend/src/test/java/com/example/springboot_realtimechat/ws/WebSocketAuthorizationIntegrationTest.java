@@ -124,14 +124,14 @@ class WebSocketAuthorizationIntegrationTest {
 
     @Test
     void 비멤버의_전송은_거부되고_세션은_유지된다() {
-        Message<?> message = frame(StompCommand.SEND, "/pub/chatrooms/" + roomId + "/messages", outsider);
+        Message<?> message = frame(StompCommand.SEND, "/pub/chatrooms/" + roomId + "/typing", outsider);
 
         assertThat(through(message)).isNull();
     }
 
     @Test
     void 멤버는_방에_전송한다() {
-        Message<?> message = frame(StompCommand.SEND, "/pub/chatrooms/" + roomId + "/messages", member);
+        Message<?> message = frame(StompCommand.SEND, "/pub/chatrooms/" + roomId + "/typing", member);
 
         assertThat(through(message)).isNotNull();
     }

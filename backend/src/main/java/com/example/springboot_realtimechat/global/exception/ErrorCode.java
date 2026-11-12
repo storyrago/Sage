@@ -1,10 +1,5 @@
 package com.example.springboot_realtimechat.global.exception;
 
-import com.example.springboot_realtimechat.domain.chatroom.entity.ChatRoom;
-import com.example.springboot_realtimechat.domain.chatroom.entity.ChatRoomMember;
-import com.example.springboot_realtimechat.domain.member.entity.Member;
-import com.example.springboot_realtimechat.domain.message.entity.Message;
-
 import lombok.Getter;
 
 @Getter
@@ -36,6 +31,7 @@ public enum ErrorCode {
     MESSAGE_NOT_FOUND(404, "해당 메시지를 찾을 수 없습니다."),
     NOT_MESSAGE_OWNER(403, "해당 메시지에 대한 권한이 없습니다."),
     EMPTY_MESSAGE(400, "내용 또는 이미지가 필요합니다."),
+    CLIENT_MESSAGE_ID_CONFLICT(409, "이미 다른 방에 보낸 메시지 식별자예요."),
 
     // Global
     UNAUTHORIZED(401, "세션이 만료되었어요. 다시 로그인해 주세요."),

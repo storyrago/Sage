@@ -22,8 +22,10 @@ public class MessageResponse {
     Long replyToId;
     LocalDateTime editedAt;
     boolean deleted;
+    Long seq;
+    String clientMessageId;
 
-    public MessageResponse(Long messageId, String content, String imageUrl, Long memberId, String nickname, String profileImageUrl, Long chatroomId, LocalDateTime createdAt, Long replyToId, LocalDateTime editedAt, boolean deleted) {
+    public MessageResponse(Long messageId, String content, String imageUrl, Long memberId, String nickname, String profileImageUrl, Long chatroomId, LocalDateTime createdAt, Long replyToId, LocalDateTime editedAt, boolean deleted, Long seq, String clientMessageId) {
         this.messageId = messageId;
         this.content = content;
         this.imageUrl = imageUrl;
@@ -35,6 +37,8 @@ public class MessageResponse {
         this.replyToId = replyToId;
         this.editedAt = editedAt;
         this.deleted = deleted;
+        this.seq = seq;
+        this.clientMessageId = clientMessageId;
     }
 
     public static MessageResponse from(Message message){
@@ -50,7 +54,9 @@ public class MessageResponse {
                 message.getCreatedAt(),
                 message.getReplyTo() != null ? message.getReplyTo().getId() : null,
                 message.getEditedAt(),
-                message.isDeleted()
+                message.isDeleted(),
+                message.getSeq(),
+                message.getClientMessageId()
         );
     }
 }

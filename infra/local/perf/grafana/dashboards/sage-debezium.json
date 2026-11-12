@@ -1,0 +1,35 @@
+{
+  "uid": "sage-debezium",
+  "title": "Sage · Debezium",
+  "schemaVersion": 39,
+  "time": { "from": "now-30m", "to": "now" },
+  "refresh": "5s",
+  "panels": [
+    {
+      "type": "timeseries", "title": "binlog 대비 지연 (MilliSecondsBehindSource)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ms" } },
+      "targets": [{ "refId": "A", "expr": "debezium_metrics_MilliSecondsBehindSource{context=\"streaming\"}", "legendFormat": "{{name}}" }]
+    },
+    {
+      "type": "timeseries", "title": "처리한 이벤트 (건/초)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps" } },
+      "targets": [{ "refId": "A", "expr": "rate(debezium_metrics_TotalNumberOfEventsSeen{context=\"streaming\"}[1m])", "legendFormat": "{{name}}" }]
+    },
+    {
+      "type": "timeseries", "title": "내부 큐 여유 (QueueRemainingCapacity)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "debezium_metrics_QueueRemainingCapacity{context=\"streaming\"}", "legendFormat": "{{name}}" }]
+    },
+    {
+      "type": "stat", "title": "binlog 연결",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "debezium_metrics_Connected{context=\"streaming\"}", "legendFormat": "{{name}}" }]
+    }
+  ]
+}

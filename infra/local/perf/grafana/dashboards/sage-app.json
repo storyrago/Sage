@@ -1,0 +1,54 @@
+{
+  "uid": "sage-app",
+  "title": "Sage · 앱·Kafka",
+  "schemaVersion": 39,
+  "time": { "from": "now-30m", "to": "now" },
+  "refresh": "5s",
+  "panels": [
+    {
+      "type": "timeseries", "title": "메시지 전송 API p99 (서버 측)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [{ "refId": "A", "expr": "histogram_quantile(0.99, sum by (le, instance) (rate(http_server_requests_seconds_bucket{method=\"POST\", uri=\"/api/chatrooms/{chatroomId}/messages\"}[1m])))", "legendFormat": "{{instance}}" }]
+    },
+    {
+      "type": "timeseries", "title": "메시지 전송 API 처리량",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps" } },
+      "targets": [{ "refId": "A", "expr": "sum by (instance, status) (rate(http_server_requests_seconds_count{method=\"POST\", uri=\"/api/chatrooms/{chatroomId}/messages\"}[1m]))", "legendFormat": "{{instance}} {{status}}" }]
+    },
+    {
+      "type": "timeseries", "title": "Kafka 리스너 처리 p99",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [{ "refId": "A", "expr": "histogram_quantile(0.99, sum by (le, instance, spring_kafka_listener_id) (rate(spring_kafka_listener_seconds_bucket[1m])))", "legendFormat": "{{instance}} {{spring_kafka_listener_id}}" }]
+    },
+    {
+      "type": "timeseries", "title": "consumer group lag (브로커 기준)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum by (consumergroup) (kafka_consumergroup_lag{topic=\"chat.message.events\", consumergroup=~\"sage-(realtime|unread)-app-.*|sage-image-cleanup\"})", "legendFormat": "{{consumergroup}}" }]
+    },
+    {
+      "type": "timeseries", "title": "DB 커넥션 (사용 중 / 대기)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "hikaricp_connections_active", "legendFormat": "{{instance}} 사용 중" },
+        { "refId": "B", "expr": "hikaricp_connections_pending", "legendFormat": "{{instance}} 대기" }
+      ]
+    },
+    {
+      "type": "timeseries", "title": "프로세스 CPU · DLT 누적",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "process_cpu_usage", "legendFormat": "{{instance}} CPU" },
+        { "refId": "B", "expr": "sum by (instance) (sage_kafka_dead_letters_total)", "legendFormat": "{{instance}} DLT" }
+      ]
+    }
+  ]
+}

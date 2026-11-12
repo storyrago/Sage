@@ -1,0 +1,11 @@
+# Debezium MySQL 커넥터가 binlog로 변경을 읽기 위한 설정.
+# 근거: https://debezium.io/documentation/reference/3.7/connectors/mysql.html#setting-up-mysql
+# binlog_row_value_options는 기본값(빈 값)이어야 한다 — PARTIAL_JSON이면 UPDATE를 읽지 못한다.
+[mysqld]
+server-id                  = 223344
+log_bin                    = mysql-bin
+binlog_format              = ROW
+binlog_row_image           = FULL
+binlog_expire_logs_seconds = 864000
+gtid_mode                  = ON
+enforce_gtid_consistency   = ON

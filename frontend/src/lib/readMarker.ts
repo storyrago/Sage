@@ -1,17 +1,19 @@
 // 읽음 처리는 메시지마다 쓰면 안 되므로 스로틀을 두되, 선행 호출만 보내는 방식은
 // 창 안에서 억제된 마지막 호출을 영영 잃는다 — 그 사이 도착한 메시지를 서버가 안읽음으로 되돌린다.
 // 그래서 억제된 호출은 버리지 않고 창이 끝나는 시점에 한 번 보충한다(trailing).
+// 보충은 창 안에서 받은 그 방의 가장 큰 순번으로 보낸다. 서버는 읽은 위치를 앞으로만 옮기므로 순서가 섞여도 안전하다.
 export const MARK_READ_THROTTLE_MS = 1000;
 
 export function createReadMarker(
-  send: (roomId: string) => void,
+  send: (roomId: string, seq: number) => void,
   stillViewing: (roomId: string) => boolean,
 ) {
   let lastSentAt = -Infinity; // 아직 한 번도 보낸 적 없음 — 첫 호출은 항상 창 밖으로 취급
   let pendingTimer: ReturnType<typeof setTimeout> | null = null;
   let pendingRoomId: string | null = null;
+  let pendingSeq = 0;
 
-  const mark = (roomId: string): void => {
+  const mark = (roomId: string, seq: number): void => {
     const now = Date.now();
     if (now - lastSentAt >= MARK_READ_THROTTLE_MS) {
       lastSentAt = now;
@@ -20,13 +22,14 @@ export function createReadMarker(
         pendingTimer = null;
         pendingRoomId = null;
       }
-      send(roomId);
+      send(roomId, seq);
       return;
     }
 
     // 창 안의 호출: 방금 억제된 시점 기준이 아니라 창이 실제로 끝나는 시점에 맞춰 예약한다.
+    pendingSeq = pendingRoomId === roomId ? Math.max(pendingSeq, seq) : seq;
     pendingRoomId = roomId;
-    if (pendingTimer) return; // 이미 예약돼 있으면 방 id만 최신으로 갱신하고 타이머는 재사용
+    if (pendingTimer) return; // 이미 예약돼 있으면 방 id·순번만 최신으로 갱신하고 타이머는 재사용
 
     const delay = MARK_READ_THROTTLE_MS - (now - lastSentAt);
     pendingTimer = setTimeout(() => {
@@ -36,7 +39,7 @@ export function createReadMarker(
       // 창이 끝나는 사이 사용자가 그 방을 떠났다면, 떠난 뒤 도착한 메시지까지 읽음 처리될 수 있어 보내지 않는다.
       if (!stillViewing(targetRoomId)) return;
       lastSentAt = Date.now();
-      send(targetRoomId);
+      send(targetRoomId, pendingSeq);
     }, delay);
   };
 
@@ -58,7 +61,7 @@ export function createReadMarker(
     const targetRoomId = pendingRoomId as string;
     pendingRoomId = null;
     lastSentAt = Date.now();
-    send(targetRoomId);
+    send(targetRoomId, pendingSeq);
   };
 
   return { mark, cancel, flush };
