@@ -81,7 +81,7 @@
 
 ## System Architecture
 
-<img width="741" height="493" alt="image" src="https://github.com/user-attachments/assets/f5cc56f2-f2db-4328-bc64-c915292ce310" />
+<img width="100%" alt="System Architecture" src="docs/architecture/system-architecture.png" />
 
 
 ---
